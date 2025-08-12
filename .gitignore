@@ -1,0 +1,6 @@
+/models/exec
+/models/demog/exec
+*.knit.md
+*.html
+/export
+/cache
