@@ -1,0 +1,698 @@
+---
+title: "CRDC Arrest Rate Sample Analysis"
+format: html
+knitr:
+  opts_chunk:
+    message: false
+    warning: false
+    error: false
+    echo: false
+execute:
+  echo: false
+  warning: false
+  message: false
+  error: false
+params:
+  year_full: "2021-22"
+  target_name: "y2122"  # Default suffix, will be
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+
+library(ggplot2)
+library(dplyr)
+options(scipen = 9)
+options(width = 120)
+
+pretty_count <- function(x) {
+  x <- round(x, digits = 0)
+  x <- prettyNum(x, big.mark = ",")
+  return(x)
+}
+
+
+pretty_per <- function (x, ndigit = 1)
+{
+    if (any(x >= 100) & !all(is.na(x))) {
+        message("Values over 100 found, did you mean to use proportions?")
+    }
+    x <- format(round(x, digits = ndigit + 2) * 100, nsmall = ndigit)
+    x <- paste0(x, "%")
+    x[x == "NA%"] <- " - "
+    x <- trimws(x)
+    return(x)
+}
+
+
+# Add colors
+color_fill_values <- c("WH" = "#c92d0e", "BL" = "#020684",
+                        "AM" = "#ff8f43",
+                       "TOTAL" = "#909090ff", "HI" = "#0791b6")
+color_fill_values2 <- c("White" = "#c92d0e", "Black" = "#020684",
+                        "Total" = "#909090ff", "Hispanic" = "#0791b6",
+                        "Amer. Ind." = "#ff8f43")
+
+
+# model_data <- targets::tar_load(model_data)
+# schuniverse <- targets::tar_load(schuniverse)
+# ccd_dist_geo <- targets::tar_load(ccd_dist_geo)
+
+suffix <- params$target_name
+# Load the targets with the correct suffix
+sch_ref_arr <- targets::tar_read_raw(paste0("model_data_", suffix))
+#schuniverse <- targets::tar_read_raw(paste0("schuniverse_", suffix))
+ccd_dist_geo <- targets::tar_read_raw(paste0("ccd_dist_geo_", suffix))
+
+# TODO: Join CRDC and CCD data here
+sch_ref_arr <- create_school_universe(crdc = sch_ref_arr, ccd = ccd_dist_geo)
+
+# Get correct grade levels
+moddf <- sch_ref_arr |> filter(highest_grade_offered >= 7)
+
+# TODO:
+# Compare moddf and schrefarr
+
+
+#sch_referrals_long <- model_data
+#sch_universe <- schuniverse
+# sch_referrals_long <- params$model_data
+# sch_universe <- params$schuniverse
+# sch_ref_arr <- left_join(sch_universe,
+#                                 sch_referrals_long,
+#                                 by = join_by(COMBOKEY))
+# rm(sch_referrals_long, sch_universe)
+
+dist_ref_arr <- sch_ref_arr %>%
+  group_by(YEAR,LEA_STATE, LEAID, RACE, SEX) %>%
+  summarize(ARRESTS = sum(ARRESTS),
+            REFERRALS = sum(REFERRALS),
+            stu_enroll = sum(stu_enroll),
+            jj_count = sum(JJ == "Yes")) |>
+  mutate(arrest_rate = ARRESTS / (stu_enroll / 1000),
+         referral_rate = REFERRALS / (stu_enroll / 1000)) %>%
+  group_by(YEAR, LEA_STATE, LEAID) |>
+  mutate(total_enroll = sum(stu_enroll[RACE != "TOTAL" &
+                                         SEX != "TOTAL"]))
+
+
+# Used for 2017-18 to drop NYC but we won't do that for this year
+#dist_ref_arr <- dist_ref_arr[dist_ref_arr$LEAID != "3620580",]
+state_map <- tigris::states(cb  = TRUE, resolution = "20m") |> tigris::shift_geometry()
+
+
+```
+
+## Overview for School Year `r params$year_full`
+
+```{r}
+#| label: nat_summary
+#| echo: false
+#| warning: false
+#| message: false
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    summarize(
+        all_lea_count = n_distinct(LEAID),
+        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) -> nat_totals
+
+nat_arrest_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
+nat_referral_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
+nat_totals
+# FIXME: Report the rates also below as Number Needed to Harm (NNH)
+```
+
+In `r pretty_count(nat_totals$all_lea_count)` LEAs with data in the `r first(dist_ref_arr$YEAR)`
+CRDC data. Of these, `r pretty_count(nat_totals$lea_any_arr)` reported any arrests, or
+`r pretty_per(nat_totals$lea_any_arr / nat_totals$all_lea_count)` of all
+reporting LEAs.
+
+There were `r pretty_count(nat_totals$enrollment)` students enrolled in the CRDC sample. Of these,
+`r pretty_count(nat_totals$referrals)` unique students were referred to law enforcement and `r pretty_count(nat_totals$arrests)`
+were arrested. This equates to a rate of `r round(nat_totals$referrals / (nat_totals$enrollment / 1000), 2)` referrals per 1,000 students and
+`r round(nat_totals$arrests / (nat_totals$enrollment / 1000), 2)` arrests
+per 1,000 students.
+
+
+### Geographic variation
+
+```{r}
+#| label: state_map
+#| echo: false
+#| warning: false
+#| message: false
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    group_by(LEA_STATE) |>
+    summarize(
+        all_lea_count = n_distinct(LEAID),
+        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) |>
+    mutate(arrest_rate = arrests / (enrollment / 1000)) |>
+    mutate(arrest_nnh = enrollment / arrests) -> state_totals
+
+state_map2 <- inner_join(state_map, state_totals, by = join_by(STUSPS == LEA_STATE))
+
+ggplot(data = state_map2, aes( fill = arrest_rate)) +
+  geom_sf() +
+  geom_sf_label(aes(label = round(arrest_rate, 1))) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1) +
+  labs(title = "Arrests per 1,000 for all students by state") +
+  theme_void()
+
+rm(state_map2)
+```
+
+
+
+```{r}
+#| label: state_map_arrests
+#| echo: false
+#| warning: false
+#| message: false
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    group_by(LEA_STATE) |>
+    summarize(
+        all_lea_count = n_distinct(LEAID),
+        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) |>
+    mutate(arrest_rate = arrests / (enrollment / 1000)) |>
+    mutate(arrest_nnh = enrollment / arrests) -> state_totals
+
+state_map2 <- inner_join(state_map, state_totals, by = join_by(STUSPS == LEA_STATE))
+
+ggplot(data = state_map2, aes( fill = arrests)) +
+  geom_sf() +
+  geom_sf_label(aes(label = civilytics::pretty_count(arrests))) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1) +
+  labs(title = "Students arrested at school by state") +
+  theme_void()
+
+
+```
+
+
+```{r}
+#| label: state_map_arrestsnnh
+#| echo: false
+#| warning: false
+#| message: false
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    group_by(LEA_STATE) |>
+    summarize(
+        all_lea_count = n_distinct(LEAID),
+        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) |>
+    mutate(arrest_rate = arrests / (enrollment / 1000)) |>
+    mutate(arrest_nnh = enrollment / arrests) -> state_totals
+
+state_map2 <- inner_join(state_map, state_totals, by = join_by(STUSPS == LEA_STATE))
+
+ggplot(data = state_map2, aes( fill = arrest_nnh)) +
+  geom_sf() +
+  geom_sf_label(aes(label = civilytics::pretty_count(round(arrest_nnh, 0)))) +
+  scale_fill_distiller(palette = "YlOrRd", direction = -1,
+  breaks = c(50000, 8000, 3000, 1000, 500),
+  trans = "log", labels = scales::comma) +
+  labs(title = "Students per arrested student by state", fill = "NNH") +
+  theme_void() +
+  theme(legend.position.inside = c(0.1, 0.8), legend.position = "inside")
+
+```
+
+### Variation by student group
+
+```{r}
+#| label: nat_sg_summary
+#| #| echo: false
+#| warning: false
+#| message: false
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE != "TOTAL" & SEX != "TOTAL") |>
+    group_by(RACE, SEX) |>
+    summarize(
+        lea_count = n_distinct(LEAID),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) |>
+    mutate(arrest_rate = arrests / (enrollment / 1000),
+            referral_rate = referrals / (enrollment/1000)) -> nat_sg_totals
+
+nat_sg_totals |>
+    filter(RACE %in% c("AM", "WH", "HI", "BL"))
+
+```
+
+Another way to characterize the arrest rate is to calculate the Number Needed
+to Harm (NNH). This is used in epidemiology to make it easier to compare the
+relative risk of low-incident rate health risks and is considered more intuitive
+than presenting rates per 1,000.
+
+Below, the NNH for student race/sex combinations is presented in a bar chart -
+the lower the NNH, the higher the arrest rate.
+
+```{r}
+#| label: sg_summary_arrestNNH
+#| fig-width: 9
+#| warning: false
+#| message: false
+
+ggplot(nat_sg_totals |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
+  aes(x = crdc_race_recode(RACE), y = 1000 / arrest_rate,
+  fill = crdc_race_recode(RACE)) +
+    scale_fill_manual(values = color_fill_values2) +
+  geom_col() +
+  geom_text(aes(label = civilytics::pretty_count(round(1000/arrest_rate,0))),
+              vjust = -0.25) +
+  facet_wrap(~SEX) +
+  civilytics::theme_civilytics(font_size = 14) +
+  labs(x = "", y = "NNH (Arrests)", fill = "Race:") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
+                    labels = scales::comma) +
+  theme(legend.position = "bottom", axis.ticks.x = element_blank())
+
+```
+
+
+```{r}
+#| label: sg_summary_referralNNH
+#| fig-width: 9
+#| warning: false
+#| message: false
+
+ggplot(nat_sg_totals |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
+  aes(x = crdc_race_recode(RACE), y = 1000 / referral_rate,
+  fill = crdc_race_recode(RACE)) +
+    scale_fill_manual(values = color_fill_values2) +
+  geom_col() +
+  geom_text(aes(label = round(1000/referral_rate, 0))) +
+  facet_wrap(~SEX) +
+  civilytics::theme_civilytics(font_size = 14) +
+  labs(x = "", y = "NNH (Referrals)", fill = "Race:") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
+                    labels = scales::comma) +
+  theme(legend.position = "bottom", axis.ticks.x = element_blank())
+
+```
+
+## Distribution of Arrests by District Size
+
+```{r}
+#| label: arrests_by_size
+#| echo: false
+#| warning: false
+#| message: false
+thresh <- c(0, 1000, 10000, 20000,Inf)
+labs <- c("0-999", "1000-9,999", "10,000-19,999","20,000+")
+#
+# # Estimate expected rate
+ dist_ref_arr %>%
+   ungroup() %>%
+     filter(RACE == "TOTAL" & SEX == "TOTAL") %>%
+   mutate(popcut = cut(stu_enroll,
+                       breaks = thresh,
+                       labels = labs,
+                       include.lowest= TRUE)) %>%
+   group_by(popcut) %>%
+ mutate(expec_arrest = pbinom(1, stu_enroll, nat_arrest_rate/1000,
+                              lower.tail = FALSE)) %>%
+   summarize(dists = n(),
+             dists_w_arrests = sum(ARRESTS>0),
+             expec_distw_arrests = round(sum(expec_arrest),1)) %>%
+   mutate(dist_w_arrest_per = pretty_per(dists_w_arrests/dists),
+          expect_w_arrest_per = pretty_per(expec_distw_arrests/dists))
+```
+
+
+## Arrest Concentration Plot - National
+
+
+```{r}
+#| label: arrests_concentration_plot
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 8
+total_enroll_national <- sum(dist_ref_arr$total_enroll[
+  dist_ref_arr$RACE == "TOTAL" & dist_ref_arr$SEX == "TOTAL"
+])
+dist_ref_arr %>%
+  ungroup %>%
+  filter(ARRESTS > 0) %>%
+  filter(RACE == "TOTAL" & SEX == "TOTAL") %>%
+  arrange(desc(stu_enroll)) %>%
+  mutate(total_arr = sum(ARRESTS)) %>%
+  mutate(cum_sum = cumsum(ARRESTS)) %>%
+  mutate(cum_sum_per = cum_sum / total_arr) %>%
+  mutate(dist_per = stu_enroll / total_enroll_national) %>%
+  mutate(dist_per_cum = cumsum(dist_per)) %>%
+  ggplot(aes(x = dist_per_cum, y = cum_sum_per)) +
+  geom_line() +
+  geom_hline(yintercept = 0.5) +
+  scale_x_continuous("% of national student population",
+                     labels = scales::percent) +
+  scale_y_continuous("% of all arrests", labels = scales::percent) +
+  theme_minimal(base_size = 12) +
+  labs(title = "Share of total arrests by cumulative district enrollment",
+       subtitle = "Horizontal line at 50% of all arrests") +
+  theme(axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
+```
+
+
+
+```{r}
+#| label: arrests_concentration_by_sg
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 8
+dist_ref_arr %>%
+    filter(RACE != "TOTAL" & SEX  == "TOTAL") %>%
+    filter(RACE %in% c("BL", "WH", "HI", "AM")) |>
+  group_by(RACE) %>%
+  arrange(RACE, desc(ARRESTS)) %>%
+  mutate(total_arr = sum(ARRESTS),
+         total_pop = sum(stu_enroll)) %>%
+  filter(ARRESTS > 0) %>%
+  mutate(cum_sum = cumsum(ARRESTS)) %>%
+  mutate(cum_sum_per = cum_sum / total_arr) %>%
+  mutate(dist_per = stu_enroll / total_pop) %>%
+  mutate(dist_per_cum = cumsum(dist_per)) %>%
+  ggplot(aes(x = dist_per_cum, y = cum_sum_per, color = RACE,
+             group = RACE)) +
+  geom_line() +
+  geom_hline(yintercept = 0.5) +
+  scale_x_continuous("% of national student population",
+                     labels = scales::percent) +
+  scale_y_continuous("% of all arrests", labels = scales::percent) +
+ theme_minimal(base_size =12) +
+  labs(title = "Share of cumulative arrests by student population",
+       subtitle = "Horizontal line at 50% of all arrests",
+       color = "Race/Eth.") +
+  theme(axis.ticks.x = element_blank(),
+        panel.grid = element_blank()) +
+  theme(legend.position = "inside",
+    legend.position.inside = c(0.8, 0.2))
+```
+
+
+## District Tables
+
+
+### Counts
+
+#### Overall
+
+```{r}
+#| label: dist_top20
+#| echo: false
+#| warning: false
+#| message: false
+
+# Need to get LEA name, state, enrollment
+
+#sch_dir_info <- targets::tar_read("schuniverse_2122")
+#sch_dir_info <- schuniverse
+
+# dist_jj_count <- sch_dir_info |>
+#     group_by(LEAID) |>
+#     summarize(jj_count = sum(JJ == "Yes"))
+
+# Collapse down by district, count JJ
+
+#dist_ccd <- targets::tar_read("ccd_dist_geo_2122")
+dist_ccd <- ccd_dist_geo
+
+dist_ccd <- dist_ccd |>
+    select(leaid, year, lea_name, enrollment, number_of_schools,
+    highest_grade_offered, agency_type, latitude, longitude)
+#civilytics::match_test(dist_ccd$leaid, dist_ref_arr$LEAID)
+
+tab_df <- inner_join(dist_ref_arr, dist_ccd, by = join_by(LEAID == leaid))
+#tab_df <- inner_join(tab_df, dist_jj_count)
+
+tab_df <- tab_df |>
+  rename(crdc_enroll = stu_enroll,
+            ccd_enroll = enrollment)
+
+tab_df |> filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    ungroup() |>
+    arrange(desc(ARRESTS)) |>
+    select(lea_name, LEA_STATE, ccd_enroll, ARRESTS, crdc_enroll, arrest_rate, highest_grade_offered, jj_count) |>
+
+    slice_head(n = 20)
+
+
+```
+
+#### By group
+
+```{r}
+#| label: dist_top20_sorted
+#| echo: false
+#| warning: false
+#| message: false
+
+library(DT)
+
+arrests_by_group <- tab_df |>
+  filter(RACE %in% c("WH", "BL", "AM", "HI")) |>  # Keep TOTAL in SEX but not RACE
+  group_by(RACE, SEX) |>
+  slice_max(order_by = ARRESTS, n = 20) |>
+  ungroup() |>
+  select(RACE, SEX, lea_name, LEA_STATE, ARRESTS, arrest_rate, ccd_enroll, crdc_enroll)
+
+# Create interactive table
+datatable(arrests_by_group,
+  filter = list(
+    position = "top",
+    clear = FALSE,
+    list(
+      position = "top",
+      columns = c(0, 1) # Only RACE and SEX columns filterable
+    )
+  ),
+  options = list(
+    pageLength = 20,
+    autoWidth = TRUE,
+    order = list(list(4, 'desc')) # Sort by ARRESTS column
+  )
+)
+```
+
+
+### Rates
+
+#### Overall
+
+```{r}
+#| label: dist_top20_by_rate
+tab_df |> filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    ungroup() |>
+    arrange(desc(arrest_rate)) |>
+    select(lea_name, LEA_STATE, ccd_enroll, ARRESTS, crdc_enroll, arrest_rate, highest_grade_offered, jj_count) |>
+    slice_head(n = 20)
+
+```
+
+
+#### By Group
+
+```{r}
+#| label: dist_top20_rates_sorted
+#| echo: false
+#| warning: false
+#| message: false
+
+arrestrates_by_group <- tab_df |>
+  filter(RACE %in% c("WH", "BL", "AM", "HI")) |>  # Keep TOTAL in SEX but not RACE
+  group_by(RACE, SEX) |>
+  slice_max(order_by = arrest_rate, n = 20) |>
+  ungroup() |>
+  select(RACE, SEX, lea_name, LEA_STATE, arrest_rate, ARRESTS, ccd_enroll, crdc_enroll)
+
+# Create interactive table
+datatable(arrestrates_by_group,
+  filter = list(
+    position = "top",
+    clear = FALSE,
+    list(
+      position = "top",
+      columns = c(0, 1) # Only RACE and SEX columns filterable
+    )
+  ),
+  options = list(
+    pageLength = 20,
+    autoWidth = TRUE,
+    order = list(list(4, 'desc')) # Sort by ARRESTS column
+  )
+)
+```
+
+
+## Coefficient of Variation by Student Group
+
+
+```{r}
+#| label: cov_plot_prep
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 9
+
+# For clarity, let's look at total district size and then cut it and show CV for
+# overall district size, and then for Black, White, and Hispanic students
+
+dist_ref_arr %>%
+  group_by(LEA_STATE, LEAID) %>%
+  filter(stu_enroll > 0) |>
+  mutate(total_enroll = sum(stu_enroll[SEX == "TOTAL" & RACE == "TOTAL"]),
+         total_arrests = ARRESTS[SEX == "TOTAL" & RACE == "TOTAL"],
+         total_referrals = REFERRALS[SEX == "TOTAL" & RACE == "TOTAL"]
+  ) -> tabdf
+
+total_enroll_quint <- quantile(tabdf$total_enroll[tabdf$SEX == "TOTAL" & tabdf$RACE == "TOTAL"],
+         probs = seq(0, 1,0.2))
+
+quint_labels <- c(
+  paste0(format(total_enroll_quint[1], big.mark = ","), " - ",
+         format(total_enroll_quint[2] - 1, big.mark = ",")),
+  paste0(format(total_enroll_quint[2], big.mark = ","), " - ",
+         format(total_enroll_quint[3] - 1, big.mark = ",")),
+  paste0(format(total_enroll_quint[3], big.mark = ","), " - ",
+         format(total_enroll_quint[4] - 1, big.mark = ",")),
+  paste0(format(total_enroll_quint[4], big.mark = ","), " - ",
+         format(total_enroll_quint[5] - 1, big.mark = ",")),
+  paste0(">", format(total_enroll_quint[5], big.mark = ","))
+)
+# cut by enrollment quintiles
+
+plotdf <- tabdf %>%
+    ungroup() |>
+  mutate(size = cut(total_enroll, total_enroll_quint, labels = quint_labels,
+      ordered_result = TRUE)
+  ) %>%
+  #mutate(size = as.numeric(size)) %>%
+  filter(SEX == "TOTAL") %>%
+  filter(!is.na(size)) %>%
+  group_by(size, RACE) %>%
+  summarize(count = n(),
+            all_enroll = sum(total_enroll),
+            mean_arr_rate = mean(arrest_rate, na.rm =TRUE),
+            sd_arr_rate = sd(arrest_rate, na.rm = TRUE),
+            mean_ref_rate = mean(referral_rate, na.rm = TRUE),
+            sd_ref_rate = sd(referral_rate, na.rm = TRUE)) %>%
+  mutate(cov_arrests = sd_arr_rate / mean_arr_rate * 100,
+         cov_referrals = sd_ref_rate / mean_ref_rate * 100)
+
+plotdf$race_lab <- crdc_race_recode(plotdf$RACE)
+
+
+```
+
+
+```{r}
+#| label: cov_plot_total
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 9
+
+ggplot(plotdf[plotdf$RACE== "TOTAL",],
+       aes(x = size, y = cov_arrests/100, color = race_lab, group = race_lab)) +
+  geom_smooth(method = "loess", show.legend = FALSE) +
+  geom_point(size = 4) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_y_continuous(labels = scales::label_percent(big.mark = ","),
+  limits = c(0, 30)) +
+  civilytics::theme_civilytics(font_size = 14) +
+  theme(legend.position = "bottom",
+  axis.title.x = element_text(margin = margin(t = 15))) +
+  labs(x = "Total Enrollment Quintile",
+      color = "",
+       title = "CV for Arrest Rates by Total Enrollment",
+       y = "CV (% scale)")
+
+```
+
+```{r}
+#| label: cov_plot
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 9
+
+
+
+p1 <- ggplot(plotdf[plotdf$RACE %in% c("AM","BL", "WH", "TOTAL", "HI"),],
+       aes(x = size, y = cov_arrests/100, color = race_lab, group = race_lab)) +
+  geom_smooth(method = "loess", show.legend = FALSE) +
+  geom_point(size = 4) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_y_continuous(labels = scales::label_percent(big.mark = ","),
+  limits = c(0, 30)) +
+  civilytics::theme_civilytics(font_size = 14) +
+  theme(legend.position = "bottom",
+  axis.title.x = element_text(margin = margin(t = 15))) +
+  labs(x = "Total Enrollment Quintile",
+       title = "Arrests",
+       y = "CV (% scale)",
+       color = "Race / Ethnicity")
+
+  # #theme(legend.position = c(0.8, 0.7))+
+  # labs(x = "Total Enrollment Quantile",
+  #      y = "CV (% scale)",
+  #      title = "Figure 2: Coefficient of Variation for Arrest Rates by District Population",
+  #      color = "Race")
+
+
+p2 <- ggplot(plotdf[plotdf$RACE %in% c("AM", "BL", "WH", "TOTAL", "HI"),],
+       aes(x = size, y = cov_referrals/100, color = race_lab, group = race_lab)) +
+  geom_smooth(method = "loess", show.legend = FALSE) +
+  geom_point(size = 4) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_y_continuous(labels = scales::label_percent(big.mark = ","), limits = c(0, 25)) +
+  civilytics::theme_civilytics(font_size = 14) +
+  theme(legend.position = "bottom",
+  axis.title.x = element_text(margin = margin(t = 15)))  +
+  labs(x = "Total Enrollment Quintile",
+       title = "Referrals",
+       y = "",
+       color = "Race / Ethnicity")
+
+# +
+#   labs(x = "Total Enrollment Quantile",
+#        y = "CV (% scale)",
+#        color = "Race")
+
+
+library(patchwork)
+
+pw <- p1 + p2
+
+
+pw + plot_annotation(title = "Coefficient of Variation by District Total Enrollment") +
+  plot_layout(guides = "collect") &
+  civilytics::theme_civilytics(font_size = 12) +
+  theme(legend.position = "bottom")
+
+```

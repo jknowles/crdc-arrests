@@ -34,7 +34,7 @@ options(brms.threads = 2)
 options(mc.cores = 12)
 DEV_MODE <- TRUE
 
-enroll_cap <- ifelse(DEV_MODE, 2000, 30)
+enroll_cap <- ifelse(DEV_MODE, 5000, 30)
 
 
 # CRDC data paths
@@ -118,6 +118,13 @@ list(
         model_data_y1718,
         model_data_y1516
     )
+    ),
+    tar_target(combined_sch_data,
+      bind_rows(
+        ccd_sch_geo_y2122,
+        ccd_sch_geo_y1718,
+        ccd_sch_geo_y1516
+      )
     ),
   # Render EDA document for combined data
   tarchetypes::tar_render(

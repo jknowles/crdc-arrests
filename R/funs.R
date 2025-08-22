@@ -2,6 +2,14 @@
 
 # CRDC collapse
 
+create_school_universe <- function(crdc, ccd, year) {
+  ccd$COMBOKEY <- stringr::str_pad(ccd$ncessch_num, width = 12,
+                                  side = "left", pad = "0")
+  ccd <- ccd |> select(COMBOKEY, highest_grade_offered, lowest_grade_offered, latitude, longitude, enrollment)
+  outdf <- inner_join(crdc, ccd, by = join_by(COMBOKEY))
+  return(outdf)
+}
+
 generate_subset_data <- function(data, race_val, sex_val) {
   subset_data <- data %>%
     filter(RACE == race_val, SEX == sex_val)
