@@ -2,7 +2,7 @@
 
 # CRDC collapse
 
-create_school_universe <- function(crdc, ccd, year) {
+intersect_crdc_ccd <- function(crdc, ccd) {
   ccd$COMBOKEY <- stringr::str_pad(ccd$ncessch_num, width = 12,
                                   side = "left", pad = "0")
   ccd <- ccd |> select(COMBOKEY, highest_grade_offered, lowest_grade_offered, latitude, longitude, enrollment)
@@ -40,7 +40,7 @@ generate_subset_data <- function(data, race_val, sex_val) {
 }
 
 # Function for stantargets that generates data for each demographic subset
-generate_demographic_data <- function(data, n = 1L) {
+generate_demographic_data <- function(formula, data, n = 1L, threading = 2L) {
   # Define the race/sex combinations
   race_vals <- c("WH", "BL", "AM", "HI")
   sex_vals <- c("M", "F")
@@ -74,34 +74,22 @@ generate_demographic_data <- function(data, n = 1L) {
     subset_data$LEAID <- as.factor(subset_data$LEAID)
   }
 
-  if (dplyr::n_distinct(subset_data$YEAR) == 1) {
-
-  stan_list <- brms::make_standata(
-    ARRESTS | trials(stu_enroll) ~ 1 +  referral_rate + total_referrals + (1|LEAID),
+    stan_list <- brms::make_standata(
+    formula,
     family = "binomial",
     data = subset_data,
-    threads = brms::threading(2)
+    threads = brms::threading(4)
   )
-
-  } else {
-
-  stan_list <- brms::make_standata(
-    ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEAID),
-    family = "binomial",
-    data = subset_data,
-    threads = brms::threading(2)
-  )
-
-  }
-
-
   # Add metadata for tracking which demographic group this is
-  stan_list$.join_data <- list(race = race_val, sex = sex_val)
+  stan_list$.join_data <- paste(race_val, sex_val, sep = "_")
 
   return(stan_list)
 }
 
 crdc_lea_collapse <- function(combined_data) {
+
+  combined_data <- combined_data |> filter(highest_grade_offered >= 7)
+
   combined_data |>
   select(LEAID, LEA_NAME, YEAR) |>
   distinct_all() |>
@@ -157,7 +145,7 @@ scaled_rate <- function(numerator, denominator, scale_factor) {
   result
 }
 
-restrict_model_data <- function(data, enrollment_cap = 500, year = NULL) {
+restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, year = NULL) {
 
   if (is.null(year)) {
     data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI", "TOTAL"))
@@ -166,6 +154,21 @@ restrict_model_data <- function(data, enrollment_cap = 500, year = NULL) {
     data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI", "TOTAL")) |>
                      filter(YEAR == year) |>
                     filter(total_enroll >= enrollment_cap)
+  }
+
+  # Global filters
+  data <- data |> filter(LEA_STATE != "PR")
+
+  if (dev_mode) {
+      sampled_leaids <- data |>
+      select(LEA_STATE, LEAID) |>
+      distinct() |>
+      group_by(LEA_STATE) |>
+      slice_sample(n = 15) |>  # Sample up to 10, or all if fewer than 10
+      pull(LEAID)
+
+    # Filter to only include rows with the sampled LEAIDs
+    data <- data |> filter(LEAID %in% sampled_leaids)
   }
 
   # Shuffle data for better performance parallelizing
@@ -187,8 +190,20 @@ make_arrest_priors <- function() {
 
   wi_priors
 }
-
-# reshape referrals
+#' Zero out missing values
+#'
+#' @param x a numeric vector with missing values
+#'
+#' @return a numeric vector with missing values replaced by 0
+#' @export
+#'
+#' @examples
+#' na_zero(1:10)
+#' na_zero(c(NA, NA, 2:10))
+na_zero <- function(x) {
+  x[is.na(x)] <- 0
+  return(x)
+}
 
 
 reshape_le_rate_long <- function(sch_referrals, year = "2021-22") {
@@ -197,9 +212,9 @@ reshape_le_rate_long <- function(sch_referrals, year = "2021-22") {
       select(COMBOKEY:SEX, ARRESTS:stu_enroll)
 
     sch_referrals_long <- sch_referrals %>%
-    mutate(stu_enroll = civilytics::na_zero(stu_enroll),
-          ARRESTS = civilytics::na_zero(ARRESTS),
-          REFERRALS = civilytics::na_zero(REFERRALS))  %>%
+    mutate(stu_enroll = na_zero(stu_enroll),
+          ARRESTS = na_zero(ARRESTS),
+          REFERRALS = na_zero(REFERRALS))  %>%
     mutate(arrest_rate = scaled_rate(ARRESTS, stu_enroll, scale_factor = 1000),
           referral_rate = scaled_rate(REFERRALS, stu_enroll, scale_factor = 1000))
 

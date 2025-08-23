@@ -5,3 +5,5 @@
 /export
 /cache
 *.xlsx
+/tmp
+.env

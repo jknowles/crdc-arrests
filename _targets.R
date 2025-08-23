@@ -13,12 +13,24 @@ library(tibble)
 # You may set up `mcmc` to have workers > 1, knowing that each worker will
 # consume 8 CPU threads.
 
+CPU_CAPACITY <- 8
+NTHREADS <- 4
+NCHAINS <- 4
+N_PAR_CHAINS <- CPU_CAPACITY %/% NTHREADS
+
+if (N_PAR_CHAINS > NCHAINS) {
+  MCMC_WORKERS <- N_PAR_CHAINS %/% NCHAINS
+  N_PAR_CHAINS <- NCHAINS
+} else {
+  MCMC_WORKERS <- 1
+}
+
 tar_option_set(
   packages = c("tibble", "brms", "dplyr", "knitr", "tidyr", "qs2", "quarto"), # packages that your targets need to run
   #error = "null"
    controller = crew::crew_controller_group(
-    crew::crew_controller_local(name = "main", workers = 12L, garbage_collection = TRUE),   # For regular targets
-    crew::crew_controller_local(name = "mcmc", workers = 1L, garbage_collection = TRUE) # FOR MCMC models
+    crew::crew_controller_local(name = "main", workers = CPU_CAPACITY, garbage_collection = TRUE),   # For regular targets
+    crew::crew_controller_local(name = "mcmc", workers = MCMC_WORKERS, garbage_collection = TRUE) # FOR MCMC models
   ),
   storage="main",
   retrieval = "main",
@@ -30,13 +42,31 @@ tar_option_set(
 
 
 
-options(brms.threads = 2)
-options(mc.cores = 12)
-DEV_MODE <- TRUE
+options(brms.threads = NTHREADS)
+options(mc.cores = CPU_CAPACITY)
 
+DEV_MODE <- TRUE
 enroll_cap <- ifelse(DEV_MODE, 5000, 30)
 
-
+if (Sys.info()["sysname"] == "Linux") {
+  # CRDC data paths
+crdc_data <- tibble(
+  year = c("21-22", "17-18", "15-16"),
+  year_full = c("2021-22", "2017-18", "2015-16"),
+  target_name = c("y2122", "y1718", "y1516"),
+  ccd_year = c(2021, 2017, 2015),  # CCD years corresponding to CRDC years
+  enrollment_path = c(
+    "tmp/data/2021-22-crdc-data/SCH/Enrollment.csv",
+    "tmp/data/2017-18-crdc-data-corrected-05242021/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Enrollment.csv",
+    "tmp/data/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv"
+  ),
+  le_path = c(
+    "tmp/data/2021-22-crdc-data/SCH/Referrals and Arrests.csv",
+    "tmp/data/2017-18-crdc-data-corrected-05242021/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Referrals and Arrests.csv",
+    "tmp/data/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv"
+  )
+)
+} else {
 # CRDC data paths
 crdc_data <- tibble(
   year = c("21-22", "17-18", "15-16"),
@@ -54,6 +84,21 @@ crdc_data <- tibble(
     "X:/datasets/ED/CRDC/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv"
   )
 )
+
+
+}
+
+# Declare models
+nat_m1_model_path <- fs::file_create("models/nat_m1.stan")
+nat_m2_model_path <- fs::file_create("models/nat_m2.stan")
+sg_m1_model_path <- fs::file_create("models/demog/sg_m1.stan")
+sg_m2_model_path <- fs::file_create("models/demog/sg_m2.stan")
+sg_m3_model_path <- fs::file_create("models/demog/sg_m3.stan")
+sg_m4_model_path <- fs::file_create("models/demog/sg_m4.stan")
+sg_m5_model_path <- fs::file_create("models/demog/sg_m5.stan")
+
+fs::dir_create("models/exec")
+fs::dir_create("models/demog/exec")
 
 future::plan(future.callr::callr)
 tar_source("R/funs.R")
@@ -99,18 +144,19 @@ list(
       tar_target(combo, inner_join(referrals, schenrollraw)),
       tar_target(fullref_data, reshape_le_rate_long(combo, year = year)),
       tar_target(validate_mod_data, validate_le(fullref_data, year = year)),
-      tar_target(model_data, left_join(schuniverse,
+      tar_target(full_crdc_data, left_join(schuniverse,
                                 fullref_data,
-                                by = join_by(COMBOKEY)))
+                                by = join_by(COMBOKEY))),
+      tar_target(model_data, intersect_crdc_ccd(crdc = full_crdc_data, ccd = ccd_sch_geo))
   ),
   # Render the annual report for each year using tar_quarto_rep
-  tarchetypes::tar_render_rep(
-      name = annual_report,
-      path = "annual_descriptives_template.qmd",
-      params = crdc_data |> select(year_full, target_name) |>
-          mutate(output_file = paste0("annual_descriptives_", year_full, ".html")),
-      cue = tar_cue(mode = "never")
-    ),
+  # tarchetypes::tar_render_rep(
+  #     name = annual_report,
+  #     path = "annual_descriptives_template.qmd",
+  #     params = crdc_data |> select(year_full, target_name) |>
+  #         mutate(output_file = paste0("annual_descriptives_", year_full, ".html")),
+  #     cue = tar_cue(mode = "never")
+  #   ),
     # Combine model data from all years
   tar_target(combined_model_data,
     bind_rows(
@@ -126,125 +172,132 @@ list(
         ccd_sch_geo_y1516
       )
     ),
-  # Render EDA document for combined data
-  tarchetypes::tar_render(
-    name = combined_eda,
-    path = "combined_eda.qmd",
-    output_file = "crdc_combined_three_year_eda_report.html"
-  ),
+  # # Render EDA document for combined data
+  # tarchetypes::tar_render(
+  #   name = combined_eda,
+  #   path = "combined_eda.qmd",
+  #   output_file = "crdc_combined_three_year_eda_report.html"
+  # ),
   # Prep combined data for modeling
   tar_target(
     three_year_data, restrict_model_data(crdc_lea_collapse(combined_model_data),
-                      enrollment_cap = enroll_cap)
+                      enrollment_cap = enroll_cap, dev_mode = DEV_MODE)
   ),
   # Prep most recent year of data for modeling
     tar_target(
     recent_data, restrict_model_data(crdc_lea_collapse(combined_model_data),
-                      enrollment_cap = enroll_cap, year = "21-22")
+                      enrollment_cap = enroll_cap, year = "21-22", dev_mode = DEV_MODE )
   ),
 
   # Define stan model files using BRMS to create the stan code
-  tar_target(
-      int_yr_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEAID),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ), "models/int_yr_only.stan")
-      },
-      format = "file"
-    ),
-  tar_target(
-      int_yr_group_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + (1|LEAID),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ), "models/int_yr_group.stan")
-      },
-      format = "file"
-    ),
-tar_target(
-      int_yr_group_refrate_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + (1|LEAID),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ), "models/int_yr_group_refrate.stan")
-      },
-      format = "file"
-    ),
-tar_target(
-      int_yr_group_refrate_totrefs_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1|LEAID),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ), "models/int_yr_group_refrate_totrefs.stan")
-      },
-      format = "file"
-    ),
+  # tar_target(
+  #     int_yr_mod,
+  #     {
+  #       writeLines(brms::make_stancode(
+  #         ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEAID) + (1|LEA_STATE),
+  #         family = "binomial",
+  #         data   = three_year_data,
+  #         threads = brms::threading(NTHREADS),
+  #         prior = make_arrest_priors()
+  #       ), "models/int_yr_only.stan")
+  #     },
+  #     format = "file"
+  #   ),
+#   tar_target(
+#       int_yr_group_mod,
+#       {
+#         writeLines(brms::make_stancode(
+#           ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + (1|LEAID),
+#           family = "binomial",
+#           data   = three_year_data,
+#           threads = brms::threading(NTHREADS),
+#           prior = make_arrest_priors()
+#         ), "models/int_yr_group.stan")
+#       },
+#       format = "file"
+#     ),
+# tar_target(
+#       int_yr_group_refrate_mod,
+#       {
+#         writeLines(brms::make_stancode(
+#           ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + (1|LEAID),
+#           family = "binomial",
+#           data   = three_year_data,
+#           threads = brms::threading(NTHREADS),
+#           prior = make_arrest_priors()
+#         ), "models/int_yr_group_refrate.stan")
+#       },
+#       format = "file"
+#     ),
 
-    tar_target(
-      int_only_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + (1|LEAID),
+  tar_target(
+    nat_m1_model_path_target,
+    nat_m1_model_path,
+    format = "file"
+  ),
+
+  tar_target(
+    nat_m2_model_path_target,
+    nat_m2_model_path,
+    format = "file"
+  ),
+
+
+tar_target(
+      nat_m1_mod,
+    brms::make_stancode(
+          ARRESTS | trials(stu_enroll) ~ 1 + RACE*SEX +  (1|LEAID)  + (1|LEA_STATE),
           family = "binomial",
           data   = recent_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ), "models/int_only.stan")
-      },
-      format = "file"
+          threads = brms::threading(NTHREADS),
+          prior = make_arrest_priors(),
+         save_model = nat_m1_model_path_target)
     ),
 
-    # Define stan-compatible data for modeling
-    tar_target(
-      three_year_data_stan,
-      brms::make_standata(
-        ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE*SEX + referral_rate + total_referrals +  (1|LEAID),
+tar_target(
+      nat_m2_mod,
+      brms::make_stancode(
+          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
           family = "binomial",
           data   = three_year_data,
-          threads = brms::threading(2),
-    ),
-    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+          threads = brms::threading(NTHREADS),
+          prior = make_arrest_priors(),
+        save_model = nat_m2_model_path_target)
+      ),
+
+    # Define stan-compatible data for modeling, all X variables will be used
+    tar_target(
+      nat_m2_data,
+      brms::make_standata(
+        ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE*SEX + referral_rate + total_referrals +  (1|LEAID) +  (1|LEA_STATE),
+          family = "binomial",
+          data   = three_year_data,
+          threads = brms::threading(NTHREADS),
+      )
   ),
 
   # Define stan-compatible data for modeling for the most recent year of data
     tar_target(
-      recent_data_stan,
+      nat_m1_data,
       brms::make_standata(
-        ARRESTS | trials(stu_enroll) ~ 1 + (1|LEAID),
+        ARRESTS | trials(stu_enroll) ~ 1 + RACE*SEX + (1|LEAID) + (1|LEA_STATE),
           family = "binomial",
           data   = recent_data,
-          threads = brms::threading(2),
+          threads = brms::threading(NTHREADS),
+    )
     ),
-    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-    ),
+    #,
 
-    # Fit 3 year models
+    #Fit 3 year models
     stantargets::tar_stan_mcmc(
-        name = national_3yr,
-        stan_files = list.files("models", "int_yr", full.names = TRUE),
-        data = three_year_data_stan,
-        chains = 4L,
-        parallel_chains = 4L,
-        threads_per_chain = 2L,
-        iter_warmup = 1000L,
-        iter_sampling = 2500L,
+        name = nat_m2m,
+        stan_files = nat_m2_model_path,
+        data = nat_m2_data,
+        chains = NCHAINS,
+        parallel_chains = N_PAR_CHAINS,
+        threads_per_chain = NTHREADS,
+        iter_warmup = 1500L,
+        iter_sampling = 4000L,
         dir = "models/exec",
         cpp_options = list(stan_threads = TRUE),
         seed = 11213L,
@@ -253,78 +306,117 @@ tar_target(
 
     # Fit most recent year models
     stantargets::tar_stan_mcmc(
-        name = national_recent_yr,
-        stan_files = "models/int_only.stan",
-        data = recent_data_stan,
-        chains = 4L,
-        parallel_chains = 4L,
-        threads_per_chain = 2L,
-        iter_warmup = 1000L,
+        name = nat_m1m,
+        stan_files = nat_m1_model_path,
+        data = nat_m1_data,
+        chains = NCHAINS,
+        parallel_chains = N_PAR_CHAINS,
+        threads_per_chain = NTHREADS,
+        iter_warmup = 1500L,
         iter_sampling = 2500L,
         dir = "models/exec",
         cpp_options = list(stan_threads = TRUE),
         seed = 11213L,
         resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
     ),
-    #,
-
-  #   # Demographic models using stantargets pattern
-
-   tar_target(
-      sg_int_yr_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEAID),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ),
-          "models/demog/int_yr_only.stan")
-      },
-      format = "file"
-    ),
 
     tar_target(
-      sg_int_yr_refrate_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + (1|LEAID),
+    sg_m1_model_path_target,
+    sg_m1_model_path,
+    format = "file"
+  ),
+
+  tar_target(
+     sg_m1_mod,
+    brms::make_stancode(
+          ARRESTS | trials(stu_enroll) ~ 1 + (1|LEA_STATE) + (1|LEAID),
           family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ),
-         "models/demog/int_yr_refrate.stan")
-      },
-      format = "file"
+          data   = recent_data,
+          threads = brms::threading(NTHREADS),
+          prior = make_arrest_priors(),
+         save_model = sg_m1_model_path_target)
     ),
+
+  tar_target(
+    sg_m2_model_path_target,
+    sg_m2_model_path,
+    format = "file"
+  ),
 
     tar_target(
-      sg_int_yr_refrate_totrefs_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEAID),
+     sg_m2_mod,
+    brms::make_stancode(
+           ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEA_STATE) + (1|LEAID),
           family = "binomial",
           data   = three_year_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ),
-        "models/demog/int_yr_refrate_totrefs.stan")
-      },
-      format = "file"
+          threads = brms::threading(NTHREADS),
+          prior = make_arrest_priors(),
+         save_model = sg_m2_model_path_target)
     ),
 
-  # # Use tar_stan_mcmc_rep for all subsets
-  stantargets::tar_stan_mcmc_rep_summary(
-    name = demographic_3yr_models,
-    stan_files = list.files("models/demog", "int_yr", full.names = TRUE),
-    data =  generate_demographic_data(three_year_data, n = 8), # Function that generates data for each rep
+  tar_target(
+    sg_m3_model_path_target,
+    sg_m3_model_path,
+    format = "file"
+  ),
+
+    tar_target(
+     sg_m3_mod,
+    brms::make_stancode(
+          ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEA_STATE) +  (1|LEAID),
+          family = "binomial",
+          data   = recent_data,
+          threads = brms::threading(NTHREADS),
+          prior = make_arrest_priors(),
+         save_model = sg_m3_model_path_target)
+    ),
+
+  tar_target(
+    sg_m4_model_path_target,
+    sg_m4_model_path,
+    format = "file"
+  ),
+
+
+      tar_target(
+     sg_m4_mod,
+    brms::make_stancode(
+          ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + total_referrals + (1|LEA_STATE) +  (1|LEAID),
+          family = "binomial",
+          data   = recent_data,
+          threads = brms::threading(NTHREADS),
+          prior = make_arrest_priors(),
+         save_model = sg_m4_model_path_target)
+    ),
+
+  tar_target(
+    sg_m5_model_path_target,
+    sg_m5_model_path,
+    format = "file"
+  ),
+
+      tar_target(
+     sg_m5_mod,
+    brms::make_stancode(
+         ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEA_STATE) + (1|LEAID),
+          family = "binomial",
+          data   = three_year_data,
+          threads = brms::threading(NTHREADS),
+          prior = make_arrest_priors(),
+         save_model = sg_m5_model_path_target)
+    ),
+#   # # Use tar_stan_mcmc_rep for all subsets
+
+   stantargets::tar_stan_mcmc_rep_summary(
+    name = sg_m1,
+    stan_files = sg_m1_model_path,
+    data =  generate_demographic_data(formula =  ARRESTS | trials(stu_enroll) ~ 1 + (1|LEA_STATE) + (1|LEAID),
+                              data = recent_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
     batches = 8L,  # One batch per demographic subset
     reps = 1L,     # One rep per batch
-    chains = 4L,
-    parallel_chains = 4L,
-    threads_per_chain = 2L,
+    chains = NCHAINS,
+    parallel_chains = N_PAR_CHAINS,
+    threads_per_chain = NTHREADS,
     iter_warmup = 1000L,
     iter_sampling = 2500L,
     dir = "models/demog/exec",
@@ -333,59 +425,16 @@ tar_target(
     resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
   ),
 
-     tar_target(
-      sg_int_only_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + (1|LEAID),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ),
-          "models/demog/int_only.stan")
-      },
-      format = "file"
-    ),
-
-    tar_target(
-      sg_int_only_refrate_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEAID),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ),
-         "models/demog/int_only_refrate.stan")
-      },
-      format = "file"
-    ),
-
-    tar_target(
-      sg_int_only_refrate_totrefs_mod,
-      {
-        writeLines(brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + total_referrals + (1|LEAID),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(2),
-          prior = make_arrest_priors()
-        ), "models/demog/int_only_refrate_totrefs.stan")
-      },
-      format = "file"
-    ),
-
-   stantargets::tar_stan_mcmc_rep_summary(
-    name = demographic_recent_models,
-    stan_files = list.files("models/demog", "int_only", full.names = TRUE),
-    data =  generate_demographic_data(data = recent_data, n = 8), # Function that generates data for each rep
+  stantargets::tar_stan_mcmc_rep_summary(
+    name = sg_m2,
+    stan_files = sg_m2_model_path,
+        data =  generate_demographic_data(formula = ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEA_STATE) + (1|LEAID),
+                              data = three_year_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
     batches = 8L,  # One batch per demographic subset
     reps = 1L,     # One rep per batch
-    chains = 4L,
-    parallel_chains = 4L,
-    threads_per_chain = 2L,
+    chains = NCHAINS,
+    parallel_chains = N_PAR_CHAINS,
+    threads_per_chain = NTHREADS,
     iter_warmup = 1000L,
     iter_sampling = 2500L,
     dir = "models/demog/exec",
