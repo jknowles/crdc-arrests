@@ -441,6 +441,59 @@ tar_target(
     cpp_options = list(stan_threads = TRUE),
     seed = 11213L,
     resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-  )
+  ),
 
+    stantargets::tar_stan_mcmc_rep_summary(
+    name = sg_m3,
+    stan_files = sg_m3_model_path,
+        data =  generate_demographic_data(formula = ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEA_STATE) +  (1|LEAID),
+                              data = recent_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
+    batches = 8L,  # One batch per demographic subset
+    reps = 1L,     # One rep per batch
+    chains = NCHAINS,
+    parallel_chains = N_PAR_CHAINS,
+    threads_per_chain = NTHREADS,
+    iter_warmup = 1000L,
+    iter_sampling = 2500L,
+    dir = "models/demog/exec",
+    cpp_options = list(stan_threads = TRUE),
+    seed = 11213L,
+    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+
+    stantargets::tar_stan_mcmc_rep_summary(
+    name = sg_m4,
+    stan_files = sg_m4_model_path,
+        data =  generate_demographic_data(formula =  ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + total_referrals + (1|LEA_STATE) +  (1|LEAID),
+                              data = recent_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
+    batches = 8L,  # One batch per demographic subset
+    reps = 1L,     # One rep per batch
+    chains = NCHAINS,
+    parallel_chains = N_PAR_CHAINS,
+    threads_per_chain = NTHREADS,
+    iter_warmup = 1000L,
+    iter_sampling = 2500L,
+    dir = "models/demog/exec",
+    cpp_options = list(stan_threads = TRUE),
+    seed = 11213L,
+    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+
+    stantargets::tar_stan_mcmc_rep_summary(
+    name = sg_m5,
+    stan_files = sg_m5_model_path,
+        data =  generate_demographic_data(formula = ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEA_STATE) + (1|LEAID),
+                              data = three_year_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
+    batches = 8L,  # One batch per demographic subset
+    reps = 1L,     # One rep per batch
+    chains = NCHAINS,
+    parallel_chains = N_PAR_CHAINS,
+    threads_per_chain = NTHREADS,
+    iter_warmup = 1000L,
+    iter_sampling = 2500L,
+    dir = "models/demog/exec",
+    cpp_options = list(stan_threads = TRUE),
+    seed = 11213L,
+    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  )
 )
