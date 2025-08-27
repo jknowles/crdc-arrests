@@ -1,6 +1,20 @@
 # Code
 
+
+# replace names
+
+  # Match and replace gropuing level value from data objects not named data
+
+  # Create X matrix from data$data using formula
+
+  # Match beta values to X matrix names
+
+
+
+
 # CRDC collapse
+
+
 
 intersect_crdc_ccd <- function(crdc, ccd) {
   ccd$COMBOKEY <- stringr::str_pad(ccd$ncessch_num, width = 12,
@@ -24,7 +38,7 @@ generate_subset_data <- function(data, race_val, sex_val) {
   if (!is.factor(subset_data$YEAR)) {
     subset_data$YEAR <- as.factor(subset_data$YEAR)
   }
-
+t
   # Ensure LEAID is properly formatted for random effects
   if (!is.factor(subset_data$LEAID)) {
     subset_data$LEAID <- as.factor(subset_data$LEAID)
@@ -40,29 +54,10 @@ generate_subset_data <- function(data, race_val, sex_val) {
 }
 
 # Function for stantargets that generates data for each demographic subset
-generate_demographic_data <- function(formula, data, n = 1L, threading = 2L) {
-  # Define the race/sex combinations
-  race_vals <- c("WH", "BL", "AM", "HI")
-  sex_vals <- c("M", "F")
-  combinations <- expand.grid(race = race_vals, sex = sex_vals, stringsAsFactors = FALSE)
-
-  # Get the combination for this rep (n should be 1-8)
-  if (n < 1 || n > nrow(combinations)) {
-    stop("n must be between 1 and ", nrow(combinations))
-  }
-
-  race_val <- combinations$race[n]
-  sex_val <- combinations$sex[n]
-
-  # Filter data for this demographic subset
-  subset_data <- data %>%
-    filter(RACE == race_val, SEX == sex_val)
-
+generate_demographic_data <- function(data) {
   # Ensure all required variables are present and properly formatted
-  subset_data <- subset_data %>%
-    filter(!is.na(ARRESTS), !is.na(stu_enroll), !is.na(referral_rate), !is.na(total_referrals)) %>%
-    filter(stu_enroll > 0) %>%  # Ensure we have valid denominators
-    droplevels()  # Remove unused factor levels
+  subset_data <- data %>%
+    filter(stu_enroll > 0)
 
   # Convert YEAR to factor if it isn't already, and ensure it has proper levels
   if (!is.factor(subset_data$YEAR)) {
@@ -74,16 +69,17 @@ generate_demographic_data <- function(formula, data, n = 1L, threading = 2L) {
     subset_data$LEAID <- as.factor(subset_data$LEAID)
   }
 
-    stan_list <- brms::make_standata(
-    formula,
-    family = "binomial",
-    data = subset_data,
-    threads = brms::threading(4)
-  )
-  # Add metadata for tracking which demographic group this is
-  stan_list$.join_data <- paste(race_val, sex_val, sep = "_")
+  # Ensure LEAID is properly formatted for random effects
+  if (!is.factor(subset_data$LEA_STATE)) {
+    subset_data$LEA_STATE <- as.factor(subset_data$LEA_STATE)
+  }
 
-  return(stan_list)
+  # # Add metadata for tracking which demographic group this is
+  subset_data <- subset_data |>
+    mutate(group = paste(RACE, SEX, sep = "_")) |>
+    as.data.frame()
+
+  return(subset_data)
 }
 
 crdc_lea_collapse <- function(combined_data) {
@@ -149,15 +145,19 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
 
   if (is.null(year)) {
     data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI", "TOTAL"))
+    data <- data |> filter(!SEX %in% c("TOTAL"))
     data <- data |> filter(total_enroll >= enrollment_cap)
   } else {
+    data <- data |> filter(!SEX %in% c("TOTAL"))
     data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI", "TOTAL")) |>
                      filter(YEAR == year) |>
                     filter(total_enroll >= enrollment_cap)
   }
 
   # Global filters
-  data <- data |> filter(LEA_STATE != "PR")
+  data <- data |> filter(LEA_STATE != "PR") |>
+          filter(!is.na(ARRESTS), !is.na(stu_enroll), !is.na(referral_rate),
+        !is.na(total_referrals))
 
   if (dev_mode) {
       sampled_leaids <- data |>
@@ -179,13 +179,31 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
   data$ARRESTS[data$ARRESTS > data$stu_enroll] <- data$stu_enroll[data$ARRESTS > data$stu_enroll]
   data$REFERRALS[data$REFERRALS  > data$stu_enroll] <- data$stu_enroll[data$REFERRALS  > data$stu_enroll]
 
-  return(data)
+  data <- ungroup(data)
+  data <- as.data.frame(data)
+
+  state_factor <- data.frame(
+    stan_value = factor(unique(data$LEA_STATE)) |> as.integer(),
+    human_value = factor(unique(data$LEA_STATE)) |> as.character()
+  )
+  lea_factor <- data.frame(
+    stan_value = factor(unique(data$LEAID)) |> as.integer(),
+    human_value = factor(unique(data$LEAID)) |> as.character()
+  )
+
+  # let's convert and store vectors
+  out <- list(data = data,
+              state_keys = state_factor,
+            lea_keys = lea_factor)
+
+  return(out)
 
 }
 
 make_arrest_priors <- function() {
   wi_priors <- prior(normal(-8, 3), class = "Intercept") +
-  prior(cauchy(1, 2), class = "sd", group = "LEAID")
+  prior(cauchy(1, 2), class = "sd", group = "LEAID") +
+  prior(cauchy(1, 2), class = "sd", group = "LEA_STATE")
 
 
   wi_priors

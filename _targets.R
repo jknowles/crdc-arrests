@@ -13,7 +13,8 @@ library(tibble)
 # You may set up `mcmc` to have workers > 1, knowing that each worker will
 # consume 8 CPU threads.
 
-CPU_CAPACITY <- 8
+CPU_CAPACITY <- 32
+#parallel::detectCores()
 NTHREADS <- 4
 NCHAINS <- 4
 N_PAR_CHAINS <- CPU_CAPACITY %/% NTHREADS
@@ -47,8 +48,9 @@ options(mc.cores = CPU_CAPACITY)
 
 DEV_MODE <- TRUE
 enroll_cap <- ifelse(DEV_MODE, 5000, 30)
+NITER <- ifelse(DEV_MODE, 500, 3000)
 
-if (Sys.info()["sysname"] == "Linux") {
+if (Sys.info()["sysname"] %in%  c("Darwin", "Linux")) {
   # CRDC data paths
 crdc_data <- tibble(
   year = c("21-22", "17-18", "15-16"),
@@ -89,9 +91,9 @@ crdc_data <- tibble(
 }
 
 # Declare models
-nat_m1_model_path <- fs::file_create("models/nat_m1.stan")
-nat_m2_model_path <- fs::file_create("models/nat_m2.stan")
-sg_m1_model_path <- fs::file_create("models/demog/sg_m1.stan")
+# nat_m1_model_path <- fs::file_create("models/nat_m1.stan")
+# nat_m2_model_path <- fs::file_create("models/nat_m2.stan")
+#sg_m1_model_path <- fs::file_create("models/demog/sg_m1.stan")
 sg_m2_model_path <- fs::file_create("models/demog/sg_m2.stan")
 sg_m3_model_path <- fs::file_create("models/demog/sg_m3.stan")
 sg_m4_model_path <- fs::file_create("models/demog/sg_m4.stan")
@@ -189,311 +191,217 @@ list(
                       enrollment_cap = enroll_cap, year = "21-22", dev_mode = DEV_MODE )
   ),
 
-  # Define stan model files using BRMS to create the stan code
-  # tar_target(
-  #     int_yr_mod,
-  #     {
-  #       writeLines(brms::make_stancode(
-  #         ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEAID) + (1|LEA_STATE),
-  #         family = "binomial",
-  #         data   = three_year_data,
-  #         threads = brms::threading(NTHREADS),
-  #         prior = make_arrest_priors()
-  #       ), "models/int_yr_only.stan")
-  #     },
-  #     format = "file"
-  #   ),
-#   tar_target(
-#       int_yr_group_mod,
-#       {
-#         writeLines(brms::make_stancode(
-#           ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + (1|LEAID),
-#           family = "binomial",
-#           data   = three_year_data,
-#           threads = brms::threading(NTHREADS),
-#           prior = make_arrest_priors()
-#         ), "models/int_yr_group.stan")
-#       },
-#       format = "file"
-#     ),
-# tar_target(
-#       int_yr_group_refrate_mod,
-#       {
-#         writeLines(brms::make_stancode(
-#           ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + (1|LEAID),
-#           family = "binomial",
-#           data   = three_year_data,
-#           threads = brms::threading(NTHREADS),
-#           prior = make_arrest_priors()
-#         ), "models/int_yr_group_refrate.stan")
-#       },
-#       format = "file"
-#     ),
 
   tar_target(
-    nat_m1_model_path_target,
-    nat_m1_model_path,
-    format = "file"
-  ),
-
-  tar_target(
-    nat_m2_model_path_target,
-    nat_m2_model_path,
-    format = "file"
+    nat_m1_fml,
+    brms::brmsformula(ARRESTS | trials(stu_enroll) ~ 1 + RACE*SEX +  (1|LEAID)  + (1|LEA_STATE),
+          family = "binomial")
   ),
 
 
-tar_target(
-      nat_m1_mod,
-    brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + RACE*SEX +  (1|LEAID)  + (1|LEA_STATE),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(NTHREADS),
-          prior = make_arrest_priors(),
-         save_model = nat_m1_model_path_target)
+
+
+  tar_target(
+    nat_m1_mod,
+    brm(nat_m1_fml,
+    data = recent_data$data,
+    seed = 11213,
+    prior = make_arrest_priors(),
+    sample_prior = TRUE,
+    iter = NITER,
+    chains = NCHAINS,
+    cores = NCHAINS,
+    threads = threading(NTHREADS, static = TRUE),
+    backend = "cmdstanr"
+    ),
+    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+
+  tar_target(nat_m2_fml,
+    brms::brmsformula(
+      ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
+      family = "binomial"
+    )
+  ),
+
+  tar_target(
+    nat_m2_mod,
+    brm(nat_m2_fml,
+      data = three_year_data$data,
+        seed = 11213,
+    prior = make_arrest_priors(),
+    sample_prior = TRUE,
+    iter = NITER,
+    chains = NCHAINS,
+    cores = N_PAR_CHAINS,
+    threads = threading(NTHREADS, static = TRUE),
+    backend = "cmdstanr"
+  ),
+  resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+
+  tar_target(
+    recent_data_group,
+    generate_demographic_data(recent_data$data) |>
+      dplyr::group_by(group) |>
+     targets::tar_group(),
+    iteration = "group"
+  ),
+
+  tar_target(
+    three_year_data_group,
+    generate_demographic_data(three_year_data$data) |>
+      dplyr::group_by(group) |>
+      targets::tar_group(),
+    iteration = "group"
+  ),
+
+  tar_target(
+    sg_m1_fml,
+     brms::brmsformula(ARRESTS | trials(stu_enroll) ~ 1 + (1|LEA_STATE) + (1|LEAID),
+           family = "binomial")
+  ),
+
+
+  tar_target(
+    sg_m1_mod,
+    command =
+      {
+      obj <- brm(
+        sg_m1_fml,
+      data = recent_data_group,
+       seed = 11213,
+    prior = make_arrest_priors(),
+    sample_prior = TRUE,
+    iter = NITER,
+    chains = NCHAINS,
+    cores = NCHAINS,
+    threads = threading(NTHREADS, static = TRUE),
+    backend = "cmdstanr")
+    obj$id <- recent_data_group$group[1] # we need to label the group here
+    obj
+      }
+        ,
+    pattern = map(recent_data_group),
+    iteration = "list",
+    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
     ),
 
-tar_target(
-      nat_m2_mod,
-      brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(NTHREADS),
-          prior = make_arrest_priors(),
-        save_model = nat_m2_model_path_target)
+
+    tar_target(
+    sg_m2_fml,
+     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEA_STATE) + (1|LEAID),
+           family = "binomial")
+  ),
+
+  tar_target(
+      sg_m2_mod,
+      command =
+        {
+        obj <- brm(
+          sg_m2_fml,
+        data = three_year_data_group,
+        seed = 11213,
+      prior = make_arrest_priors(),
+      sample_prior = TRUE,
+      iter = NITER,
+      chains = NCHAINS,
+      cores = NCHAINS,
+      threads = threading(NTHREADS, static = TRUE),
+      backend = "cmdstanr")
+      obj$id <- three_year_data_group$group[1] # we need to label the group here
+      obj
+        }
+          ,
+      pattern = map(three_year_data_group),
+      iteration = "list",
+      resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
       ),
 
-    # Define stan-compatible data for modeling, all X variables will be used
-    tar_target(
-      nat_m2_data,
-      brms::make_standata(
-        ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE*SEX + referral_rate + total_referrals +  (1|LEAID) +  (1|LEA_STATE),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(NTHREADS),
+  tar_target(
+    sg_m3_fml,
+     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEA_STATE) +  (1|LEAID),
+           family = "binomial")
+  ),
+
+  tar_target(
+      sg_m3_mod,
+      command =
+        {
+        obj <- brm(
+          sg_m3_fml,
+        data = recent_data_group,
+        seed = 11213,
+      prior = make_arrest_priors(),
+      sample_prior = TRUE,
+      iter = NITER,
+      chains = NCHAINS,
+      cores = NCHAINS,
+      threads = threading(NTHREADS, static = TRUE),
+      backend = "cmdstanr")
+      obj$id <- recent_data_group$group[1] # we need to label the group here
+      obj
+        },
+      pattern = map(recent_data_group),
+      iteration = "list",
+      resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+      ),
+
+      tar_target(
+    sg_m4_fml,
+     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + total_referrals + (1|LEA_STATE) +  (1|LEAID),
+           family = "binomial")
+  ),
+
+  tar_target(
+      sg_m4_mod,
+      command =
+        {
+        obj <- brm(
+          sg_m4_fml,
+        data = recent_data_group,
+        seed = 11213,
+      prior = make_arrest_priors(),
+      sample_prior = TRUE,
+      iter = NITER,
+      chains = NCHAINS,
+      cores = NCHAINS,
+      threads = threading(NTHREADS, static = TRUE),
+      backend = "cmdstanr")
+      obj$id <- recent_data_group$group[1] # we need to label the group here
+      obj
+        },
+      pattern = map(recent_data_group),
+      iteration = "list",
+      resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+      ),
+
+            tar_target(
+    sg_m5_fml,
+     brms::brmsformula(  ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEA_STATE) + (1|LEAID),
+           family = "binomial")
+  ),
+
+  tar_target(
+      sg_m5_mod,
+      command =
+        {
+        obj <- brm(
+          sg_m5_fml,
+        data = three_year_data_group,
+        seed = 11213,
+      prior = make_arrest_priors(),
+      sample_prior = TRUE,
+      iter = NITER,
+      chains = NCHAINS,
+      cores = NCHAINS,
+      threads = threading(NTHREADS, static = TRUE),
+      backend = "cmdstanr")
+      obj$id <- three_year_data_group$group[1] # we need to label the group here
+      obj
+        },
+      pattern = map(three_year_data_group),
+      iteration = "list",
+      resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
       )
-  ),
-
-  # Define stan-compatible data for modeling for the most recent year of data
-    tar_target(
-      nat_m1_data,
-      brms::make_standata(
-        ARRESTS | trials(stu_enroll) ~ 1 + RACE*SEX + (1|LEAID) + (1|LEA_STATE),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(NTHREADS),
-    )
-    ),
-    #,
-
-    #Fit 3 year models
-    stantargets::tar_stan_mcmc(
-        name = nat_m2m,
-        stan_files = nat_m2_model_path,
-        data = nat_m2_data,
-        chains = NCHAINS,
-        parallel_chains = N_PAR_CHAINS,
-        threads_per_chain = NTHREADS,
-        iter_warmup = 1500L,
-        iter_sampling = 4000L,
-        dir = "models/exec",
-        cpp_options = list(stan_threads = TRUE),
-        seed = 11213L,
-        resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-    ),
-
-    # Fit most recent year models
-    stantargets::tar_stan_mcmc(
-        name = nat_m1m,
-        stan_files = nat_m1_model_path,
-        data = nat_m1_data,
-        chains = NCHAINS,
-        parallel_chains = N_PAR_CHAINS,
-        threads_per_chain = NTHREADS,
-        iter_warmup = 1500L,
-        iter_sampling = 2500L,
-        dir = "models/exec",
-        cpp_options = list(stan_threads = TRUE),
-        seed = 11213L,
-        resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-    ),
-
-    tar_target(
-    sg_m1_model_path_target,
-    sg_m1_model_path,
-    format = "file"
-  ),
-
-  tar_target(
-     sg_m1_mod,
-    brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + (1|LEA_STATE) + (1|LEAID),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(NTHREADS),
-          prior = make_arrest_priors(),
-         save_model = sg_m1_model_path_target)
-    ),
-
-  tar_target(
-    sg_m2_model_path_target,
-    sg_m2_model_path,
-    format = "file"
-  ),
-
-    tar_target(
-     sg_m2_mod,
-    brms::make_stancode(
-           ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEA_STATE) + (1|LEAID),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(NTHREADS),
-          prior = make_arrest_priors(),
-         save_model = sg_m2_model_path_target)
-    ),
-
-  tar_target(
-    sg_m3_model_path_target,
-    sg_m3_model_path,
-    format = "file"
-  ),
-
-    tar_target(
-     sg_m3_mod,
-    brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEA_STATE) +  (1|LEAID),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(NTHREADS),
-          prior = make_arrest_priors(),
-         save_model = sg_m3_model_path_target)
-    ),
-
-  tar_target(
-    sg_m4_model_path_target,
-    sg_m4_model_path,
-    format = "file"
-  ),
-
-
-      tar_target(
-     sg_m4_mod,
-    brms::make_stancode(
-          ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + total_referrals + (1|LEA_STATE) +  (1|LEAID),
-          family = "binomial",
-          data   = recent_data,
-          threads = brms::threading(NTHREADS),
-          prior = make_arrest_priors(),
-         save_model = sg_m4_model_path_target)
-    ),
-
-  tar_target(
-    sg_m5_model_path_target,
-    sg_m5_model_path,
-    format = "file"
-  ),
-
-      tar_target(
-     sg_m5_mod,
-    brms::make_stancode(
-         ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEA_STATE) + (1|LEAID),
-          family = "binomial",
-          data   = three_year_data,
-          threads = brms::threading(NTHREADS),
-          prior = make_arrest_priors(),
-         save_model = sg_m5_model_path_target)
-    ),
-#   # # Use tar_stan_mcmc_rep for all subsets
-
-   stantargets::tar_stan_mcmc_rep_summary(
-    name = sg_m1,
-    stan_files = sg_m1_model_path,
-    data =  generate_demographic_data(formula =  ARRESTS | trials(stu_enroll) ~ 1 + (1|LEA_STATE) + (1|LEAID),
-                              data = recent_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
-    batches = 8L,  # One batch per demographic subset
-    reps = 1L,     # One rep per batch
-    chains = NCHAINS,
-    parallel_chains = N_PAR_CHAINS,
-    threads_per_chain = NTHREADS,
-    iter_warmup = 1000L,
-    iter_sampling = 2500L,
-    dir = "models/demog/exec",
-    cpp_options = list(stan_threads = TRUE),
-    seed = 11213L,
-    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-  ),
-
-  stantargets::tar_stan_mcmc_rep_summary(
-    name = sg_m2,
-    stan_files = sg_m2_model_path,
-        data =  generate_demographic_data(formula = ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEA_STATE) + (1|LEAID),
-                              data = three_year_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
-    batches = 8L,  # One batch per demographic subset
-    reps = 1L,     # One rep per batch
-    chains = NCHAINS,
-    parallel_chains = N_PAR_CHAINS,
-    threads_per_chain = NTHREADS,
-    iter_warmup = 1000L,
-    iter_sampling = 2500L,
-    dir = "models/demog/exec",
-    cpp_options = list(stan_threads = TRUE),
-    seed = 11213L,
-    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-  ),
-
-    stantargets::tar_stan_mcmc_rep_summary(
-    name = sg_m3,
-    stan_files = sg_m3_model_path,
-        data =  generate_demographic_data(formula = ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEA_STATE) +  (1|LEAID),
-                              data = recent_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
-    batches = 8L,  # One batch per demographic subset
-    reps = 1L,     # One rep per batch
-    chains = NCHAINS,
-    parallel_chains = N_PAR_CHAINS,
-    threads_per_chain = NTHREADS,
-    iter_warmup = 1000L,
-    iter_sampling = 2500L,
-    dir = "models/demog/exec",
-    cpp_options = list(stan_threads = TRUE),
-    seed = 11213L,
-    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-  ),
-
-    stantargets::tar_stan_mcmc_rep_summary(
-    name = sg_m4,
-    stan_files = sg_m4_model_path,
-        data =  generate_demographic_data(formula =  ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + total_referrals + (1|LEA_STATE) +  (1|LEAID),
-                              data = recent_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
-    batches = 8L,  # One batch per demographic subset
-    reps = 1L,     # One rep per batch
-    chains = NCHAINS,
-    parallel_chains = N_PAR_CHAINS,
-    threads_per_chain = NTHREADS,
-    iter_warmup = 1000L,
-    iter_sampling = 2500L,
-    dir = "models/demog/exec",
-    cpp_options = list(stan_threads = TRUE),
-    seed = 11213L,
-    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-  ),
-
-    stantargets::tar_stan_mcmc_rep_summary(
-    name = sg_m5,
-    stan_files = sg_m5_model_path,
-        data =  generate_demographic_data(formula = ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEA_STATE) + (1|LEAID),
-                              data = three_year_data, n = 8, threading = NTHREADS), # Function that generates data for each rep
-    batches = 8L,  # One batch per demographic subset
-    reps = 1L,     # One rep per batch
-    chains = NCHAINS,
-    parallel_chains = N_PAR_CHAINS,
-    threads_per_chain = NTHREADS,
-    iter_warmup = 1000L,
-    iter_sampling = 2500L,
-    dir = "models/demog/exec",
-    cpp_options = list(stan_threads = TRUE),
-    seed = 11213L,
-    resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-  )
 )
