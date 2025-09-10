@@ -1,5 +1,269 @@
 # Code
 
+#' Query prediction draw summaries from database
+#'
+#' @param con DuckDB connection object
+#' @param LEAID Character vector of LEA IDs to filter (optional)
+#' @param RACE Character vector of race categories to filter (optional)
+#' @param SEX Character vector of sex categories to filter (optional)
+#' @param YEAR Character vector of years to filter (optional)
+#' @param model Character vector of model IDs to filter (optional)
+#' @param confidence_level Confidence level for intervals (default: 0.95 for 95% CI)
+#' @param central_tendency Either "mean" or "median" for fitted value (default: "mean")
+#' @param table_name Name of the database table (default: "predicted_draws")
+#' @return Data frame with summary statistics for each unique combination
+get_prediction_summary <- function(con, LEAID = NULL, RACE = NULL, SEX = NULL,
+                                  YEAR = NULL, model = NULL,
+                                  confidence_level = 0.95,
+                                  central_tendency = c("mean", "median"),
+                                  table_name = "predicted_draws") {
+
+  central_tendency <- match.arg(central_tendency)
+
+  # Calculate quantiles for confidence intervals
+  alpha <- 1 - confidence_level
+  lower_q <- alpha / 2
+  upper_q <- 1 - alpha / 2
+
+  # Build WHERE conditions (same logic as first function)
+  where_conditions <- c()
+
+  if (!is.null(LEAID)) {
+    leaid_list <- paste0("'", LEAID, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("LEAID IN (", leaid_list, ")"))
+  }
+
+  if (!is.null(RACE)) {
+    race_list <- paste0("'", RACE, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("RACE IN (", race_list, ")"))
+  }
+
+  if (!is.null(SEX)) {
+    sex_list <- paste0("'", SEX, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("SEX IN (", sex_list, ")"))
+  }
+
+  if (!is.null(YEAR)) {
+    year_list <- paste0("'", YEAR, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("YEAR IN (", year_list, ")"))
+  }
+
+  if (!is.null(model)) {
+    model_list <- paste0("'", model, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("model_id IN (", model_list, ")"))
+  }
+
+  # Build the summary query
+  fitted_value_sql <- ifelse(central_tendency == "mean",
+                            "AVG(pred)",
+                            "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY pred)")
+
+  query <- paste0("
+    SELECT
+      model_id,
+      subgroup_id,
+      LEAID,
+      LEA_STATE,
+      YEAR,
+      RACE,
+      SEX,
+      COUNT(draw_id) as n_draws,
+      ", fitted_value_sql, " as fitted_value,
+      STDDEV(pred) as sd,
+      MIN(pred) as min_pred,
+      MAX(pred) as max_pred,
+      PERCENTILE_CONT(", lower_q, ") WITHIN GROUP (ORDER BY pred) as ci_lower,
+      PERCENTILE_CONT(", upper_q, ") WITHIN GROUP (ORDER BY pred) as ci_upper
+    FROM ", table_name)
+
+  # Add WHERE clause if we have conditions
+  if (length(where_conditions) > 0) {
+    query <- paste(query, "WHERE", paste(where_conditions, collapse = " AND "))
+  }
+
+  # Add GROUP BY and ORDER BY
+  query <- paste(query, "
+    GROUP BY model_id, subgroup_id, LEAID, LEA_STATE, YEAR, RACE, SEX
+    ORDER BY model_id, LEAID, YEAR, RACE, SEX
+  ")
+
+  # Execute query and return results
+  cat("Executing summary query with", confidence_level*100, "% confidence intervals using", central_tendency, "\n")
+  cat("Query:\n", query, "\n\n")
+  result <- dbGetQuery(con, query)
+
+  # Add helpful metadata as attributes
+  attr(result, "confidence_level") <- confidence_level
+  attr(result, "central_tendency") <- central_tendency
+
+  cat("Returned", nrow(result), "summary rows\n")
+  return(result)
+}
+
+
+#' Query prediction draw summaries aggregated by state
+#'
+#' @param con DuckDB connection object
+#' @param LEA_STATE Character vector of state codes to filter (optional)
+#' @param RACE Character vector of race categories to filter (optional)
+#' @param SEX Character vector of sex categories to filter (optional)
+#' @param YEAR Character vector of years to filter (optional)
+#' @param model Character vector of model IDs to filter (optional)
+#' @param confidence_level Confidence level for intervals (default: 0.95 for 95% CI)
+#' @param central_tendency Either "mean" or "median" for fitted value (default: "mean")
+#' @param table_name Name of the database table (default: "predicted_draws")
+#' @return Data frame with summary statistics aggregated by state
+get_state_prediction_summary <- function(con, LEA_STATE = NULL, RACE = NULL, SEX = NULL,
+                                        YEAR = NULL, model = NULL,
+                                        confidence_level = 0.95,
+                                        central_tendency = c("mean", "median"),
+                                        table_name = "predicted_draws") {
+
+  central_tendency <- match.arg(central_tendency)
+
+  # Calculate quantiles for confidence intervals
+  alpha <- 1 - confidence_level
+  lower_q <- alpha / 2
+  upper_q <- 1 - alpha / 2
+
+  # Build WHERE conditions
+  where_conditions <- c()
+
+  if (!is.null(LEA_STATE)) {
+    state_list <- paste0("'", LEA_STATE, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("LEA_STATE IN (", state_list, ")"))
+  }
+
+  if (!is.null(RACE)) {
+    race_list <- paste0("'", RACE, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("RACE IN (", race_list, ")"))
+  }
+
+  if (!is.null(SEX)) {
+    sex_list <- paste0("'", SEX, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("SEX IN (", sex_list, ")"))
+  }
+
+  if (!is.null(YEAR)) {
+    year_list <- paste0("'", YEAR, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("YEAR IN (", year_list, ")"))
+  }
+
+  if (!is.null(model)) {
+    model_list <- paste0("'", model, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("model_id IN (", model_list, ")"))
+  }
+
+  # Build the summary query - aggregating across all districts within each state
+  fitted_value_sql <- ifelse(central_tendency == "mean",
+                            "AVG(pred)",
+                            "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY pred)")
+
+  query <- paste0("
+    SELECT
+      model_id,
+      subgroup_id,
+      LEA_STATE,
+      YEAR,
+      RACE,
+      SEX,
+      COUNT(DISTINCT LEAID) as n_districts,
+      COUNT(draw_id) as n_draws,
+      COUNT(draw_id) / COUNT(DISTINCT draw_id) as n_observations,
+      ", fitted_value_sql, " as fitted_value,
+      STDDEV(pred) as sd,
+      MIN(pred) as min_pred,
+      MAX(pred) as max_pred,
+      PERCENTILE_CONT(", lower_q, ") WITHIN GROUP (ORDER BY pred) as ci_lower,
+      PERCENTILE_CONT(", upper_q, ") WITHIN GROUP (ORDER BY pred) as ci_upper
+    FROM ", table_name)
+
+  # Add WHERE clause if we have conditions
+  if (length(where_conditions) > 0) {
+    query <- paste(query, "WHERE", paste(where_conditions, collapse = " AND "))
+  }
+
+  # Group by state instead of individual districts
+  query <- paste(query, "
+    GROUP BY model_id, subgroup_id, LEA_STATE, YEAR, RACE, SEX
+    ORDER BY model_id, LEA_STATE, YEAR, RACE, SEX
+  ")
+
+  # Execute query and return results
+  cat("Executing state-level summary query with", confidence_level*100, "% confidence intervals using", central_tendency, "\n")
+  cat("Query:\n", query, "\n\n")
+  result <- dbGetQuery(con, query)
+
+  # Add helpful metadata as attributes
+  attr(result, "confidence_level") <- confidence_level
+  attr(result, "central_tendency") <- central_tendency
+  attr(result, "aggregation_level") <- "state"
+
+  cat("Returned", nrow(result), "state-level summary rows\n")
+  return(result)
+}
+
+
+#' Query prediction draws from database
+#'
+#' @param con DuckDB connection object
+#' @param LEAID Character vector of LEA IDs to filter (optional)
+#' @param RACE Character vector of race categories to filter (optional)
+#' @param SEX Character vector of sex categories to filter (optional)
+#' @param YEAR Character vector of years to filter (optional)
+#' @param model Character vector of model IDs to filter (optional)
+#' @param table_name Name of the database table (default: "predicted_draws")
+#' @return Data frame with all matching prediction draws
+get_prediction_draws <- function(con, LEAID = NULL, RACE = NULL, SEX = NULL,
+                                YEAR = NULL, model = NULL,
+                                table_name = "predicted_draws") {
+
+  # Start building the query
+  query <- paste("SELECT * FROM", table_name)
+  where_conditions <- c()
+
+  # Build WHERE conditions for each non-null parameter
+  if (!is.null(LEAID)) {
+    leaid_list <- paste0("'", LEAID, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("LEAID IN (", leaid_list, ")"))
+  }
+
+  if (!is.null(RACE)) {
+    race_list <- paste0("'", RACE, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("RACE IN (", race_list, ")"))
+  }
+
+  if (!is.null(SEX)) {
+    sex_list <- paste0("'", SEX, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("SEX IN (", sex_list, ")"))
+  }
+
+  if (!is.null(YEAR)) {
+    year_list <- paste0("'", YEAR, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("YEAR IN (", year_list, ")"))
+  }
+
+  if (!is.null(model)) {
+    model_list <- paste0("'", model, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("model_id IN (", model_list, ")"))
+  }
+
+  # Add WHERE clause if we have conditions
+  if (length(where_conditions) > 0) {
+    query <- paste(query, "WHERE", paste(where_conditions, collapse = " AND "))
+  }
+
+  # Add ordering for consistent results
+  query <- paste(query, "ORDER BY model_id, LEAID, LEA_STATE, YEAR, RACE, SEX, draw_id")
+
+  # Execute query and return results
+  cat("Executing query:\n", query, "\n\n")
+  result <- dbGetQuery(con, query)
+
+  cat("Returned", nrow(result), "rows\n")
+  return(result)
+}
+
 
 # replace names
 
@@ -10,6 +274,142 @@
   # Match beta values to X matrix names
 
 
+# model stats function
+calculate_model_stats <- function(models, model_prefix = NULL) {
+  # Initialize an empty dataframe to store results
+  model_summary <- NULL
+
+  # Handle both single model and list of models
+  if (!is.list(models) || (!is.null(models$family) && inherits(models, "brmsfit"))) {
+    # Single model case - convert to list for consistent processing
+    models_list <- list(models)
+  } else {
+    # List of models case
+    models_list <- models
+  }
+
+  # Process each model
+  for (i in seq_along(models_list)) {
+    model <- models_list[[i]]
+
+    # Skip if not a brms model
+    if (!inherits(model, "brmsfit")) {
+      warning(paste("Item", i, "is not a brmsfit object and will be skipped"))
+      next
+    }
+
+    # Extract model information
+    summ <- summary(model)
+    timings <- brms:::elapsed_time(model)
+
+    # Determine model ID
+    model_id <- ifelse(is.null(model$id), paste0("model_", i), model$id)
+
+    # Check if OpenCL was used
+    opencl_ind <- ifelse(is.null(model$opencl$ids), "FALSE", "TRUE")
+
+    # Get worst Rhat across all parameters (fixed and random)
+    worst_rhat <- max(summ$fixed$Rhat, na.rm = TRUE)
+
+    # Check all random effects groups for Rhat
+    if (!is.null(summ$random)) {
+      for (group in names(summ$random)) {
+        group_rhat <- max(summ$random[[group]]$Rhat, na.rm = TRUE)
+        worst_rhat <- max(worst_rhat, group_rhat, na.rm = TRUE)
+      }
+    }
+
+    # Get Bulk_ESS statistics
+    # Start with fixed effects
+    all_bulk_ess <- summ$fixed$Bulk_ESS
+
+    # Add random effects Bulk_ESS
+    if (!is.null(summ$random)) {
+      for (group in names(summ$random)) {
+        all_bulk_ess <- c(all_bulk_ess, summ$random[[group]]$Bulk_ESS)
+      }
+    }
+
+    # Calculate min and mean Bulk_ESS
+    min_bulk_ess <- min(all_bulk_ess, na.rm = TRUE)
+    mean_bulk_ess <- mean(all_bulk_ess, na.rm = TRUE)
+
+    # Create data frame with model statistics
+    tmp <- data.frame(
+      model_name = ifelse(is.null(model_prefix), model_id, paste0(model_prefix, "_", model_id)),
+      model_id = model_id,
+      ndraws = ndraws(model),
+      chains = nchains(model),
+      threads = ifelse(is.null(model$threads$threads), NA, model$threads$threads),
+      thin = brms:::nthin(model),
+      leas = ifelse(is.null(summ$ngrps$LEAID), NA, summ$ngrps$LEAID),
+      worst_rhat = worst_rhat,
+      min_bulk_ess = min_bulk_ess,
+      mean_bulk_ess = mean_bulk_ess,
+      runtime_minutes = ifelse(is.null(timings$total), NA, max(timings$total, na.rm = TRUE)/60),
+      opencl_ind = opencl_ind
+    )
+
+    # Append to results dataframe
+    if (is.null(model_summary)) {
+      model_summary <- tmp
+    } else {
+      model_summary <- rbind(model_summary, tmp)
+    }
+  }
+
+  return(model_summary)
+}
+
+# Model cov summary function
+calculate_model_cov_summaries <- function(model_list, ndraws = 100, type = "sg") {
+  # Initialize an empty dataframe to store results
+  results_df <- NULL
+
+  # Loop through each model in the list using base R
+  for (i in seq_along(model_list)) {
+    # Get the current model
+    m_tmp <- model_list[[i]]
+
+    # Add predicted draws
+    tmp <- add_predicted_draws(m_tmp$data, m_tmp, ndraws = ndraws)
+
+    # Extract RACE and SEX from model id
+    tmp$RACE <- substr(m_tmp$id, 1, 2)
+    tmp$SEX <- substr(m_tmp$id, 4, 4)
+
+    # Perform the summarization
+    model_results <- tmp |>
+      group_by(LEA_STATE, LEAID, RACE, SEX) |>
+      summarize(
+        ARRESTS = first(ARRESTS),
+        stu_enroll = first(stu_enroll),
+        estimate = median(.prediction / (stu_enroll / 1000)),
+        .groups = "drop"
+      ) |>
+      group_by(RACE, SEX) |>
+      summarize(
+        enroll = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        mean_arr = mean(estimate),
+        sd_arr = sd(estimate),
+        .groups = "drop"
+      ) |>
+      mutate(
+        cov_arr = (sd_arr / mean_arr) * 100,
+        type = type  # Adding model identifier to track source
+      )
+
+    # Append to results dataframe
+    if (is.null(results_df)) {
+      results_df <- model_results
+    } else {
+      results_df <- rbind(results_df, model_results)
+    }
+  }
+
+  return(results_df)
+}
 
 
 # CRDC collapse
@@ -144,12 +544,12 @@ scaled_rate <- function(numerator, denominator, scale_factor) {
 restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, year = NULL) {
 
   if (is.null(year)) {
-    data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI", "TOTAL"))
+    data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI"))
     data <- data |> filter(!SEX %in% c("TOTAL"))
     data <- data |> filter(total_enroll >= enrollment_cap)
   } else {
     data <- data |> filter(!SEX %in% c("TOTAL"))
-    data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI", "TOTAL")) |>
+    data <- data |> filter(RACE %in% c("WH", "BL", "AM", "HI")) |>
                      filter(YEAR == year) |>
                     filter(total_enroll >= enrollment_cap)
   }
@@ -293,6 +693,7 @@ reshape_le_rate_long <- function(sch_referrals, year = "2021-22") {
 
 # TODO improve validations
 validate_le <- function(sch_referrals_long, year = "21-22") {
+  # TODO: make pipeline fail if criteria are not met
   if (year == "21-22"){
     all(table(sch_referrals_long$RACE, sch_referrals_long$SEX) == 98010)
     sum(sch_referrals_long$ARRESTS[sch_referrals_long$RACE == "TOTAL" & sch_referrals_long$SEX == "TOTAL"]) == 34846
@@ -365,7 +766,7 @@ reshape_le <- function(sch_ref, year = "21-22") {
 
   }
 
-
+ # TODO: Calculate district level impact of 504 exclusion by total
   # Drop non COMBOKEY identifier columns
   sch_ref <- sch_ref %>% select(COMBOKEY:last_col())
   names(sch_ref) <- gsub("_IDEA_", "_", names(sch_ref))
@@ -529,8 +930,6 @@ sch_denom_enroll <- function(enrollment, year = "21-22") {
   sch_pops <- sch_pops |>
     filter(SEX != "X")
 
-  # TODO: for 2015-16 we need to do a lot more data massaging
-
   return(sch_pops)
 
 }
@@ -546,8 +945,8 @@ get_crdc_sch_data <- function(enrollment, year = NULL) {
                                             enrollment$SCHID)
    }
   return(sch_join_data)
-
 }
+
 # SKip and reserve codes for CRDC
 # Public Use Data File User's Manual
 # https://ocrdata.ed.gov/assets/downloads/2017-18%20CRDC%20Public-Use%20Data%20File%20Manual.pdf

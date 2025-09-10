@@ -46,9 +46,13 @@ tar_option_set(
 options(brms.threads = NTHREADS)
 options(mc.cores = CPU_CAPACITY)
 
-DEV_MODE <- TRUE
+DEV_MODE <- FALSE
 enroll_cap <- ifelse(DEV_MODE, 5000, 30)
-NITER <- ifelse(DEV_MODE, 500, 3000)
+NITER <- ifelse(DEV_MODE, 500, 4000)
+ITER_MULTIPLIER <- 2L
+
+mod_control <- list(adapt_delta = 0.875,
+                    max_treedepth = 12L)
 
 if (Sys.info()["sysname"] %in%  c("Darwin", "Linux")) {
   # CRDC data paths
@@ -86,31 +90,12 @@ crdc_data <- tibble(
     "X:/datasets/ED/CRDC/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv"
   )
 )
-
-
 }
 
-# Declare models
-# nat_m1_model_path <- fs::file_create("models/nat_m1.stan")
-# nat_m2_model_path <- fs::file_create("models/nat_m2.stan")
-#sg_m1_model_path <- fs::file_create("models/demog/sg_m1.stan")
-sg_m2_model_path <- fs::file_create("models/demog/sg_m2.stan")
-sg_m3_model_path <- fs::file_create("models/demog/sg_m3.stan")
-sg_m4_model_path <- fs::file_create("models/demog/sg_m4.stan")
-sg_m5_model_path <- fs::file_create("models/demog/sg_m5.stan")
-
-fs::dir_create("models/exec")
-fs::dir_create("models/demog/exec")
 
 future::plan(future.callr::callr)
 tar_source("R/funs.R")
-# Run the R scripts in the R/ folder with your custom functions:
-#tar_source()
 
-# TODO:
-# Better Validate law enforcement referrals and arrests
-# Better Validate reshaped data
-# Make full model loop
 
 list(
   # Data preparation loop to prepare and normalize CRDC files for
@@ -198,9 +183,6 @@ list(
           family = "binomial")
   ),
 
-
-
-
   tar_target(
     nat_m1_mod,
     brm(nat_m1_fml,
@@ -208,7 +190,8 @@ list(
     seed = 11213,
     prior = make_arrest_priors(),
     sample_prior = TRUE,
-    iter = NITER,
+    iter = NITER + 1000,
+    thin = 2,
     chains = NCHAINS,
     cores = NCHAINS,
     threads = threading(NTHREADS, static = TRUE),
@@ -217,9 +200,10 @@ list(
     resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
   ),
 
+  # TODO: Add global model 2
   tar_target(nat_m2_fml,
     brms::brmsformula(
-      ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
+      ARRESTS | trials(stu_enroll) ~ 1 + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
       family = "binomial"
     )
   ),
@@ -227,13 +211,41 @@ list(
   tar_target(
     nat_m2_mod,
     brm(nat_m2_fml,
+      data = recent_data$data,
+        seed = 11213,
+    prior = make_arrest_priors(),
+    sample_prior = TRUE,
+    iter = NITER + 1000,
+    thin = 2,
+    control =  mod_control,
+    chains = NCHAINS,
+    cores = NCHAINS,
+    threads = threading(NTHREADS, static = TRUE),
+    backend = "cmdstanr"
+  ),
+  resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+
+
+  tar_target(nat_m3_fml,
+    brms::brmsformula(
+      ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
+      family = "binomial"
+    )
+  ),
+
+  tar_target(
+    nat_m3_mod,
+    brm(nat_m3_fml,
       data = three_year_data$data,
         seed = 11213,
     prior = make_arrest_priors(),
     sample_prior = TRUE,
-    iter = NITER,
+    iter = NITER * ITER_MULTIPLIER,
+    thin = ITER_MULTIPLIER,
+    control =  mod_control,
     chains = NCHAINS,
-    cores = N_PAR_CHAINS,
+    cores = NCHAINS,
     threads = threading(NTHREADS, static = TRUE),
     backend = "cmdstanr"
   ),
@@ -363,10 +375,12 @@ list(
         seed = 11213,
       prior = make_arrest_priors(),
       sample_prior = TRUE,
-      iter = NITER,
+      iter = NITER * ITER_MULTIPLIER,
+      thin = ITER_MULTIPLIER,
       chains = NCHAINS,
       cores = NCHAINS,
-      threads = threading(NTHREADS, static = TRUE),
+      control =  mod_control,
+       threads = threading(NTHREADS, static = TRUE),
       backend = "cmdstanr")
       obj$id <- recent_data_group$group[1] # we need to label the group here
       obj
@@ -392,9 +406,11 @@ list(
         seed = 11213,
       prior = make_arrest_priors(),
       sample_prior = TRUE,
-      iter = NITER,
+      iter = NITER * ITER_MULTIPLIER,
+      thin = ITER_MULTIPLIER,
       chains = NCHAINS,
       cores = NCHAINS,
+      control =  mod_control,
       threads = threading(NTHREADS, static = TRUE),
       backend = "cmdstanr")
       obj$id <- three_year_data_group$group[1] # we need to label the group here

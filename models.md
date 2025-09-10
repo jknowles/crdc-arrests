@@ -63,13 +63,6 @@ models to "shrink" our estimates in accordance with information learned from
 the rest of the country
 
 
-## Rewrite the pipeline so there is a formula object for each model
-## Pass the formula object to the data and model functions
-## Use the formula to create the join data for variable names
-## Join the model results/draws onto the variable names in a function
-## Store joined results and then iterate over them for a model
-## diagnostic and results summary analysis
-
 ## Updates:
 
 For the national sample we fit:
