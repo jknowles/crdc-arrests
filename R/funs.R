@@ -625,7 +625,7 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
       select(LEA_STATE, LEAID) |>
       distinct() |>
       group_by(LEA_STATE) |>
-      slice_sample(n = 15) |>  # Sample up to 15, or all if fewer than 10
+      slice_sample(n = 25) |>  # Sample up to 25, or all if fewer than 25
       pull(LEAID)
 
     # Filter to only include rows with the sampled LEAIDs
@@ -664,15 +664,20 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
 
 }
 
-make_arrest_priors <- function() {
+make_arrest_priors <- function(int_only = FALSE) {
+
   wi_priors <- prior(normal(-8, 3), class = "Intercept") +
-  prior(normal(0, 5), class = "b") + # TODO: Is 5 too big?
   prior(cauchy(1, 2), class = "sd", group = "LEAID") +
   prior(cauchy(1, 2), class = "sd", group = "LEA_STATE")
 
-
+  if (int_only) {
   wi_priors
+  } else {
+    wi_priors +   prior(normal(0, 5), class = "b") # TODO: Is 5 too big?
+  }
+
 }
+
 #' Zero out missing values
 #'
 #' @param x a numeric vector with missing values

@@ -19,6 +19,12 @@ NTHREADS <- 4
 NCHAINS <- 4
 N_PAR_CHAINS <- CPU_CAPACITY %/% NTHREADS
 
+DEV_MODE <- TRUE
+enroll_cap <- ifelse(DEV_MODE, 5000, 30)
+NITER <- ifelse(DEV_MODE, 500, 4000)
+ITER_MULTIPLIER <- 2L
+
+
 if (N_PAR_CHAINS > NCHAINS) {
   MCMC_WORKERS <- N_PAR_CHAINS %/% NCHAINS
   N_PAR_CHAINS <- NCHAINS
@@ -46,10 +52,6 @@ tar_option_set(
 options(brms.threads = NTHREADS)
 options(mc.cores = CPU_CAPACITY)
 
-DEV_MODE <- FALSE
-enroll_cap <- ifelse(DEV_MODE, 5000, 30)
-NITER <- ifelse(DEV_MODE, 500, 4000)
-ITER_MULTIPLIER <- 2L
 
 # TODO: Consider increasing this
 # TODO: Revisit the total_referrals formula component because it is collinear
@@ -343,7 +345,7 @@ list(
         sg_m1_fml,
       data = recent_data_group,
        seed = 11213,
-    prior = make_arrest_priors(),
+    prior = make_arrest_priors(int_only = TRUE),
     sample_prior = TRUE,
     iter = NITER,
     chains = NCHAINS,
