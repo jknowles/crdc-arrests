@@ -1,5 +1,3 @@
-# Code
-
 #' Query prediction draw summaries from database
 #'
 #' @param con DuckDB connection object
@@ -16,7 +14,8 @@ get_prediction_summary <- function(con, LEAID = NULL, RACE = NULL, SEX = NULL,
                                   YEAR = NULL, model = NULL,
                                   confidence_level = 0.95,
                                   central_tendency = c("mean", "median"),
-                                  table_name = "predicted_draws") {
+                                  table_name = "predicted_draws")
+                                  {
 
   central_tendency <- match.arg(central_tendency)
 
@@ -117,7 +116,8 @@ get_state_prediction_summary <- function(con, LEA_STATE = NULL, RACE = NULL, SEX
                                         YEAR = NULL, model = NULL,
                                         confidence_level = 0.95,
                                         central_tendency = c("mean", "median"),
-                                        table_name = "predicted_draws") {
+                                        table_name = "predicted_draws")
+                                        {
 
   central_tendency <- match.arg(central_tendency)
 
@@ -216,7 +216,8 @@ get_state_prediction_summary <- function(con, LEA_STATE = NULL, RACE = NULL, SEX
 #' @return Data frame with all matching prediction draws
 get_prediction_draws <- function(con, LEAID = NULL, RACE = NULL, SEX = NULL,
                                 YEAR = NULL, model = NULL,
-                                table_name = "predicted_draws") {
+                                table_name = "predicted_draws")
+                                {
 
   # Start building the query
   query <- paste("SELECT * FROM", table_name)
@@ -264,102 +265,129 @@ get_prediction_draws <- function(con, LEAID = NULL, RACE = NULL, SEX = NULL,
   return(result)
 }
 
-
-# replace names
-
-  # Match and replace gropuing level value from data objects not named data
-
-  # Create X matrix from data$data using formula
-
-  # Match beta values to X matrix names
-
-
-# model stats function
+# R/funs.R:278‑369 -------------------------------------------------------------
+#' Calculate summary statistics for one or more brms models
+#'
+#' @param models A single `brmsfit` object or a list of such objects.
+#' @param model_prefix Optional prefix that will be prepended to the generated
+#'   `model_name`. Useful when the same function is called on several groups of
+#'   models (e.g., “baseline”, “sensitivity”).
+#'
+#' @return A data.frame where each row corresponds to a model and contains
+#'   key diagnostics (R‑hat, ESS, runtime, etc.).
+#' @examples
+#' \dontrun{
+#'   stats <- calculate_model_stats(my_brms_fit)
+#' }
 calculate_model_stats <- function(models, model_prefix = NULL) {
-  # Initialize an empty dataframe to store results
-  model_summary <- NULL
+  # -------------------------------------------------------------------------
+  # Helper utilities ---------------------------------------------------------
+  # -------------------------------------------------------------------------
 
-  # Handle both single model and list of models
-  if (!is.list(models) || (!is.null(models$family) && inherits(models, "brmsfit"))) {
-    # Single model case - convert to list for consistent processing
-    models_list <- list(models)
-  } else {
-    # List of models case
-    models_list <- models
+  ## Convert a single brmsfit object to a list for uniform processing
+  as_model_list <- function(x) {
+    if (inherits(x, "brmsfit")) list(x) else x
   }
 
-  # Process each model
-  for (i in seq_along(models_list)) {
+  ## Safely extract an element that may be NULL; returns NA when missing
+  safe_extract <- function(obj, path, default = NA) {
+    Reduce(function(o, p) {
+      if (is.null(o)) return(NULL)
+      o[[p]]
+    }, path, obj) %||% default
+  }
+
+  ## Compute the worst R‑hat across fixed and random effects
+  get_worst_rhat <- function(summ) {
+    rhat_vals <- c(summ$fixed$Rhat,
+                    unlist(lapply(summ$random, `[[`, "Rhat"), use.names = FALSE))
+    max(rhat_vals, na.rm = TRUE)
+  }
+
+  ## Gather Bulk ESS from fixed and random effects
+  get_bulk_ess_stats <- function(summ) {
+    ess_vals <- c(summ$fixed$Bulk_ESS,
+                  unlist(lapply(summ$random, `[[`, "Bulk_ESS"), use.names = FALSE))
+    list(min = min(ess_vals, na.rm = TRUE),
+         mean = mean(ess_vals, na.rm = TRUE))
+  }
+
+  # -------------------------------------------------------------------------
+  # Normalise input ----------------------------------------------------------
+  # -------------------------------------------------------------------------
+
+  models_list <- if (!is.list(models) || inherits(models, "brmsfit")) {
+    as_model_list(models)
+  } else {
+    models
+  }
+
+  # Early‑exit guard – return an empty data.frame with the correct columns
+  if (length(models_list) == 0L) {
+    warning("No models supplied to calculate_model_stats()")
+    return(data.frame())
+  }
+
+  # -------------------------------------------------------------------------
+  # Main loop ---------------------------------------------------------------
+  # -------------------------------------------------------------------------
+
+  results <- lapply(seq_along(models_list), function(i) {
     model <- models_list[[i]]
 
-    # Skip if not a brms model
     if (!inherits(model, "brmsfit")) {
-      warning(paste("Item", i, "is not a brmsfit object and will be skipped"))
-      next
+      warning(sprintf("Item %d is not a brmsfit object – skipping", i))
+      return(NULL)
     }
 
-    # Extract model information
-    summ <- summary(model)
-    timings <- brms:::elapsed_time(model)
+    # Model identifiers -------------------------------------------------------
+    model_id   <- safe_extract(model, c("id"), paste0("model_", i))
+    model_name <- if (is.null(model_prefix)) model_id else sprintf("%s_%s",
+                                                                 model_prefix,
+                                                                 model_id)
 
-    # Determine model ID
-    model_id <- ifelse(is.null(model$id), paste0("model_", i), model$id)
+    # Core diagnostics --------------------------------------------------------
+    summ      <- summary(model)
+    timings   <- brms:::elapsed_time(model)
 
-    # Check if OpenCL was used
-    opencl_ind <- ifelse(is.null(model$opencl$ids), "FALSE", "TRUE")
+    worst_rhat  <- get_worst_rhat(summ)
+    bulk_ess    <- get_bulk_ess_stats(summ)
 
-    # Get worst Rhat across all parameters (fixed and random)
-    worst_rhat <- max(summ$fixed$Rhat, na.rm = TRUE)
+    # Miscellaneous counts ----------------------------------------------------
+    parameters   <- sum(unlist(model$fit@par_dims, use.names = FALSE))
+    data_rows    <- nrow(model$data)
 
-    # Check all random effects groups for Rhat
-    if (!is.null(summ$random)) {
-      for (group in names(summ$random)) {
-        group_rhat <- max(summ$random[[group]]$Rhat, na.rm = TRUE)
-        worst_rhat <- max(worst_rhat, group_rhat, na.rm = TRUE)
-      }
-    }
+    # Runtime (minutes) – guard against missing timing info -------------------
+    runtime_min  <- if (!is.null(timings$total)) {
+      max(timings$total, na.rm = TRUE) / 60
+    } else NA_real_
 
-    # Get Bulk_ESS statistics
-    # Start with fixed effects
-    all_bulk_ess <- summ$fixed$Bulk_ESS
-
-    # Add random effects Bulk_ESS
-    if (!is.null(summ$random)) {
-      for (group in names(summ$random)) {
-        all_bulk_ess <- c(all_bulk_ess, summ$random[[group]]$Bulk_ESS)
-      }
-    }
-
-    # Calculate min and mean Bulk_ESS
-    min_bulk_ess <- min(all_bulk_ess, na.rm = TRUE)
-    mean_bulk_ess <- mean(all_bulk_ess, na.rm = TRUE)
-
-    # Create data frame with model statistics
-    tmp <- data.frame(
-      model_name = ifelse(is.null(model_prefix), model_id, paste0(model_prefix, "_", model_id)),
-      model_id = model_id,
-      ndraws = ndraws(model),
-      chains = nchains(model),
-      threads = ifelse(is.null(model$threads$threads), NA, model$threads$threads),
-      thin = brms:::nthin(model),
-      leas = ifelse(is.null(summ$ngrps$LEAID), NA, summ$ngrps$LEAID),
-      worst_rhat = worst_rhat,
-      min_bulk_ess = min_bulk_ess,
-      mean_bulk_ess = mean_bulk_ess,
-      runtime_minutes = ifelse(is.null(timings$total), NA, max(timings$total, na.rm = TRUE)/60),
-      opencl_ind = opencl_ind
+    # Assemble a single‑row data.frame ----------------------------------------
+    data.frame(
+      model_name     = model_name,
+      model_id       = model_id,
+      ndraws         = ndraws(model),
+      chains         = nchains(model),
+      threads        = safe_extract(model, c("threads", "threads")),
+      thin           = brms:::nthin(model),
+      leas           = safe_extract(summ, c("ngrps", "LEAID")),
+      parameters     = parameters,
+      worst_rhat     = worst_rhat,
+      min_bulk_ess   = bulk_ess$min,
+      mean_bulk_ess  = bulk_ess$mean,
+      runtime_minutes= runtime_min,
+      data_rows      = data_rows,
+      stringsAsFactors = FALSE
     )
+  })
 
-    # Append to results dataframe
-    if (is.null(model_summary)) {
-      model_summary <- tmp
-    } else {
-      model_summary <- rbind(model_summary, tmp)
-    }
-  }
+  # Remove any NULL entries (e.g., skipped objects) and bind rows ----------
+  results <- do.call(rbind, Filter(Negate(is.null), results))
 
-  return(model_summary)
+  return(results)
 }
+# -------------------------------------------------------------------------
+
 
 # Model cov summary function
 calculate_model_cov_summaries <- function(model_list, ndraws = 100, type = "sg") {
@@ -412,10 +440,12 @@ calculate_model_cov_summaries <- function(model_list, ndraws = 100, type = "sg")
 }
 
 
-# CRDC collapse
-
-
-
+#' Intersect CRDC and CCD data
+#'
+#' @param crdc CRDC data frame
+#' @param ccd CCD data frame
+#'
+#' @return Intersected data frame with combined CRDC and CCD information
 intersect_crdc_ccd <- function(crdc, ccd) {
   ccd$COMBOKEY <- stringr::str_pad(ccd$ncessch_num, width = 12,
                                   side = "left", pad = "0")
@@ -424,6 +454,13 @@ intersect_crdc_ccd <- function(crdc, ccd) {
   return(outdf)
 }
 
+#' Generate subset data for modeling
+#'
+#' @param data The full dataset to subset
+#' @param race_val Race value to filter by
+#' @param sex_val Sex value to filter by
+#'
+#' @return A stan_list object ready for brms modeling
 generate_subset_data <- function(data, race_val, sex_val) {
   subset_data <- data %>%
     filter(RACE == race_val, SEX == sex_val)
@@ -453,7 +490,11 @@ t
   return(stan_list)
 }
 
-# Function for stantargets that generates data for each demographic subset
+#' Generate demographic data for modeling
+#'
+#' @param data The full dataset to process
+#'
+#' @return A processed data frame ready for modeling
 generate_demographic_data <- function(data) {
   # Ensure all required variables are present and properly formatted
   subset_data <- data %>%
@@ -482,6 +523,11 @@ generate_demographic_data <- function(data) {
   return(subset_data)
 }
 
+#' Collapse CRDC data to LEA level
+#'
+#' @param combined_data The combined CRDC and CCD data
+#'
+#' @return A collapsed data frame at the LEA level
 crdc_lea_collapse <- function(combined_data) {
 
   combined_data <- combined_data |> filter(highest_grade_offered >= 7)
@@ -521,7 +567,7 @@ dist_ref_arr <- combined_data %>%
             stu_enroll = sum(stu_enroll)) %>%
   mutate(arrest_rate = scaled_rate(ARRESTS, stu_enroll, scale_factor = 1000),
          referral_rate = scaled_rate(REFERRALS, stu_enroll, scale_factor = 1000)) %>%
-  group_by(LEA_STATE, LEAID, LEA_NAME) |>
+  group_by(YEAR, LEA_STATE, LEAID, LEA_NAME) |>
   mutate(total_enroll = sum(stu_enroll[RACE != "TOTAL" &
                                          SEX != "TOTAL"]),
          total_referrals = sum(REFERRALS[RACE != "TOTAL" &
@@ -531,7 +577,14 @@ dist_ref_arr <- combined_data %>%
 
 
 
-scaled_rate <- function(numerator, denominator, scale_factor) {
+#' Calculate scaled rate
+#'
+#' @param numerator Numerator for the rate calculation
+#' @param denominator Denominator for the rate calculation
+#' @param scale_factor Factor to scale the result by (default: 1000)
+#'
+#' @return Scaled rate value
+scaled_rate <- function(numerator, denominator, scale_factor = 1000) {
   result <- rep(NA_real_, length(numerator))
   valid <- denominator != 0
   result[valid] <- numerator[valid] / (denominator[valid] /scale_factor)
@@ -541,6 +594,14 @@ scaled_rate <- function(numerator, denominator, scale_factor) {
   result
 }
 
+#' Restrict model data for analysis
+#'
+#' @param data The full dataset to filter and process
+#' @param enrollment_cap Minimum enrollment threshold (default: 30)
+#' @param dev_mode Whether to run in development mode (default: FALSE)
+#' @param year Specific year to filter by (optional)
+#'
+#' @return A list containing processed data and factor mappings
 restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, year = NULL) {
 
   if (is.null(year)) {
@@ -564,7 +625,7 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
       select(LEA_STATE, LEAID) |>
       distinct() |>
       group_by(LEA_STATE) |>
-      slice_sample(n = 15) |>  # Sample up to 10, or all if fewer than 10
+      slice_sample(n = 15) |>  # Sample up to 15, or all if fewer than 10
       pull(LEAID)
 
     # Filter to only include rows with the sampled LEAIDs
@@ -578,6 +639,9 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
   # arrests to be equal to the number of students enrolled
   data$ARRESTS[data$ARRESTS > data$stu_enroll] <- data$stu_enroll[data$ARRESTS > data$stu_enroll]
   data$REFERRALS[data$REFERRALS  > data$stu_enroll] <- data$stu_enroll[data$REFERRALS  > data$stu_enroll]
+  # log total referrals to improve sampler performance
+  data$total_referrals <- log1p(data$total_referrals)
+  data$referral_rate <- log1p(data$referral_rate)
 
   data <- ungroup(data)
   data <- as.data.frame(data)
@@ -602,6 +666,7 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
 
 make_arrest_priors <- function() {
   wi_priors <- prior(normal(-8, 3), class = "Intercept") +
+  prior(normal(0, 5), class = "b") + # TODO: Is 5 too big?
   prior(cauchy(1, 2), class = "sd", group = "LEAID") +
   prior(cauchy(1, 2), class = "sd", group = "LEA_STATE")
 
@@ -624,6 +689,12 @@ na_zero <- function(x) {
 }
 
 
+#' Reshape LE rate data to long format
+#'
+#' @param sch_referrals The school referrals data
+#' @param year The year to process (default: "2021-22")
+#'
+#' @return A long-format data frame with arrest and referral rates
 reshape_le_rate_long <- function(sch_referrals, year = "2021-22") {
   # Remove disability categories we won't use
     sch_referrals <- sch_referrals %>%
@@ -947,9 +1018,11 @@ get_crdc_sch_data <- function(enrollment, year = NULL) {
   return(sch_join_data)
 }
 
-# SKip and reserve codes for CRDC
-# Public Use Data File User's Manual
-# https://ocrdata.ed.gov/assets/downloads/2017-18%20CRDC%20Public-Use%20Data%20File%20Manual.pdf
+#' Handle CRDC skip and reserve codes
+#'
+#' @param x A vector of values to process for skip/reserve codes
+#'
+#' @return A vector with skip/reserve codes converted to NA
 crdc_sub <- function(x) {
   # These are truly missing
   x[x == -4] <- NA
@@ -1073,6 +1146,11 @@ crdc_missing_code_2122 <- function(x) {
 }
 
 
+#' Identify CRDC missing codes for 2015-16 data
+#'
+#' @param x A vector of values to identify missing codes for
+#'
+#' @return A vector with missing code descriptions
 crdc_missing_code_1516 <- function(x) {
   y <- rep("Not Missing", length(x))
   y[x == -2] <- "Small Cell Suppression"
@@ -1088,7 +1166,12 @@ crdc_missing_code_1516 <- function(x) {
   return(y)
 }
 
-# https://stackoverflow.com/questions/4993837/r-invalid-multibyte-string
+#' Find offending character in string
+#'
+#' @param x The string to analyze
+#' @param maxStringLength Maximum string length to check (default: 256)
+#'
+#' @return Prints the character by character analysis to console
 find_offending_character <- function(x, maxStringLength=256){
   print(x)
   for (c in 1:maxStringLength){
@@ -1098,6 +1181,14 @@ find_offending_character <- function(x, maxStringLength=256){
   }
 }
 
+#' Parse model name into components
+#'
+#' @param x The model name string to parse
+#' @param prefix Prefix to remove (optional)
+#' @param suffix Suffix to remove (optional)
+#' @param split Split pattern (default: "_")
+#'
+#' @return A parsed vector of components from the model name
 parse_model_name <- function(x, prefix, suffix, split = "_") {
   if(length(prefix) > 1) {
     prefix <- paste0(prefix, collapse = "|")

@@ -51,6 +51,16 @@ enroll_cap <- ifelse(DEV_MODE, 5000, 30)
 NITER <- ifelse(DEV_MODE, 500, 4000)
 ITER_MULTIPLIER <- 2L
 
+# TODO: Consider increasing this
+# TODO: Revisit the total_referrals formula component because it is collinear
+# with the LEAID term
+# Remove total_referrals from 1 year model (it is collinear with the intercept)
+# Log total_referrals for the three year models log1p(total_referrals)
+# three_year_data$data <- three_year_data$data %>%
+  #mutate(
+   # totref_log = log1p(total_referrals),      # log(1 + x)
+    #totref_std = scale(totref_log)[,1]        # mean‑0, sd‑1
+  #)
 mod_control <- list(adapt_delta = 0.875,
                     max_treedepth = 12L)
 
@@ -190,8 +200,8 @@ list(
     seed = 11213,
     prior = make_arrest_priors(),
     sample_prior = TRUE,
-    iter = NITER + 1000,
-    thin = 2,
+    iter = NITER %/% 2, # we need fewer here
+    thin = 1,
     chains = NCHAINS,
     cores = NCHAINS,
     threads = threading(NTHREADS, static = TRUE),
@@ -200,10 +210,10 @@ list(
     resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
   ),
 
-  # TODO: Add global model 2
+
   tar_target(nat_m2_fml,
     brms::brmsformula(
-      ARRESTS | trials(stu_enroll) ~ 1 + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
+      ARRESTS | trials(stu_enroll) ~ 1 + RACE * SEX + referral_rate + (1|LEAID)  + (1|LEA_STATE),
       family = "binomial"
     )
   ),
@@ -215,8 +225,33 @@ list(
         seed = 11213,
     prior = make_arrest_priors(),
     sample_prior = TRUE,
-    iter = NITER + 1000,
-    thin = 2,
+    iter = NITER,
+    thin = 1,
+    control =  mod_control,
+    chains = NCHAINS,
+    cores = NCHAINS,
+    threads = threading(NTHREADS, static = TRUE),
+    backend = "cmdstanr"
+  ),
+  resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+
+    tar_target(nat_m3_fml,
+    brms::brmsformula(
+      ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + (1|LEAID)  + (1|LEA_STATE),
+      family = "binomial"
+    )
+  ),
+
+  tar_target(
+    nat_m3_mod,
+    brm(nat_m3_fml,
+      data = three_year_data$data,
+        seed = 11213,
+    prior = make_arrest_priors(),
+    sample_prior = TRUE,
+    iter = NITER,
+    thin = 1,
     control =  mod_control,
     chains = NCHAINS,
     cores = NCHAINS,
@@ -227,7 +262,32 @@ list(
   ),
 
 
-  tar_target(nat_m3_fml,
+    tar_target(nat_m4_fml,
+    brms::brmsformula(
+      ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + (1|LEAID)  + (1|LEA_STATE),
+      family = "binomial"
+    )
+  ),
+
+  tar_target(
+    nat_m4_mod,
+    brm(nat_m4_fml,
+      data = three_year_data$data,
+        seed = 11213,
+    prior = make_arrest_priors(),
+    sample_prior = TRUE,
+    iter = NITER * ITER_MULTIPLIER,
+    thin = ITER_MULTIPLIER,
+    control =  mod_control,
+    chains = NCHAINS,
+    cores = NCHAINS,
+    threads = threading(NTHREADS, static = TRUE),
+    backend = "cmdstanr"
+  ),
+  resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+
+  tar_target(nat_m5_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1|LEAID)  + (1|LEA_STATE),
       family = "binomial"
@@ -235,8 +295,8 @@ list(
   ),
 
   tar_target(
-    nat_m3_mod,
-    brm(nat_m3_fml,
+    nat_m5_mod,
+    brm(nat_m5_fml,
       data = three_year_data$data,
         seed = 11213,
     prior = make_arrest_priors(),
@@ -300,9 +360,9 @@ list(
     ),
 
 
-    tar_target(
+  tar_target(
     sg_m2_fml,
-     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEA_STATE) + (1|LEAID),
+     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEA_STATE) +  (1|LEAID),
            family = "binomial")
   ),
 
@@ -312,6 +372,35 @@ list(
         {
         obj <- brm(
           sg_m2_fml,
+        data = recent_data_group,
+        seed = 11213,
+      prior = make_arrest_priors(),
+      sample_prior = TRUE,
+      iter = NITER,
+      chains = NCHAINS,
+      cores = NCHAINS,
+      threads = threading(NTHREADS, static = TRUE),
+      backend = "cmdstanr")
+      obj$id <- recent_data_group$group[1] # we need to label the group here
+      obj
+        },
+      pattern = map(recent_data_group),
+      iteration = "list",
+      resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+      ),
+
+tar_target(
+    sg_m3_fml,
+     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1|LEA_STATE) + (1|LEAID),
+           family = "binomial")
+  ),
+
+  tar_target(
+      sg_m3_mod,
+      command =
+        {
+        obj <- brm(
+          sg_m3_fml,
         data = three_year_data_group,
         seed = 11213,
       prior = make_arrest_priors(),
@@ -330,38 +419,10 @@ list(
       resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
       ),
 
-  tar_target(
-    sg_m3_fml,
-     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + (1|LEA_STATE) +  (1|LEAID),
-           family = "binomial")
-  ),
 
   tar_target(
-      sg_m3_mod,
-      command =
-        {
-        obj <- brm(
-          sg_m3_fml,
-        data = recent_data_group,
-        seed = 11213,
-      prior = make_arrest_priors(),
-      sample_prior = TRUE,
-      iter = NITER,
-      chains = NCHAINS,
-      cores = NCHAINS,
-      threads = threading(NTHREADS, static = TRUE),
-      backend = "cmdstanr")
-      obj$id <- recent_data_group$group[1] # we need to label the group here
-      obj
-        },
-      pattern = map(recent_data_group),
-      iteration = "list",
-      resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
-      ),
-
-      tar_target(
     sg_m4_fml,
-     brms::brmsformula( ARRESTS | trials(stu_enroll) ~ 1 + referral_rate + total_referrals + (1|LEA_STATE) +  (1|LEAID),
+     brms::brmsformula(  ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + (1|LEA_STATE) + (1|LEAID),
            family = "binomial")
   ),
 
@@ -371,7 +432,7 @@ list(
         {
         obj <- brm(
           sg_m4_fml,
-        data = recent_data_group,
+        data = three_year_data_group,
         seed = 11213,
       prior = make_arrest_priors(),
       sample_prior = TRUE,
@@ -380,17 +441,17 @@ list(
       chains = NCHAINS,
       cores = NCHAINS,
       control =  mod_control,
-       threads = threading(NTHREADS, static = TRUE),
+      threads = threading(NTHREADS, static = TRUE),
       backend = "cmdstanr")
-      obj$id <- recent_data_group$group[1] # we need to label the group here
+      obj$id <- three_year_data_group$group[1] # we need to label the group here
       obj
         },
-      pattern = map(recent_data_group),
+      pattern = map(three_year_data_group),
       iteration = "list",
       resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
       ),
 
-            tar_target(
+  tar_target(
     sg_m5_fml,
      brms::brmsformula(  ARRESTS | trials(stu_enroll) ~ 1 + YEAR + referral_rate + total_referrals + (1|LEA_STATE) + (1|LEAID),
            family = "binomial")
@@ -420,4 +481,6 @@ list(
       iteration = "list",
       resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
       )
+
+
 )

@@ -183,11 +183,13 @@ process_all_targets <- function(ndraws = 500, db_path = "export/db/crdc_arrests.
   target_info <- list(
     nat_m1_mod = "nat_m1_mod",
     nat_m2_mod = "nat_m2_mod",
+    nat_m3_mod = "nat_m3_mod",
     sg_m1_mod = "sg_m1_mod",
     sg_m2_mod = "sg_m2_mod",
     sg_m3_mod = "sg_m3_mod",
-    sg_m4_mod = "sg_m4_mod",
-    sg_m5_mod = "sg_m5_mod"
+    sg_m4_mod = "sg_m4_mod"
+    #,
+    #sg_m5_mod = "sg_m5_mod"
   )
 
   create_table <- TRUE
