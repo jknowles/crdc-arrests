@@ -21,7 +21,7 @@ N_PAR_CHAINS <- CPU_CAPACITY %/% NTHREADS
 
 DEV_MODE <- FALSE
 enroll_cap <- ifelse(DEV_MODE, 5000, 30)
-NITER <- ifelse(DEV_MODE, 500, 4000)
+NITER <- ifelse(DEV_MODE, 500, 3500)
 ITER_MULTIPLIER <- 2L
 
 
@@ -202,7 +202,7 @@ list(
     seed = 11213,
     prior = make_arrest_priors(),
     sample_prior = TRUE,
-    iter = NITER %/% 2, # we need fewer here
+    iter = NITER,
     thin = 1,
     chains = NCHAINS,
     cores = NCHAINS,
@@ -278,7 +278,7 @@ list(
         seed = 11213,
     prior = make_arrest_priors(),
     sample_prior = TRUE,
-    iter = NITER * ITER_MULTIPLIER,
+    iter = NITER + 500,
     thin = ITER_MULTIPLIER,
     control =  mod_control,
     chains = NCHAINS,
@@ -303,7 +303,7 @@ list(
         seed = 11213,
     prior = make_arrest_priors(),
     sample_prior = TRUE,
-    iter = NITER * ITER_MULTIPLIER,
+    iter = NITER + 500,
     thin = ITER_MULTIPLIER,
     control =  mod_control,
     chains = NCHAINS,
@@ -347,7 +347,7 @@ list(
        seed = 11213,
     prior = make_arrest_priors(int_only = TRUE),
     sample_prior = TRUE,
-    iter = NITER,
+    iter = NITER %/% 2,
     chains = NCHAINS,
     cores = NCHAINS,
     threads = threading(NTHREADS, static = TRUE),
@@ -408,6 +408,7 @@ tar_target(
       prior = make_arrest_priors(),
       sample_prior = TRUE,
       iter = NITER,
+      thin = ITER_MULTIPLIER,
       chains = NCHAINS,
       cores = NCHAINS,
       threads = threading(NTHREADS, static = TRUE),
@@ -438,7 +439,7 @@ tar_target(
         seed = 11213,
       prior = make_arrest_priors(),
       sample_prior = TRUE,
-      iter = NITER * ITER_MULTIPLIER,
+      iter = NITER + 500,
       thin = ITER_MULTIPLIER,
       chains = NCHAINS,
       cores = NCHAINS,
@@ -469,7 +470,7 @@ tar_target(
         seed = 11213,
       prior = make_arrest_priors(),
       sample_prior = TRUE,
-      iter = NITER * ITER_MULTIPLIER,
+      iter = NITER + 500,
       thin = ITER_MULTIPLIER,
       chains = NCHAINS,
       cores = NCHAINS,
@@ -483,6 +484,4 @@ tar_target(
       iteration = "list",
       resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
       )
-
-
 )

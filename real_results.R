@@ -12,8 +12,8 @@ library(ggridges)
 # Generate database of draws
 # Do once
 # Do once
-#source("R/postprocess.R")
-#process_all_targets(ndraws = 500, db_path = "export/db/crdc_arrests.duckdb")
+# source("R/postprocess.R")
+# process_all_targets(ndraws = 500, db_path = "export/db/crdc_arrests.duckdb")
 
 
 library(duckdb)
@@ -25,18 +25,19 @@ rdata <- targets::tar_read(recent_data)$data
 source("R/funs.R")
 
 
-
+# Calculate corrected intervals for number of arrests
 rdata |>
   filter(YEAR == "21-22") |>
   filter(stu_enroll > 0) |>
-  #filter(LEA_STATE %in% c("KS", "OK") & RACE %in% c("BL", "WH")) |>
-  mutate(phat = (2+ARRESTS) / (4+stu_enroll)) |> # agcouli would be ARRESTS +2 and stu_enroll + 4
+  mutate(phat = (2+ARRESTS) / (4+stu_enroll)) |> # agcouli approximation ARRESTS +2 and stu_enroll + 4
   mutate(phat_se = sqrt((phat * (1-phat)/(4+stu_enroll)))) |> # same phat but stu_enroll + 4 here
-  mutate(sd = phat_se * (4 + stu_enroll)) |> # stu_enroll + 4
+  mutate(sd = phat_se * (4 + stu_enroll)) |> # calculate rate standard error to arrest scale
   mutate(fitted_value = ARRESTS) |>
-  mutate(CVp = 100 * sqrt(((1-phat)/(phat*(4+stu_enroll))))) |> # express CVp as percentage, this is a biased estimator in rare events, should we address that? # stu_enroll+ 4
-  mutate(ci_upper = (phat + (1.96*phat_se)) * stu_enroll,
-        ci_lower = (phat - (1.96*phat_se)) * stu_enroll) |>
+  mutate(CVp = 100 * sqrt(((1-phat)/(phat*(4+stu_enroll))))) |> # express CVp as percentage, this is a biased estimator in rare events
+  # agresti-coull confidence interval for arrests using the adjusted arrest rate
+  mutate(ci_upper = (phat + (1.96*phat_se)) * (4 + stu_enroll),
+        ci_lower = (phat - (1.96*phat_se)) * (4 + stu_enroll)) |>
+            # add rule of three correction
   mutate(ci_upper = ifelse(ARRESTS == 0, 3, ci_upper),  # add 3
         ci_lower = ifelse(ARRESTS == 0, 0, ci_lower)) |>
   mutate(ci_lower = ifelse(ci_lower < 0, 0, ci_lower)) |>
@@ -266,6 +267,8 @@ plotdf |>
 calculate_model_stats(targets::tar_read("nat_m1_mod"))
 calculate_model_stats(targets::tar_read("nat_m2_mod"))
 calculate_model_stats(targets::tar_read("nat_m3_mod"))
+calculate_model_stats(targets::tar_read("nat_m4_mod"))
+calculate_model_stats(targets::tar_read("nat_m5_mod"))
 
 
 #calculate_model_stats(targets::tar_read("sg_m1_mod"))

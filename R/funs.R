@@ -643,6 +643,8 @@ restrict_model_data <- function(data, enrollment_cap = 30, dev_mode = FALSE, yea
   data$total_referrals <- log1p(data$total_referrals)
   data$referral_rate <- log1p(data$referral_rate)
 
+  data <- data |> filter(stu_enroll > 0)
+
   data <- ungroup(data)
   data <- as.data.frame(data)
 
