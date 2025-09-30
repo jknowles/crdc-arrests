@@ -347,7 +347,7 @@ list(
        seed = 11213,
     prior = make_arrest_priors(int_only = TRUE),
     sample_prior = TRUE,
-    iter = NITER %/% 2,
+    iter = (500 + NITER) %/% 2,
     chains = NCHAINS,
     cores = NCHAINS,
     threads = threading(NTHREADS, static = TRUE),
@@ -439,7 +439,7 @@ tar_target(
         seed = 11213,
       prior = make_arrest_priors(),
       sample_prior = TRUE,
-      iter = NITER + 500,
+      iter = NITER + 800,
       thin = ITER_MULTIPLIER,
       chains = NCHAINS,
       cores = NCHAINS,
@@ -484,4 +484,32 @@ tar_target(
       iteration = "list",
       resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
       )
+
+  # Hypothetical Model 6 specification. Not run. Run attempted in September 2025
+  # but was canceled after 7 days of continuous compute failed to produce results.
+  #,
+   #     tar_target(nat_m6_fml,
+  #   brms::brmsformula(
+  #     ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1 + RACE * SEX |LEAID)  + (1|LEA_STATE),
+  #     family = "binomial"
+  #   )
+  # ),
+
+  # tar_target(
+  #   nat_m6_mod,
+  #   brm(nat_m6_fml,
+  #     data = three_year_data$data,
+  #       seed = 11213,
+  #   prior = make_arrest_priors(),
+  #   sample_prior = TRUE,
+  #   iter = NITER + 500,
+  #   thin = ITER_MULTIPLIER,
+  #   control =  mod_control,
+  #   chains = NCHAINS,
+  #   cores = NCHAINS,
+  #   threads = threading(NTHREADS, static = TRUE),
+  #   backend = "cmdstanr"
+  # ),
+  # resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  # )
 )

@@ -1,5 +1,5 @@
 ---
-title: "CRDC Arrest Rate Sample Analysis"
+title: "CRDC Arrest Rate Analysis: Full sample"
 format: html
 knitr:
   opts_chunk:
@@ -7,6 +7,7 @@ knitr:
     warning: false
     error: false
     echo: false
+    fig.path: export/figures/annualdescriptives-
 execute:
   echo: false
   warning: false
@@ -60,7 +61,8 @@ color_fill_values2 <- c("White" = "#c92d0e", "Black" = "#020684",
 # schuniverse <- targets::tar_load(schuniverse)
 # ccd_dist_geo <- targets::tar_load(ccd_dist_geo)
 
-suffix <- params$target_name
+#suffix <- params$target_name
+suffix <- "y2122"
 # Load the targets with the correct suffix
 sch_ref_arr <- targets::tar_read_raw(paste0("model_data_", suffix))
 #schuniverse <- targets::tar_read_raw(paste0("schuniverse_", suffix))
@@ -112,8 +114,8 @@ dist_ref_arr |>
         arrests = sum(ARRESTS),
         referrals = sum(REFERRALS)) -> nat_totals
 
-nat_arrest_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
-nat_referral_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
+nat_referral_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
+nat_arrest_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
 nat_totals
 # FIXME: Report the rates also below as Number Needed to Harm (NNH)
 ```
@@ -281,6 +283,27 @@ ggplot(nat_sg_totals |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
 
 ```
 
+
+```{r}
+#| label: sg_summary_arrestrate
+#| fig-width: 9
+#| warning: false
+#| message: false
+
+ggplot(nat_sg_totals |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
+  aes(x = crdc_race_recode(RACE), y = arrest_rate,
+  fill = crdc_race_recode(RACE)) +
+    scale_fill_manual(values = color_fill_values2) +
+  geom_col() +
+  geom_text(aes(label = civilytics::pretty_count(round(arrest_rate,2))),
+              vjust = -0.25) +
+  facet_wrap(~SEX) +
+  civilytics::theme_civilytics(font_size = 16) +
+  labs(title = "2021-22 National Arrest Rates by Select Student Groups",
+  x = "", y = "Arrests per 1,000", fill = "Race:") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme(legend.position = "bottom", axis.ticks.x = element_blank())
+```
 
 ```{r}
 #| label: sg_summary_referralNNH

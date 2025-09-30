@@ -87,15 +87,23 @@ get_prediction_summary <- function(con, LEAID = NULL, RACE = NULL, SEX = NULL,
   ")
 
   # Execute query and return results
-  cat("Executing summary query with", confidence_level*100, "% confidence intervals using", central_tendency, "\n")
-  cat("Query:\n", query, "\n\n")
+  # Use message() instead of cat() to allow suppression in Quarto/Knitr
+  # Check if we're in a reporting environment (Quarto/Knitr) and suppress output if so
+  in_report <- !is.null(getOption("knitr.in.progress")) ||
+              !is.null(getOption("quarto.render")) ||
+              !is.null(Sys.getenv("QUARTO_PROJECT_DIR", unset = NA))
+
   result <- dbGetQuery(con, query)
 
   # Add helpful metadata as attributes
   attr(result, "confidence_level") <- confidence_level
   attr(result, "central_tendency") <- central_tendency
 
-  cat("Returned", nrow(result), "summary rows\n")
+  if (!in_report) {
+    message("Executing summary query with ", confidence_level*100, "% confidence intervals using ", central_tendency)
+    message("Query:\n", query, "\n\n")
+    message("Returned ", nrow(result), " summary rows")
+  }
   return(result)
 }
 
@@ -190,16 +198,27 @@ get_state_prediction_summary <- function(con, LEA_STATE = NULL, RACE = NULL, SEX
   ")
 
   # Execute query and return results
-  cat("Executing state-level summary query with", confidence_level*100, "% confidence intervals using", central_tendency, "\n")
-  cat("Query:\n", query, "\n\n")
+
   result <- dbGetQuery(con, query)
 
   # Add helpful metadata as attributes
   attr(result, "confidence_level") <- confidence_level
   attr(result, "central_tendency") <- central_tendency
   attr(result, "aggregation_level") <- "state"
+    # Execute query and return results
+  # Use message() instead of cat() to allow suppression in Quarto/Knitr
+  # Check if we're in a reporting environment (Quarto/Knitr) and suppress output if so
+  in_report <- !is.null(getOption("knitr.in.progress")) ||
+              !is.null(getOption("quarto.render")) ||
+              !is.null(Sys.getenv("QUARTO_PROJECT_DIR", unset = NA))
 
-  cat("Returned", nrow(result), "state-level summary rows\n")
+  if(!in_report) {
+    message("Returned", nrow(result), "state-level summary rows\n")
+    message("Executing state-level summary query with", confidence_level*100, "% confidence intervals using", central_tendency, "\n")
+  message("Query:\n", query, "\n\n")
+
+  }
+
   return(result)
 }
 
@@ -256,16 +275,149 @@ get_prediction_draws <- function(con, LEAID = NULL, RACE = NULL, SEX = NULL,
 
   # Add ordering for consistent results
   query <- paste(query, "ORDER BY model_id, LEAID, LEA_STATE, YEAR, RACE, SEX, draw_id")
-
-  # Execute query and return results
-  cat("Executing query:\n", query, "\n\n")
   result <- dbGetQuery(con, query)
+   # Use message() instead of cat() to allow suppression in Quarto/Knitr
+  # Check if we're in a reporting environment (Quarto/Knitr) and suppress output if so
+  in_report <- !is.null(getOption("knitr.in.progress")) ||
+              !is.null(getOption("quarto.render")) ||
+              !is.null(Sys.getenv("QUARTO_PROJECT_DIR", unset = NA))
+  if(!in_report) {
+    # Execute query and return results
+    message("Executing query:\n", query, "\n\n")
+    message("Returned", nrow(result), "rows\n")
+  }
 
-  cat("Returned", nrow(result), "rows\n")
   return(result)
 }
 
-# R/funs.R:278‑369 -------------------------------------------------------------
+#' Query prediction draw summaries aggregated by state - sum of fitted values
+#'
+#' @param con DuckDB connection object
+#' @param LEA_STATE Character vector of state codes to filter (optional)
+#' @param RACE Character vector of race categories to filter (optional)
+#' @param SEX Character vector of sex categories to filter (optional)
+#' @param YEAR Character vector of years to filter (optional)
+#' @param model Character vector of model IDs to filter (optional)
+#' @param table_name Name of the database table (default: "predicted_draws")
+#' @return Data frame with sum of fitted values by draw_id and state
+get_state_prediction_draws <- function(con, LEA_STATE = NULL, RACE = NULL, SEX = NULL,
+                                       YEAR = NULL, model = NULL,
+                                       table_name = "predicted_draws")
+{
+  # Build WHERE conditions
+  where_conditions <- c()
+
+  if (!is.null(LEA_STATE)) {
+    # Handle "ALL" case - if LEA_STATE is "ALL", we don't filter by state
+    if (length(LEA_STATE) == 1 && LEA_STATE == "ALL") {
+      # Don't add any state filtering condition - return all states
+    } else {
+      state_list <- paste0("'", LEA_STATE, "'", collapse = ",")
+      where_conditions <- c(where_conditions, paste0("LEA_STATE IN (", state_list, ")"))
+    }
+  }
+
+  if (!is.null(RACE)) {
+    # Handle "ALL" case - if RACE is "ALL", we don't filter by race
+    if (length(RACE) == 1 && RACE == "ALL") {
+      # Don't add any race filtering condition - return all races
+    } else {
+      race_list <- paste0("'", RACE, "'", collapse = ",")
+      where_conditions <- c(where_conditions, paste0("RACE IN (", race_list, ")"))
+    }
+  }
+
+  if (!is.null(SEX)) {
+    # Handle "ALL" case - if SEX is "ALL", we don't filter by sex
+    if (length(SEX) == 1 && SEX == "ALL") {
+      # Don't add any sex filtering condition - return all sexes
+    } else {
+      sex_list <- paste0("'", SEX, "'", collapse = ",")
+      where_conditions <- c(where_conditions, paste0("SEX IN (", sex_list, ")"))
+    }
+  }
+
+  if (!is.null(YEAR)) {
+    year_list <- paste0("'", YEAR, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("YEAR IN (", year_list, ")"))
+  }
+
+  if (!is.null(model)) {
+    model_list <- paste0("'", model, "'", collapse = ",")
+    where_conditions <- c(where_conditions, paste0("model_id IN (", model_list, ")"))
+  }
+
+  # Build the query - sum fitted values by draw_id and state
+  # When RACE or SEX is "ALL", we collapse the data by summing within each state
+  # and exclude those columns from the result
+
+  # Check if we need to collapse by RACE or SEX
+  collapse_race <- !is.null(RACE) && length(RACE) == 1 && RACE == "ALL"
+  collapse_sex <- !is.null(SEX) && length(SEX) == 1 && SEX == "ALL"
+
+  # Build the query based on whether we're collapsing
+  if (collapse_race || collapse_sex) {
+    # When collapsing, don't include the collapsed columns in SELECT
+    query <- paste0("
+      SELECT
+        model_id,
+        draw_id,
+        LEA_STATE,
+        YEAR,
+        SUM(pred) as fitted_value,
+        COUNT(DISTINCT LEAID) as n_districts
+      FROM ", table_name)
+  } else {
+    # When not collapsing, include all columns
+    query <- paste0("
+      SELECT
+        model_id,
+        draw_id,
+        LEA_STATE,
+        YEAR,
+        RACE,
+        SEX,
+        SUM(pred) as fitted_value,
+        COUNT(DISTINCT LEAID) as n_districts
+      FROM ", table_name)
+  }
+
+  # Add WHERE clause if we have conditions
+  if (length(where_conditions) > 0) {
+    query <- paste(query, "WHERE", paste(where_conditions, collapse = " AND "))
+  }
+
+  # Build GROUP BY clause based on whether we're collapsing
+  if (collapse_race || collapse_sex) {
+    # When collapsing, group by all columns except the collapsed ones
+    query <- paste(query, "
+      GROUP BY model_id, draw_id, LEA_STATE, YEAR
+      ORDER BY model_id, LEA_STATE, YEAR")
+  } else {
+    # When not collapsing, group by all columns
+    query <- paste(query, "
+      GROUP BY model_id, draw_id, LEA_STATE, YEAR, RACE, SEX
+      ORDER BY model_id, LEA_STATE, YEAR, RACE, SEX")
+  }
+
+  # Execute query and return results
+  result <- dbGetQuery(con, query)
+
+  # Use message() instead of cat() to allow suppression in Quarto/Knitr
+  # Check if we're in a reporting environment (Quarto/Knitr) and suppress output if so
+  in_report <- !is.null(getOption("knitr.in.progress")) ||
+              !is.null(getOption("quarto.render")) ||
+              !is.null(Sys.getenv("QUARTO_PROJECT_DIR", unset = NA))
+
+  if(!in_report) {
+    message("Returned ", nrow(result), " state-level draw summary rows\n")
+    message("Executing state-level draw summary query\n")
+    message("Query:\n", query, "\n\n")
+  }
+
+  return(result)
+}
+
 #' Calculate summary statistics for one or more brms models
 #'
 #' @param models A single `brmsfit` object or a list of such objects.
@@ -1209,4 +1361,23 @@ parse_model_name <- function(x, prefix, suffix, split = "_") {
   return(x)
 
 
+}
+
+pretty_count <- function(x) {
+  x <- round(x, digits = 0)
+  x <- prettyNum(x, big.mark = ",")
+  return(x)
+}
+
+
+pretty_per <- function (x, ndigit = 1)
+{
+    if (any(x >= 100) & !all(is.na(x))) {
+        message("Values over 100 found, did you mean to use proportions?")
+    }
+    x <- format(round(x, digits = ndigit + 2) * 100, nsmall = ndigit)
+    x <- paste0(x, "%")
+    x[x == "NA%"] <- " - "
+    x <- trimws(x)
+    return(x)
 }

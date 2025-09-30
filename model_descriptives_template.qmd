@@ -1,12 +1,15 @@
 ---
-title: "CRDC Arrest Rate Sample Analysis"
-format: html
+title: "CRDC Arrest Rate Analysis: Analytic Sample"
+format:
+  html:
+    embed-resources: true
 knitr:
   opts_chunk:
     message: false
     warning: false
     error: false
     echo: false
+    fig.path: export/figures/appliedexample-
 execute:
   echo: false
   warning: false
@@ -17,6 +20,10 @@ params:
   target_name: "y2122"  # Default suffix, will be
 ---
 
+This report explores the sample restrictions used to complete the paper both
+for fitting the models and reporting the results. This report focuses on the
+sample restrictions to the most recent year of data, but the code can be
+adjusted to report for any year desired.
 
 ```{r}
 #| label: setup

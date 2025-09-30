@@ -11,7 +11,7 @@ execute:
 
 ## Overview
 
-This document explores the combined model data across all years (2015-16, 2017-18, 2021-22) from the Civil Rights Data Collection.
+This document explores the combined data across all years (2015-16, 2017-18, 2021-22) from the Civil Rights Data Collection.
 
 ```{r}
 #| label: setup
