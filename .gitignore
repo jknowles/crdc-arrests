@@ -1,0 +1,8 @@
+*.knit.md
+*.html
+/export
+/cache
+*.xlsx
+/tmp
+.env
+/inst
