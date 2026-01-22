@@ -1,35 +1,61 @@
-# CRDC Arrest Rates Analysis Pipeline
-
-A reproducible **R targets** pipeline for analyzing arrest rates in U.S. public schools using the Civil Rights Data Collection (CRDC). The workflow fits Bayesian hierarchical models with `brms`/`cmdstanr`, processes three waves of CRDC data (2015‑16, 2017‑18, 2021‑22), and generates exploratory reports and model diagnostics.
+# Equity Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the CRDC School Arrest Data
 
 ---
+
+This repository contains the code and data to reproduce small area estimates of
+school-based arrest rates from US Department of Education Civil Rights Data
+Collection public datasets.
 
 ## Table of Contents
 
+- [Abstract](#abstact)
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running the Pipeline](#running-the-pipeline)
+- [Usage](#installation)
 - [Key Targets & Outputs](#key-targets--outputs)
 - [Troubleshooting & Common Errors](#troubleshooting--common-errors)
-- [Reproducibility Best Practices](#reproducibility-best-practices)
-- [Citation](#citation)
-- [License & Contact](#license--contact)
+- [Suggested Citation](#citation)
+
 
 ---
 
+[Jared E. Knowles](https://www.civilytics.com/people/jared/) - President, Civilytics Consulting
+[Hannah Miller](https://www.civilytics.com/people/hannah/) - Senior Partner, Civilytics Consulting
+
+---
+
+---
+
+Jared Knowles and Hannah Miller. 2025. "Equity Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the CRDC School Arrest Data." Available online at: https://www.civilytics.com/k12ed/school-based-arrest-rate-estimates/
+
+This research was supported by a grant from the American Educational Research Association which receives funds for its "AERA Grants Program" from the National Science Foundation under NSF award NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or NSF.
+---
+
+[Preprint](https://www.civilytics.com/k12ed/school-based-arrest-rate-estimates/)
+
+
+## Abstract
+
+From the final report:
+
+> School-based punishment and discipline can be enormously consequential for students’ lives. Researchers have documented racial disparities in all outcomes along the school punishment continuum with Black students overrepresented among those experiencing every form of school punishment, including school-based arrests. To date, most public-facing analyses of school-based arrests focus on observed counts or rates with some exclusion restrictions based on sample size. These analyses quickly draw attention to outliers (some of which are data errors) and have limited use in making direct geographic, demographic, or temporal comparisons. Bayesian hierarchical models of rare events have been used to improve accuracy of rate estimates in a wide variety of fields. We show that by using this strategy we can greatly increase the ability to draw comparisons in arrest rates by increasing the rates’ precision. We evaluate the tradeoffs of several different model specifications of arrest rates in terms of precision and coverage and include applied examples of using model predictions to make informed comparisons.
+
+
 ## Prerequisites
+
+This project has substantial computation requirements and configuring the
+environment to run may be difficult depending on your setup. Here are some
+recommendations to get you started.
 
 | Component | Minimum Version | Notes |
 |-----------|-----------------|-------|
 | **R** | 4.4.x | Tested on R 4.4.3 (Linux) |
 | **CmdStan** | 2.35+ | Required for `cmdstanr` backend |
-| **System libraries** | libcurl, OpenSSL, CMake, gcc/clang | Needed to compile several CRAN packages |
-| **Hardware** | ≥ 32 CPU cores, ≥ 64 GB RAM (recommended) | Parallel MCMC chains and large data joins |
+| **Hardware** | ≥ 12 CPU cores, ≥ 64 GB RAM (recommended) | Parallel MCMC chains and large data joins |
 
 ### R Packages
 
-All required R packages are listed in `DESCRIPTION`‑style format below. Install them with:
+You will want to install the following R packages in order to process the
+data pipeline.
 
 ```r
 install.packages(c(
@@ -40,33 +66,35 @@ install.packages(c(
 ), repos = "https://cloud.r-project.org")
 ```
 
-> **Tip:** Use `renv::restore()` if a lockfile is added later.
-
 ---
 
-## Installation
 
-1. **Clone the repository**
+## Usage
 
-   ```bash
-   git clone https://github.com/your-org/crdc-arrest-pipeline.git
-   cd crdc-arrest-pipeline
-   ```
+This project is executed as a `targets` pipeline. This allows for caching of
+intermediate results as well as organizing the data preparation, modeling, and
+postprocessing of model outputs in a logical flow with correctly specified
+dependencies. Learn more about targets here.
 
-2. **Install system dependencies** (Ubuntu/Debian example)
+### Obtain the data
 
-   ```bash
-    sudo apt-get update && \
-    sudo apt-get install -y libcurl4-openssl-dev libssl-dev cmake
-    sudo apt-get install liblapacke-dev liblapacke libopenblas-dev libopenblas-pthread-dev libopenblas-serial-dev libopenblas0 libopenblas0-pthread libopenblas0-serial
-    sudo update-alternatives --config libblas.so.3-x86_64-linux-gnu
-    sudo update-alternatives --config liblapack.so.3-x86_64-linux-gnu
-    sudo update-alternatives --config liblapacke.so.3-x86_64-linux-gnu
-   ```
+Download the official CSV version of the [Civil Rights Data Collection public use download
+files](https://civilrightsdata.ed.gov/data). The pipeline requires two different files - one with
+student enrollment by school and one with law enforcement arrests and referrals. For each year of
+the data the required files have slightly different names.
 
-3. **Install R packages** (see above). The previous step already installed `crew`, `future.callr`, and `educationdata`.
+You can follow the instructions in the [download guide](DOWNLOAD_GUIDE.md) to
+obtain the three required waves of CRDC data (2015-16, 2017-18, and 2021-22).
+Note that the file locations may have changed since publication. Report issues
+with accessing the download as issues on this repository so it can be updated.
 
-4. **Set up CmdStan**
+### Install depencencies
+
+After installing the R packages required above you need to set up CmdStan to
+fit the models effectively. The CmdStan setup varies slightly depending on
+your machine architecture, but the code below should help.
+
+**Set up CmdStan**
 
    ```r
    # we recommend running this in a fresh R session or restarting your current session
@@ -81,25 +109,17 @@ install.packages(c(
    ```
 
 
----
+### Enable development mode
 
-## Configuration
+Confirm your system is set up correctly by conducting a test run of the pipeline as below:
 
-### Data Paths
-
-The pipeline expects CRDC CSV files in the locations defined in `_targets.R`. Two sets of default paths are provided:
-
-- **Linux/macOS** – under `tmp/data/…`
-- **Windows** – absolute network share (`X:/datasets/ED/CRDC/...`)
-
-Edit the `crdc_data` tibble in [_targets.R_](./_targets.R) (lines 71‑85 for Linux/macOS, lines 90‑104 for Windows) to point at your local copies.
-
-### Development Mode & Enrollment Cap
-
-- **DEV_MODE** (`FALSE` by default) runs the full analysis. Set `TRUE` for quick tests.
-- **enroll_cap** controls the minimum district enrollment (30 students in production, 5 000 in dev mode). Adjust via line 23 in `_targets.R`.
+- **DEV_MODE** (`FALSE` by default) runs the full analysis. Set `TRUE` for an initial test.
+- **enroll_cap** controls the minimum district enrollment to be included in the sample, set to 5,000
+  for an initial test. Adjust via line 23 in `_targets.R`.
 
 ### Parallel Settings
+
+Modify these values to match your hardware. The pipeline automatically configures crew controllers for regular targets and MCMC models.
 
 ```r
 CPU_CAPACITY <- 32          # total cores available
@@ -107,11 +127,9 @@ NTHREADS      <- 4           # threads per MCMC chain
 NCHAINS       <- 4           # number of chains
 ```
 
-Modify these values to match your hardware. The pipeline automatically configures crew controllers for regular targets and MCMC models.
-
 ---
 
-## Running the Pipeline
+### Test the Pipeline
 
 ```r
 # Load the targets package
@@ -125,11 +143,12 @@ tar_make()
 ```
 
 
-All targets are defined in `_targets.R`. Use `tar_meta()` to list them or `tar_read(target_name)` to inspect a target’s value.
-
 ---
 
 ## Key Targets & Outputs
+
+The target pipeline will produce a number of outputs - the most important
+are described below.
 
 | Target | Description | Output |
 |--------|-------------|--------|
@@ -158,38 +177,19 @@ All pipeline logs are written to `_targets/meta/` and can be inspected with `tai
 
 ---
 
-## Reproducibility Best Practices
+## Suggested Citation
 
-1. **Pin R package versions** – use an `renv.lock` file (run `renv::snapshot()` after installing packages).
-2. **Record CmdStan version** – `cmdstanr::cmdstan_version()`.
-3. **Store raw data outside the repo** and reference it via absolute or relative paths; never commit large CSVs.
-4. **Run on a dedicated compute node** with the same `CPU_CAPACITY`, `NTHREADS`, and `NCHAINS` settings used for the original analysis.
-5. **Version‑control `_targets.R`** – any change to target definitions requires a new pipeline run.
-
----
-
-## Citation
+Jared Knowles and Hannah Miller. 2025. "Equity Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the CRDC School Arrest Data." Available online at: https://www.civilytics.com/k12ed/school-based-arrest-rate-estimates/
 
 When using this pipeline, please cite the Civil Rights Data Collection:
 
 > U.S. Department of Education, Office for Civil Rights. (Year). *Civil Rights Data Collection*. Washington, DC.
 
-Additionally, acknowledge the software:
-
-```bibtex
-@software{crdc_arrest_pipeline,
-  author = {Your Name},
-  title = {{CRDC Arrest Rates Analysis Pipeline}},
-  year = {2025},
-  url = {https://github.com/your-org/crdc-arrest-pipeline}
-}
-```
-
 ---
 
-## License & Contact
+## Acknowledgements
 
-- **License:** Add appropriate license text here (e.g., MIT, GPL‑3.0).
-- **Contact:** For questions or collaborations, reach out to `youremail@example.com`.
-
----
+This research was supported by a grant from the American Educational Research Association which
+receives funds for its "AERA Grants Program" from the National Science Foundation under NSF award
+NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or
+NSF.

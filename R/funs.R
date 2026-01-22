@@ -1381,3 +1381,384 @@ pretty_per <- function (x, ndigit = 1)
     x <- trimws(x)
     return(x)
 }
+
+
+#' Download and extract CRDC data files
+#'
+#' Downloads the Civil Rights Data Collection (CRDC) public use files from the
+#' U.S. Department of Education website and extracts them to a specified directory.
+#' The function handles the different file structures across the three data years
+#' (2015-16, 2017-18, 2021-22).
+#'
+#' @param year Character string specifying the data year. Must be one of:
+#'   "2021-22", "2017-18", or "2015-16"
+#' @param dest_dir Character string specifying the destination directory where
+#'   files will be extracted (default: "tmp/data")
+#' @param download_url Character string with the download URL. If NULL (default),
+#'   the function will prompt the user to manually download the file from
+#'   https://civilrightsdata.ed.gov/data
+#' @param zip_file Character string with path to an already-downloaded zip file.
+#'   If provided, the function will skip downloading and extract this file instead.
+#' @param overwrite Logical indicating whether to overwrite existing files
+#'   (default: FALSE)
+#'
+#' @return A list with two elements:
+#'   \item{enrollment_path}{Path to the enrollment CSV file}
+#'   \item{le_path}{Path to the law enforcement referrals and arrests CSV file}
+#'
+#' @details
+#' The CRDC data files have different structures across years:
+#' \itemize{
+#'   \item 2021-22: Files are in SCH/ subdirectory
+#'   \item 2017-18: Files are in nested Public-Use Files/Data/SCH/CRDC/CSV/ structure
+#'   \item 2015-16: Files are in Data Files and Layouts/ subdirectory, with both
+#'         enrollment and law enforcement data in a single file
+#' }
+#'
+#' Note: Due to the large file sizes and the need to accept terms of use on the
+#' CRDC website, this function requires manual download of the zip files. Users
+#' should:
+#' 1. Visit https://civilrightsdata.ed.gov/data
+#' 2. Select the appropriate year
+#' 3. Download the CSV version of the public use files
+#' 4. Provide the path to the downloaded zip file using the zip_file parameter
+#'
+#' @examples
+#' \dontrun{
+#' # After manually downloading the 2021-22 data file:
+#' paths <- download_crdc_data(
+#'   year = "2021-22",
+#'   zip_file = "~/Downloads/2021-22-crdc-data.zip"
+#' )
+#'
+#' # Check the extracted file paths
+#' print(paths$enrollment_path)
+#' print(paths$le_path)
+#' }
+#'
+#' @export
+download_crdc_data <- function(year,
+                               dest_dir = "tmp/data",
+                               download_url = NULL,
+                               zip_file = NULL,
+                               overwrite = FALSE) {
+
+  # Validate year parameter
+  valid_years <- c("2021-22", "2017-18", "2015-16")
+  if (!year %in% valid_years) {
+    stop("Year must be one of: ", paste(valid_years, collapse = ", "))
+  }
+
+  # Create destination directory if it doesn't exist
+  if (!dir.exists(dest_dir)) {
+    dir.create(dest_dir, recursive = TRUE)
+    message("Created directory: ", dest_dir)
+  }
+
+  # Determine the expected directory name after extraction
+  year_dir <- switch(year,
+    "2021-22" = "2021-22-crdc-data",
+    "2017-18" = "2017-18-crdc-data",
+    "2015-16" = "2015-16-crdc-data"
+  )
+
+  extract_dir <- file.path(dest_dir, year_dir)
+
+  # Check if files already exist
+  if (dir.exists(extract_dir) && !overwrite) {
+    message("Data directory already exists: ", extract_dir)
+    message("Set overwrite = TRUE to re-extract")
+  } else {
+    # Handle file download/extraction
+    if (is.null(zip_file)) {
+      # Provide instructions for manual download
+      message("\n=== Manual Download Required ===")
+      message("Please download the CRDC data files manually:")
+      message("1. Visit: https://civilrightsdata.ed.gov/data")
+      message("2. Select year: ", year)
+      message("3. Download the CSV version of the public use files")
+      message("4. Run this function again with the zip_file parameter:")
+      message("   download_crdc_data(year = '", year, "', zip_file = 'path/to/downloaded/file.zip')")
+      message("\nAlternatively, if you have a direct download URL, provide it via the download_url parameter.")
+      stop("Manual download required. See instructions above.")
+    }
+
+    # Verify zip file exists
+    if (!file.exists(zip_file)) {
+      stop("Zip file not found: ", zip_file)
+    }
+
+    message("Extracting ", zip_file, " to ", extract_dir)
+
+    # Extract the zip file
+    tryCatch({
+      unzip(zip_file, exdir = extract_dir, overwrite = overwrite)
+      message("Successfully extracted files to: ", extract_dir)
+    }, error = function(e) {
+      stop("Failed to extract zip file: ", e$message)
+    })
+  }
+
+  # Determine file paths based on year
+  if (year == "2021-22") {
+    enrollment_path <- file.path(extract_dir, "SCH", "Enrollment.csv")
+    le_path <- file.path(extract_dir, "SCH", "Referrals and Arrests.csv")
+  } else if (year == "2017-18") {
+    enrollment_path <- file.path(extract_dir, "2017-18 Public-Use Files",
+                                  "Data", "SCH", "CRDC", "CSV", "Enrollment.csv")
+    le_path <- file.path(extract_dir, "2017-18 Public-Use Files",
+                         "Data", "SCH", "CRDC", "CSV", "Referrals and Arrests.csv")
+  } else { # 2015-16
+    # For 2015-16, both enrollment and LE data are in the same file
+    enrollment_path <- file.path(extract_dir, "Data Files and Layouts",
+                                  "CRDC 2015-16 School Data.csv")
+    le_path <- enrollment_path  # Same file for both
+  }
+
+  # Verify files exist
+  if (!file.exists(enrollment_path)) {
+    warning("Enrollment file not found at expected location: ", enrollment_path)
+  }
+  if (!file.exists(le_path)) {
+    warning("Law enforcement file not found at expected location: ", le_path)
+  }
+
+  # Return paths
+  result <- list(
+    enrollment_path = enrollment_path,
+    le_path = le_path,
+    extract_dir = extract_dir
+  )
+
+  message("\n=== Extraction Complete ===")
+  message("Enrollment file: ", enrollment_path)
+  message("Law enforcement file: ", le_path)
+  message("\nYou can now update the paths in _targets.R to point to these files.")
+
+  return(invisible(result))
+}
+
+
+#' Automatically download CRDC data files from the official website
+#'
+#' This function attempts to automatically download Civil Rights Data Collection
+#' (CRDC) public use files from the U.S. Department of Education website. It tries
+#' multiple URL patterns and includes robust error handling with fallback to manual
+#' download instructions.
+#'
+#' @param year Character string specifying the data year. Must be one of:
+#'   "2021-22", "2017-18", or "2015-16"
+#' @param dest_dir Character string specifying the destination directory where
+#'   files will be downloaded and extracted (default: "tmp/data")
+#' @param overwrite Logical indicating whether to overwrite existing files
+#'   (default: FALSE)
+#' @param accept_terms Logical indicating explicit acceptance of CRDC terms of use.
+#'   Must be TRUE to proceed with download (default: FALSE)
+#' @param timeout Numeric timeout in seconds for download (default: 3600 = 1 hour)
+#'
+#' @return A list with two elements:
+#'   \item{enrollment_path}{Path to the enrollment CSV file}
+#'   \item{le_path}{Path to the law enforcement referrals and arrests CSV file}
+#'
+#' @details
+#' This function requires the httr2 package for robust HTTP downloads.
+#' Install it with: install.packages("httr2")
+#'
+#' The function attempts multiple URL patterns to find the correct download link:
+#' \itemize{
+#'   \item Direct asset URLs
+#'   \item Alternative download paths
+#'   \item Legacy URL patterns
+#' }
+#'
+#' If automatic download fails, the function provides detailed instructions for
+#' manual download and falls back to using the existing download_crdc_data()
+#' function for extraction.
+#'
+#' @examples
+#' \dontrun{
+#' # Download and extract 2021-22 data
+#' paths <- auto_download_crdc_data(
+#'   year = "2021-22",
+#'   accept_terms = TRUE
+#' )
+#'
+#' # Download all years
+#' for (year in c("2021-22", "2017-18", "2015-16")) {
+#'   auto_download_crdc_data(year = year, accept_terms = TRUE)
+#' }
+#' }
+#'
+#' @export
+auto_download_crdc_data <- function(year,
+                                    dest_dir = "tmp/data",
+                                    overwrite = FALSE,
+                                    accept_terms = FALSE,
+                                    timeout = 3600) {
+
+  # Validate year parameter
+  valid_years <- c("2021-22", "2017-18", "2015-16")
+  if (!year %in% valid_years) {
+    stop("Year must be one of: ", paste(valid_years, collapse = ", "))
+  }
+
+  # Require explicit acceptance of terms
+  if (!accept_terms) {
+    message("\n=== CRDC Terms of Use ===")
+    message("By downloading and using this data, you agree to:")
+    message("1. The CRDC terms of use and data use agreement")
+    message("2. Proper attribution of the data source")
+    message("3. Compliance with all applicable privacy and data protection laws")
+    message("\nFull terms available at: https://civilrightsdata.ed.gov/data")
+    message("\nTo proceed, call this function with accept_terms = TRUE")
+    stop("Terms of use must be explicitly accepted")
+  }
+
+  # Check for httr2 package
+  if (!requireNamespace("httr2", quietly = TRUE)) {
+    message("\n=== Package Installation Required ===")
+    message("The httr2 package is required for automated downloads.")
+    message("Install it with: install.packages('httr2')")
+    message("\nAlternatively, download manually from:")
+    message("https://civilrightsdata.ed.gov/data")
+    stop("Package 'httr2' is required but not installed")
+  }
+
+  # Create destination directory
+  if (!dir.exists(dest_dir)) {
+    dir.create(dest_dir, recursive = TRUE)
+    message("Created directory: ", dest_dir)
+  }
+
+  # Define multiple URL patterns to try
+  # These are common patterns - actual URLs may vary
+  url_patterns <- list(
+    "2021-22" = c(
+      "https://civilrightsdata.ed.gov/assets/ocr/docs/2021-22-crdc-data.zip",
+      #"https://civilrightsdata.ed.gov/assets/downloads/2021-22-crdc-data.zip",
+      #"https://www2.ed.gov/about/offices/list/ocr/docs/2021-22-crdc-data.zip",
+      "https://ocrdata.ed.gov/assets/downloads/2021-22-crdc-data.zip"
+    ),
+    "2017-18" = c(
+      "https://civilrightsdata.ed.gov/assets/ocr/docs/2017-18-crdc-data.zip",
+      #"https://civilrightsdata.ed.gov/assets/downloads/2017-18-crdc-data-corrected-05242021.zip",
+      #"https://www2.ed.gov/about/offices/list/ocr/docs/2017-18-crdc-data-corrected-05242021.zip",
+      "https://ocrdata.ed.gov/assets/downloads/2017-18-crdc-data-corrected-05242021.zip"
+    ),
+    "2015-16" = c(
+      "https://civilrightsdata.ed.gov/assets/ocr/docs/2015-16-crdc-data.zip",
+      #"https://civilrightsdata.ed.gov/assets/downloads/2015-16-crdc-data.zip",
+      #"https://www2.ed.gov/about/offices/list/ocr/docs/2015-16-crdc-data.zip",
+      "https://ocrdata.ed.gov/assets/downloads/2015-16-crdc-data.zip"
+    )
+  )
+
+  urls_to_try <- url_patterns[[year]]
+
+  # Determine zip file name
+  zip_filename <- paste0(gsub("-", "", year), "-crdc-data.zip")
+  if (year == "2017-18") {
+    zip_filename <- "2017-18-crdc-data-corrected-05242021.zip"
+  }
+  zip_path <- file.path(dest_dir, zip_filename)
+
+  # Check if already downloaded
+  if (file.exists(zip_path) && !overwrite) {
+    message("Zip file already exists: ", zip_path)
+    message("Proceeding to extraction...")
+  } else {
+    message("\n=== Attempting Automated Download ===")
+    message("Year: ", year)
+    message("Destination: ", zip_path)
+    message("\nThis may take several minutes for large files...")
+    message("File sizes: 2021-22 (~500MB), 2017-18 (~800MB), 2015-16 (~1.5GB)")
+
+    download_success <- FALSE
+    last_error <- NULL
+
+    # Try each URL pattern
+    for (i in seq_along(urls_to_try)) {
+      url <- urls_to_try[i]
+      message("\nAttempt ", i, "/", length(urls_to_try), ": ", url)
+
+      tryCatch({
+        # Create request with httr2
+        req <- httr2::request(url) |>
+          httr2::req_user_agent("R CRDC Analysis Pipeline (Educational Research)") |>
+          httr2::req_timeout(timeout) |>
+          httr2::req_retry(max_tries = 3, max_seconds = 120)
+
+        # First check if URL exists with HEAD request
+        message("  Checking URL availability...")
+        head_resp <- tryCatch({
+          httr2::req_method(req, "HEAD") |>
+            httr2::req_perform()
+        }, error = function(e) NULL)
+
+        if (!is.null(head_resp) && httr2::resp_status(head_resp) == 200) {
+          message("  ✓ URL is accessible, starting download...")
+
+          # Perform the actual download
+          httr2::req_perform(req, path = zip_path)
+
+          # Verify file was downloaded and has content
+          if (file.exists(zip_path) && file.info(zip_path)$size > 1000000) {
+            message("  ✓ Download successful!")
+            message("  File size: ", round(file.info(zip_path)$size / 1024^2, 1), " MB")
+            download_success <- TRUE
+            break
+          } else {
+            message("  ✗ Downloaded file is too small or corrupt")
+            if (file.exists(zip_path)) file.remove(zip_path)
+          }
+        } else {
+          message("  ✗ URL not accessible (HTTP ",
+                  if (!is.null(head_resp)) httr2::resp_status(head_resp) else "error", ")")
+        }
+
+      }, error = function(e) {
+        message("  ✗ Error: ", conditionMessage(e))
+        last_error <- e
+      })
+    }
+
+    # If all attempts failed, provide manual download instructions
+    if (!download_success) {
+      message("\n", strrep("=", 70))
+      message("AUTOMATED DOWNLOAD FAILED")
+      message(strrep("=", 70))
+      message("\nAll automatic download attempts were unsuccessful.")
+      message("This may be due to:")
+      message("  • Changed URL structure on the CRDC website")
+      message("  • Network connectivity issues")
+      message("  • Firewall or proxy restrictions")
+      message("  • Website maintenance or temporary unavailability")
+      message("\n=== MANUAL DOWNLOAD REQUIRED ===")
+      message("Please download the file manually:")
+      message("1. Visit: https://civilrightsdata.ed.gov/data")
+      message("2. Select year: ", year)
+      message("3. Click 'Download CSV' for the public use files")
+      message("4. Save the zip file to: ", dest_dir)
+      message("5. Run this command:")
+      message("   download_crdc_data(")
+      message("     year = '", year, "',")
+      message("     zip_file = '", zip_path, "',")
+      message("     dest_dir = '", dest_dir, "'")
+      message("   )")
+      message(strrep("=", 70))
+
+      stop("Automated download failed. Please download manually (see instructions above).")
+    }
+  }
+
+  # Extract using the existing function
+  message("\n=== Extracting Files ===")
+  result <- download_crdc_data(
+    year = year,
+    dest_dir = dest_dir,
+    zip_file = zip_path,
+    overwrite = overwrite
+  )
+
+  return(invisible(result))
+}
