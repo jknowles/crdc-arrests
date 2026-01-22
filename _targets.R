@@ -103,7 +103,8 @@ crdc_data <- tibble(
 # Set up futures and load required functions
 future::plan(future.callr::callr)
 tar_source("R/funs.R")
-
+# Read in postprocessing functions
+tar_source("R/postprocess.R")
 # Define the targets pipeline
 # The pipeline proceeds in two stages, the first stage processes the CRDC data
 # for each year and combines all of the enrollment and law enforcement referral
@@ -560,6 +561,10 @@ list(
     pattern = map(three_year_data_group),
     iteration = "list",
     resources = tar_resources(crew = tar_resources_crew(controller = "mcmc"))
+  ),
+  tar_target(
+    posterior_db,
+    process_all_targets(ndraws = 500, db_path = "export/db/crdc_arrests.duckdb")
   )
 
   # Hypothetical Model 6 specification. Not run. Run attempted in September 2025
