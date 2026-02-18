@@ -33,7 +33,7 @@ library(ggplot2)
 library(dplyr)
 options(scipen = 9)
 options(width = 120)
-
+source("R/funs.R")
 pretty_count <- function(x) {
   x <- round(x, digits = 0)
   x <- prettyNum(x, big.mark = ",")
@@ -63,9 +63,6 @@ color_fill_values2 <- c("White" = "#c92d0e", "Black" = "#020684",
                         "Amer. Ind." = "#ff8f43")
 
 
-# model_data <- targets::tar_load(model_data)
-# schuniverse <- targets::tar_load(schuniverse)
-# ccd_dist_geo <- targets::tar_load(ccd_dist_geo)
 
 suffix <- params$target_name
 # Load the targets with the correct suffix
@@ -74,7 +71,8 @@ sch_ref_arr <- targets::tar_read_raw(paste0("model_data_", suffix))
 ccd_dist_geo <- targets::tar_read_raw(paste0("ccd_dist_geo_", suffix))
 
 # TODO: Join CRDC and CCD data here
-sch_ref_arr <- create_school_universe(crdc = sch_ref_arr, ccd = ccd_dist_geo)
+# sch_ref_arr <- left_join(ccd_dist_geo, sch_ref_arr, by = join_by(COMBOKEY))
+#   create_school_universe(crdc = sch_ref_arr, ccd = ccd_dist_geo)
 
 # Get correct grade levels
 moddf <- sch_ref_arr |> filter(highest_grade_offered >= 7)

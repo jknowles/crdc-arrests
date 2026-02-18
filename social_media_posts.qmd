@@ -1,0 +1,457 @@
+---
+title: "CRDC Arrest Social Media Post Results"
+format:
+  html:
+    embed-resources: true
+knitr:
+  opts_chunk:
+    message: false
+    warning: false
+    error: false
+    echo: false
+    fig.path: export/figures/socialmedia-
+execute:
+  warning: false
+  message: false
+  error: false
+  fig-width: 11
+  fig-height: 7
+---
+
+# CRDC Social Media Posts
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(targets)
+library(brms)
+library(dplyr)
+library(ggplot2)
+library(ggdist)
+library(marginaleffects)
+library(tidybayes)
+library(ggridges)
+library(duckdb)
+library(knitr)
+
+
+```
+
+ ## Read Data
+```{r}
+#| label: load-data
+#| message: false
+#| warning: false
+
+# Connect to database
+# con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb",
+#                       config = list("memory_limit" = "8GB", "threads" = "4"))
+
+# Load target data
+tydata <- targets::tar_read(three_year_data)$data
+rdata <- targets::tar_read(recent_data)$data
+
+crdc <- targets::tar_read(full_crdc_data_y2122)
+
+# Source custom functions
+source("R/funs.R")
+source("R/spatial_utils.R")
+```
+
+## Post 1: State and National Totals
+
+
+```{r}
+#| label: calc_nat_totals
+#| message: false
+#| warning: false
+
+
+dist_ref_arr <- crdc %>%
+  group_by(YEAR,LEA_STATE, LEAID, RACE, SEX) %>%
+  summarize(ARRESTS = sum(ARRESTS),
+            REFERRALS = sum(REFERRALS),
+            stu_enroll = sum(stu_enroll),
+            jj_count = sum(JJ == "Yes")) |>
+  mutate(arrest_rate = ARRESTS / (stu_enroll / 1000),
+         referral_rate = REFERRALS / (stu_enroll / 1000)) %>%
+  group_by(YEAR, LEA_STATE, LEAID) |>
+  mutate(total_enroll = sum(stu_enroll[RACE != "TOTAL" &
+                                         SEX != "TOTAL"]))
+
+state_map <- tigris::states(cb  = TRUE, resolution = "20m") |> tigris::shift_geometry()
+
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    summarize(
+        all_lea_count = n_distinct(LEAID),
+        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) -> nat_totals
+
+nat_arrest_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
+nat_referral_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
+nat_totals
+```
+
+
+
+```{r}
+#| label: calc_state_totals
+#| message: false
+#| warning: false
+
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    group_by(LEA_STATE) |>
+    summarize(
+        all_lea_count = n_distinct(LEAID),
+        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) |>
+    mutate(arrest_rate = arrests / (enrollment / 1000)) |>
+    mutate(arrest_nnh = enrollment / arrests) -> state_totals
+
+state_map2 <- inner_join(state_map, state_totals, by = join_by(STUSPS == LEA_STATE))
+```
+
+
+```{r}
+#| label: arrest_chloropleth
+#| message: false
+#| warning: false
+
+p1 <- ggplot(data = state_map2, aes(fill = arrests)) +
+  geom_sf() +
+  label_states(state_map2, "arrests", label_fn = civilytics::pretty_count,
+              fill = "white", size = 3.5) +
+  scale_fill_distiller("Arrests", palette = "YlOrRd", direction = 1, labels = scales::comma) +
+  labs(title = "Students arrested at school by state", subtitle = "34,846 school-based arrests in 2021-22", caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") +
+  theme_void() +
+  theme(
+    #plot.margin = rep(unit(6, "pt"), 4),
+        plot.background = element_rect(fill = "#FAFAF7"),
+        legend.position.inside = c(0.9, 0.32),
+        legend.position = "inside",
+        legend.text = element_text(size = 8))
+
+
+plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+
+
+```
+
+
+```{r}
+#| label: arrest_rate_chloropleth
+#| message: false
+#| warning: false
+
+
+p1 <- ggplot(data = state_map2, aes( fill = arrest_rate)) +
+  geom_sf() +
+  label_states(state_map2, "arrest_rate", label_fn = function(x) round(x, 2), size = 3.5,
+    fill = "white") +
+  scale_fill_distiller("Arrest rate", palette = "YlOrRd", direction = 1) +
+   labs(title = "Arrest rate at school by state", subtitle = "Arrests per 1,000 students enrolled", caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") +
+  theme_void()+
+  theme(
+    #plot.margin = rep(unit(6, "pt"), 4),
+        plot.background = element_rect(fill = "#FAFAF7"),
+        legend.position.inside = c(0.9, 0.32),
+        legend.position = "inside",
+        legend.text = element_text(size = 8))
+
+
+
+plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+
+
+#rm(state_map2)
+```
+
+
+```{r}
+#| label: state_arrest_nnh_map
+#| message: false
+#| warning: false
+
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    group_by(LEA_STATE) |>
+    summarize(
+        all_lea_count = n_distinct(LEAID),
+        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) |>
+    mutate(arrest_rate = arrests / (enrollment / 1000)) |>
+    mutate(arrest_nnh = enrollment / arrests) -> state_totals
+
+state_map2 <- inner_join(state_map, state_totals, by = join_by(STUSPS == LEA_STATE))
+
+p1 <- ggplot(data = state_map2, aes( fill = arrest_nnh)) +
+  geom_sf() +
+  label_states(state_map2, "arrest_nnh", label_fn = pretty_count, size = 3.5,
+    fill = "white") +
+   scale_fill_distiller(palette = "YlOrRd", direction = -1,
+  breaks = c(50000, 8000, 3000, 1000, 500),
+  trans = "log", labels = scales::comma) +
+  labs(title = "Students per arrested student by state",
+  subtitle = "Number needed to harm (NNH)",
+  caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22",
+  fill = "NNH") +
+  theme_void() +
+  theme(
+    #plot.margin = rep(unit(6, "pt"), 4),
+        plot.background = element_rect(fill = "#FAFAF7"),
+        legend.position.inside = c(0.9, 0.32),
+        legend.position = "inside",
+        legend.text = element_text(size = 8))
+
+plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+
+```
+
+
+
+## Post 2: Trends
+
+```{r}
+#| label: national_trend
+#| message: false
+#| warning: false
+
+#combined_data <- targets::tar_read(combined_model_data)
+
+# Unfiltered CRDC without requiring join to CCD
+combined_data <- bind_rows(targets::tar_read(full_crdc_data_y2122),
+                            targets::tar_read(full_crdc_data_y1718),
+                            targets::tar_read(full_crdc_data_y1516))
+
+
+year_summary <- combined_data |>
+  group_by(YEAR) |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  summarise(
+    n_observations = n(),
+    n_schools = n_distinct(COMBOKEY),
+    n_districts = n_distinct(LEAID),
+    total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
+  geom_point() +
+  geom_line(group = 1) +
+  geom_text(aes(label = pretty_count(total_arrests)), nudge_x = 0.15) +
+  scale_y_continuous(limits = c(0, NA), labels = scales::comma,
+                  expand = expansion(mult = c(0, 0.1))) +
+  labs(x = "CRDC Wave", y = "CRDC Arrests",
+  title = "Arrest trends across CRDC waves",
+  subtitle = "Total arrests nationally.",
+  caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22, 2017-18, and 2015-16") +
+  civilytics::theme_civilytics(font_size =14)
+
+plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+```
+
+
+```{r}
+#| label: national_arrest_rate_trend
+#| message: false
+#| warning: false
+
+
+p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/1000))) +
+  geom_point() +
+  geom_line(group = 1) +
+  geom_text(aes(label = paste0(round(total_arrests/(total_enrollment/1000), digits = 2), " arrests per \n1,000 students")), nudge_x = 0.15, vjust = 0, hjust = 0) +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.1)), labels = scales::comma) +
+  labs(x = "CRDC Wave", y = "CRDC Arrests per 1,000", title = "Arrest rate trends across CRDC waves",
+  caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22, 2017-18, and 2015-16") +
+  civilytics::theme_civilytics(font_size =14)
+
+plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+
+
+```
+
+
+```{r}
+#| label: select_state_arrest_trend
+#| message: false
+#| warning: false
+
+state_year_summary <- combined_data |>
+  group_by(LEA_STATE, YEAR) |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  summarise(
+    n_observations = n(),
+    n_schools = n_distinct(COMBOKEY),
+    n_districts = n_distinct(LEAID),
+    total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+p1 <- ggplot(state_year_summary |> filter(LEA_STATE %in% c("CA", "KS")),
+    aes(x = YEAR, y = total_arrests, group = LEA_STATE)) +
+  geom_point() +
+  geom_line(aes(linetype = LEA_STATE)) +
+  annotate("text", x = 3.1, y = 2450, label = "Kansas") +
+    annotate("text", x = 3.1, y = 1500, label = "California") +
+
+   geom_text(aes(label = pretty_count(total_arrests)), nudge_y = 100, nudge_x = 0.1) +
+  scale_y_continuous(limits = c(0, NA), labels = scales::comma,
+  expand = expansion(mult = c(0, 0.1))) +
+    guides(linetype = guide_none()) +
+  labs(x = "CRDC Wave", y = "CRDC Arrests",
+caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22, 2017-18, and 2015-16",
+  title = "Comparing state arrest rate trends across CRDC waves", subtitle = "Kansas and California") +
+  civilytics::theme_civilytics(font_size =14)
+
+plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+
+
+```
+
+### Looking into Kansas
+
+```{r}
+#| label: kansas_lea
+#| message: false
+#| warning: false
+
+combined_data |>
+    group_by(LEA_STATE, LEAID, YEAR) |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    summarize(
+        total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    ) -> lea_data
+
+lea_data |> filter(YEAR == "21-22" & LEA_STATE == "KS") |>
+    arrange(desc(total_arrests)) |>
+    inner_join(tydata |> select(YEAR, LEAID, LEA_NAME) |> distinct_all(),
+    by = join_by(YEAR, LEAID)) |>
+        select(LEA_STATE, YEAR, LEAID, LEA_NAME, everything())
+
+
+
+```
+
+
+## Districts
+
+
+```{r}
+#| label: national_lea_table
+#| message: false
+#| warning: false
+
+library(flextable)
+
+img_path <- "export/figures/socialmedia-national_lea_table.png"
+
+table_data <- lea_data |>
+  inner_join(tydata |> select(YEAR, LEAID, LEA_NAME) |> distinct_all(),
+    by = join_by(YEAR, LEAID)) |>
+  mutate(YEAR = dplyr::recode_values(YEAR,
+    "21-22" ~ "2021_22",
+    "15-16" ~ "2015_16",
+    "17-18" ~ "2017_18")) |>
+  group_by(LEAID) |>
+  tidyr::pivot_wider(id_cols = c(LEA_STATE, LEAID, LEA_NAME),
+    values_from = c(total_enrollment, total_arrests), names_from = YEAR) |>
+  mutate(arrest_rate_2021_22 = total_arrests_2021_22 / (total_enrollment_2021_22 / 1000)) |>
+  arrange(desc(total_arrests_2021_22)) |>
+  ungroup() |>
+  select(LEA_STATE, LEA_NAME, total_enrollment_2021_22,
+    total_arrests_2021_22, arrest_rate_2021_22,
+    total_arrests_2015_16, total_arrests_2017_18) |>
+  slice_head(n = 20) |>
+  mutate(
+    LEA_NAME                 = stringr::str_to_title(LEA_NAME),
+    total_enrollment_2021_22 = scales::comma(total_enrollment_2021_22, accuracy = 1),
+    total_arrests_2021_22    = scales::comma(total_arrests_2021_22, accuracy = 1),
+    arrest_rate_2021_22      = scales::comma(arrest_rate_2021_22, accuracy = 0.1),
+    total_arrests_2015_16    = scales::comma(total_arrests_2015_16, accuracy = 1),
+    total_arrests_2017_18    = scales::comma(total_arrests_2017_18, accuracy = 1)
+  )
+
+header_bg <- "#2c3e50"
+header_fg <- "white"
+alt_bg    <- "#f0f0eb"
+
+ft <- flextable(table_data) |>
+  set_header_labels(
+    LEA_STATE                = "State",
+    LEA_NAME                 = "District",
+    total_enrollment_2021_22 = "Enrollment\n(2021-22)",
+    total_arrests_2021_22    = "Arrests\n(2021-22)",
+    arrest_rate_2021_22      = "Arrest Rate\n(per 1,000)",
+    total_arrests_2015_16    = "Arrests\n(2015-16)",
+    total_arrests_2017_18    = "Arrests\n(2017-18)"
+  ) |>
+  add_header_row(
+    values    = c("", "", "", "", "Historical Arrests"),
+    colwidths = c(1, 1, 1, 1, 3),
+    top       = TRUE
+  ) |>
+  add_header_lines("Top 20 School Districts by Student Arrests — CRDC 2021-22") |>
+  bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(size = 11, part = "body") |>
+  bg(i = seq(2, 20, 2), bg = alt_bg, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+  align(j = c("LEA_STATE", "LEA_NAME"), align = "left",  part = "body") |>
+  align(j = c("total_enrollment_2021_22", "total_arrests_2021_22",
+              "arrest_rate_2021_22", "total_arrests_2015_16",
+              "total_arrests_2017_18"), align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  width(j = "LEA_STATE",                width = 0.55) |>
+  width(j = "LEA_NAME",                 width = 2.4)  |>
+  width(j = "total_enrollment_2021_22", width = 1.1)  |>
+  width(j = "total_arrests_2021_22",    width = 1.0)  |>
+  width(j = "arrest_rate_2021_22",      width = 1.05) |>
+  width(j = "total_arrests_2015_16",    width = 1.0)  |>
+  width(j = "total_arrests_2017_18",    width = 1.0)  |>
+  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export high-res PNG using ragg (no browser/Chrome dependency)
+{
+  dims <- flextable_dim(ft)
+  ragg::agg_png(img_path,
+    width   = dims$width,
+    height  = dims$height,
+    units   = "in",
+    res     = 300,
+    scaling = 1
+  )
+  plot(ft)
+  dev.off()
+}
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+```

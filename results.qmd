@@ -1,8 +1,28 @@
 ---
 title: "CRDC Arrest Analysis Results"
-format: html
-editor: visual
+format:
+  html:
+    embed-resources: true
+knitr:
+  opts_chunk:
+    message: false
+    warning: false
+    error: false
+    echo: false
+    fig.path: export/figures/results-
+execute:
+  warning: false
+  message: false
+  error: false
+  fig-width: 10
+  fig-height: 6
 ---
+
+# Introduction
+
+This script takes the completed pipeline data analysis and produces the key
+statistics, tables, and figures in the final report. This is the code that
+was used to generate the results in the final paper.
 
 # Setup and Data Loading
 
@@ -20,6 +40,7 @@ library(marginaleffects)
 library(tidybayes)
 library(ggridges)
 library(duckdb)
+library(knitr)
 
 # Create export/figures directory if it doesn't exist
 if (!dir.exists("export/figures")) {
@@ -33,7 +54,8 @@ if (!dir.exists("export/figures")) {
 #| warning: false
 
 # Connect to database
-con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb")
+con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb",
+                      config = list("memory_limit" = "8GB", "threads" = "4"))
 
 # Load target data
 tydata <- targets::tar_read(three_year_data)$data
@@ -45,21 +67,22 @@ source("R/funs.R")
 
 # National Descriptive Statistics (2021-22)
 
+These are the statistics for the most recent wave of data in the analysis.
+
 ## Overall Totals
 
-```{r}
-#| label: compute-overall-totals
-
-y2122 <- targets::tar_read("full_crdc_data_y2122")
-```
+Total students arrested:
 
 ```{r}
 #| label: display-total-arrests
+
+y2122 <- targets::tar_read("full_crdc_data_y2122")
 
 # Total students arrested
 sum(y2122$ARRESTS[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"])
 ```
 
+Total student enrollment:
 ```{r}
 #| label: display-total-enrollment
 
@@ -67,13 +90,18 @@ sum(y2122$ARRESTS[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"])
 sum(y2122$stu_enroll[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"])
 ```
 
+Student arrest rate:
+
 ```{r}
 #| label: display-arrest-rate
 
-34846/(48596489/1000)
+sum(y2122$ARRESTS[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"]) /
+  (sum(y2122$stu_enroll[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"]) / 1000)
 ```
 
-## By Race
+## Disaggregation By Race
+
+Calculate and produce disaggregated arrest data by student race.
 
 ```{r}
 #| label: compute-race-totals
@@ -95,10 +123,11 @@ nat_sg_totals_race <- y2122 |>
 #| label: display-race-totals
 
 nat_sg_totals_race |>
-    filter(RACE %in% c("AM", "WH", "HI", "BL"))
+    filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
+    knitr::kable()
 ```
 
-## By Sex
+## Disaggregation By Sex
 
 ```{r}
 #| label: compute-sex-totals
@@ -119,10 +148,10 @@ nat_sg_totals_sex <- y2122 |>
 ```{r}
 #| label: display-sex-totals
 
-nat_sg_totals_sex
+nat_sg_totals_sex |> knitr::kable()
 ```
 
-## District-Level Totals
+## National summary statistics
 
 ```{r}
 #| label: compute-district-totals
@@ -144,10 +173,20 @@ nat_arrest_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
 ```{r}
 #| label: display-district-totals
 
-nat_totals
+nat_totals |> knitr::kable()
+```
+
+Arrest rates
+
+```{r}
+nat_referral_rate
+nat_arrest_rate
 ```
 
 # Sample Continuity Analysis
+
+Look at how many LEAs are in multiple years of data and how many LEAs drop
+out of the data when we add successive waves of the data.
 
 ```{r}
 #| label: load-historical-data
@@ -216,11 +255,13 @@ dist_size_summary <- dist_ref_arr %>%
 ```{r}
 #| label: display-expected-arrests
 
-dist_size_summary
+dist_size_summary |> knitr::kable()
 ```
 
 ## Concentration Visualization
 
+This visualization shows the relative concentration of arrests compared in LEAs
+compared to the concentration of population in LEAs.
 ```{r}
 #| label: compute-concentration-data
 
@@ -279,15 +320,14 @@ enrollment_by_arrest <- dist_ref_arr %>%
   group_by(has_arrest) |>
   summarize(enrollment = sum(total_enroll)) |>
   mutate(enrollment_per = enrollment / total_enroll_national)
+
+enrollment_by_arrest |> knitr::kable()
 ```
 
-```{r}
-#| label: display-enrollment-by-arrest
-
-enrollment_by_arrest
-```
 
 # Sample Restriction Impact
+
+Here we tabulate the figures about sample restrictions in the paper.
 
 ## Section 504 Data
 
@@ -306,10 +346,12 @@ section_504_summary <- sch_ref %>%
 ```{r}
 #| label: display-504-data
 
-section_504_summary
+section_504_summary |> knitr::kable()
 ```
 
 ## Missing Data Patterns
+
+Law enforcement referral missingness data.
 
 ```{r}
 #| label: compute-missing-patterns
@@ -368,7 +410,7 @@ enrollment_504_summary <- enrollment %>%
 ```{r}
 #| label: display-504-enrollment
 
-enrollment_504_summary
+enrollment_504_summary |> knitr::kable()
 ```
 
 ```{r}
@@ -378,6 +420,9 @@ rm(enrollment)
 ```
 
 ## Grade Level Restrictions
+
+This reports the impact of restricting the analysis to schools that offer
+a grade 7 or above.
 
 ```{r}
 #| label: compute-grade-restrictions
@@ -399,10 +444,13 @@ grade_restriction_summary <- combined_data |>
 ```{r}
 #| label: display-grade-restrictions
 
-grade_restriction_summary
+grade_restriction_summary |> knitr::kable()
 ```
 
 ## CCD Matching
+
+By matching to CCD data we further restrict the CRDC universe. This analysis
+shows the impact of that.
 
 ```{r}
 #| label: compute-ccd-matching
@@ -438,7 +486,7 @@ ccd_match_summary <- crdc |>
 ```{r}
 #| label: display-ccd-match-summary
 
-ccd_match_summary
+ccd_match_summary |> knitr::kable()
 ```
 
 ```{r}
@@ -449,6 +497,9 @@ gc()
 ```
 
 ## Enrollment Thresholds
+
+We restrict the sample by enrollment size, and this reports the impact of that
+restriction.
 
 ```{r}
 #| label: compute-enrollment-thresholds
@@ -469,10 +520,13 @@ enrollment_threshold_summary <- combined_data |>
 ```{r}
 #| label: display-enrollment-thresholds
 
-enrollment_threshold_summary
+enrollment_threshold_summary |> knitr::kable()
 ```
 
-## Incomplete Enrollments
+## Censored or truncated enrollment data
+
+Here we report the impact of suppressed records on enrollment.
+
 
 ```{r}
 #| label: compute-incomplete-enrollments
@@ -482,15 +536,13 @@ zz <- incomplete_enrollments(enrollment, year = "21-22")
 zb <- targets::tar_read("schenrollraw_y2122")
 
 incomplete_proportion <- nrow(zz) / sum(nrow(zz), nrow(zb))
-```
-
-```{r}
-#| label: display-incomplete-enrollments
-
 incomplete_proportion
 ```
 
 # Model Predictions and Performance
+
+Now we calculate the performance results comparing the models to non-model
+methods for computing arrest rates.
 
 ## Observed Data Preparation
 
@@ -513,24 +565,12 @@ obsv_data <- rdata |>
         ci_lower = ifelse(ARRESTS == 0, 0, ci_lower)) |>
   mutate(ci_lower = ifelse(ci_lower < 0, 0, ci_lower)) |>
   mutate(model_id = "observed")
-```
-
-## Model Predictions
-
-```{r}
-#| label: get-model-predictions
 
 dist_test <- get_prediction_summary(con, confidence_level = 0.95,
       central_tendency = "median", YEAR = "21-22")
 dist_test <- dist_test |> mutate(CVp = 100 * (sd / fitted_value))
 dist_test <- dist_test |> select(model_id, LEAID, LEA_STATE, YEAR, RACE, SEX,
                                   fitted_value, sd, CVp, ci_lower, ci_upper)
-```
-
-## Prediction Adjustments
-
-```{r}
-#| label: join-predictions
 
 plotdf <- inner_join(
   dist_test,
@@ -539,10 +579,6 @@ plotdf <- inner_join(
     rename(obsv_sd = sd, obsv_CVP = CVp, obs_upper = ci_upper, obs_lower = ci_lower),
   by = join_by(LEAID, LEA_STATE, RACE, SEX)
 )
-```
-
-```{r}
-#| label: adjust-zero-variance
 
 plotdf <- plotdf |>
   mutate(
@@ -561,6 +597,9 @@ plotdf <- plotdf |>
 ```
 
 ## Performance Metrics
+
+This code calculates our performance metrics on the arrest rate scale, translating
+it from the arrest scale.
 
 ```{r}
 #| label: compute-performance-metrics
@@ -589,6 +628,9 @@ plotdf <- plotdf |>
 ```
 
 ## Overall Model Summary
+
+The paper reviews how the models do compared to a counterfactual of applying
+non-model based uncertainty intervals to rate statistics.
 
 ```{r}
 #| label: compute-overall-summary
@@ -620,73 +662,56 @@ overall_model_summary <- plotdf |>
 ```{r}
 #| label: display-overall-summary
 
-overall_model_summary
+overall_model_summary |> knitr::kable()
 ```
 
 # Model Performance Diagnostics
 
-## Cross-tabulations
+## Comparing models to non-modeled intervals
+
 
 ```{r}
 #| label: crosstab-interval-precision
 
-table(plotdf$narrower_interval, plotdf$improved_precision)
+table(narrower_interval = plotdf$narrower_interval,
+      improved_precision =plotdf$improved_precision)
 ```
 
 ```{r}
 #| label: crosstab-interval-cv
 
-table(plotdf$narrower_interval, plotdf$improved_cv)
+table(narrower_interval = plotdf$narrower_interval,
+      improved_precision = plotdf$improved_cv)
 ```
 
-## Spot Checks
+## Looking at constant models
 
-```{r}
-#| label: spotcheck-narrower-intervals
+Some fitted values are constants with no variation. We want to look at these
+cases separately.
 
-plotdf |>
-  filter(narrower_interval == 1) |>
-  sample_n(10)
-```
-
-```{r}
-#| label: spotcheck-narrower-positive
-
-plotdf |>
-  filter(narrower_interval == 1 & ci_upper > 0) |>
-  sample_n(10)
-```
-
-```{r}
-#| label: spotcheck-narrower-nonconstant
-
-plotdf |>
-  filter(narrower_interval == 1 & ci_upper > 0 & fitted_constant == 0) |>
-  sample_n(10)
-```
-
-```{r}
-#| label: spotcheck-narrower-constant
-
-plotdf |>
-  filter(narrower_interval == 1 & fitted_constant == 1) |>
-  sample_n(10)
-```
-
-```{r}
-#| label: crosstab-nonconstant
-
-table(plotdf$narrower_interval[plotdf$fitted_constant == 0],
-      plotdf$improved_precision[plotdf$fitted_constant == 0])
-```
 
 ```{r}
 #| label: constant-proportions
 
-table(plotdf$fitted_constant) |> prop.table()
+table(fitted_constant = plotdf$fitted_constant) |> prop.table() |> knitr::kable()
+
 ```
 
+When we exclude constant prediction results and see how models perform to
+non-modeled intervals.
+
+```{r}
+#| label: crosstab-nonconstant
+
+table(narrower = plotdf$narrower_interval[plotdf$fitted_constant == 0],
+      higher_precsion = plotdf$improved_precision[plotdf$fitted_constant == 0])
+```
+
+
 ## Non-Constant Models
+
+Now we look in more depth at results from observations without constant
+predicted values.
 
 ```{r}
 #| label: compute-nonconstant-summary
@@ -717,10 +742,13 @@ nonconstant_summary <- plotdf |>
 ```{r}
 #| label: display-nonconstant-summary
 
-nonconstant_summary
+nonconstant_summary |> knitr::kable()
 ```
 
 ## Non-Zero Arrests
+
+Now we look at results for the subset of records for which at least one
+arrest is observed.
 
 ```{r}
 #| label: compute-nonzero-summary
@@ -755,19 +783,14 @@ nonzero_summary <- plotdf |>
 ```{r}
 #| label: display-nonzero-summary
 
-nonzero_summary
+nonzero_summary |> knitr::kable()
 ```
 
-```{r}
-#| label: load-model-objects
-
-sg_m4 <- targets::tar_read("sg_m2_mod")
-nat_m2 <- targets::tar_read("nat_m2_mod")
-```
-
-# Subgroup Analysis - Large Districts
+# Subgroup Analysis
 
 ## Define Subgroups
+
+Create largest 100 districts
 
 ```{r}
 #| label: define-big100
@@ -782,6 +805,8 @@ big100 <- rdata |>
   ungroup() |>
   slice_head(n = 100)
 ```
+
+Create largest 100 districts with 0 arrests
 
 ```{r}
 #| label: define-big0
@@ -798,6 +823,8 @@ big0 <- rdata |>
   slice_head(n = 100)
 ```
 
+Create districts with most arrests
+
 ```{r}
 #| label: define-bigarresters
 
@@ -813,6 +840,8 @@ bigarresters <- rdata |>
 ```
 
 ## Large Districts Performance
+
+Look at how models perform on the 100 largest districts by student enrollment
 
 ```{r}
 #| label: compute-big100-summary
@@ -842,7 +871,7 @@ big100_summary <- plotdf |>
 ```{r}
 #| label: display-big100-summary
 
-big100_summary
+big100_summary |> knitr::kable()
 ```
 
 ## High-Arrest Districts
@@ -875,7 +904,7 @@ bigarresters_summary <- plotdf |>
 ```{r}
 #| label: display-bigarresters-summary
 
-bigarresters_summary
+bigarresters_summary |> knitr::kable()
 ```
 
 ## Zero-Arrest Districts
@@ -903,7 +932,7 @@ big0_summary <- plotdf |>
 ```{r}
 #| label: display-big0-summary
 
-big0_summary
+big0_summary |> knitr::kable()
 ```
 
 ```{r}
@@ -929,133 +958,83 @@ big0_draws_summary <- big0_draws |>
 ```{r}
 #| label: display-big0-draws-summary
 
-big0_draws_summary
+big0_draws_summary |> knitr::kable()
 ```
 
 # Model Computation Statistics
 
+Here we compute the model statistics.
+
 ## National Models
 
 ```{r}
-#| label: compute-nat-m1-stats
+#| label: compute-nat-model-stats
 
-calculate_model_stats(targets::tar_read("nat_m1_mod"))
+bind_rows(
+  calculate_model_stats(targets::tar_read("nat_m1_mod"), model_prefix = "fullmodel_m1"),
+  calculate_model_stats(targets::tar_read("nat_m2_mod"), model_prefix = "fullmodel_m2"),
+  calculate_model_stats(targets::tar_read("nat_m3_mod"), model_prefix = "fullmodel_m3"),
+  calculate_model_stats(targets::tar_read("nat_m4_mod"), model_prefix = "fullmodel_m4"),
+  calculate_model_stats(targets::tar_read("nat_m5_mod"), model_prefix = "fullmodel_m5")) |>
+    select(-model_id) |>  knitr::kable()
+
 ```
 
-```{r}
-#| label: compute-nat-m2-stats
-
-calculate_model_stats(targets::tar_read("nat_m2_mod"))
-```
-
-```{r}
-#| label: compute-nat-m3-stats
-
-calculate_model_stats(targets::tar_read("nat_m3_mod"))
-```
-
-```{r}
-#| label: compute-nat-m4-stats
-
-calculate_model_stats(targets::tar_read("nat_m4_mod"))
-```
-
-```{r}
-#| label: compute-nat-m5-stats
-
-calculate_model_stats(targets::tar_read("nat_m5_mod"))
-```
 
 ## Subgroup Models
 
 ```{r}
-#| label: compute-sg-m1-stats
+#| label: compute-sg-stats
 
 sg_m1_stats <- calculate_model_stats(targets::tar_read("sg_m1_mod")) |>
   summarize(
+    model_name = "disaggregated_m1_avg",
     runtime = sum(runtime_minutes),
     parameters = sum(parameters),
     data_rows = sum(data_rows),
     ndraws = sum(ndraws)
   )
-```
 
-```{r}
-#| label: display-sg-m1-stats
-
-sg_m1_stats
-```
-
-```{r}
-#| label: compute-sg-m2-stats
 
 sg_m2_stats <- calculate_model_stats(targets::tar_read("sg_m2_mod")) |>
   summarize(
+    model_name = "disaggregated_m2_avg",
     runtime = sum(runtime_minutes),
     parameters = sum(parameters),
     data_rows = sum(data_rows),
     ndraws = sum(ndraws)
   )
-```
-
-```{r}
-#| label: display-sg-m2-stats
-
-sg_m2_stats
-```
-
-```{r}
-#| label: compute-sg-m3-stats
 
 sg_m3_stats <- calculate_model_stats(targets::tar_read("sg_m3_mod")) |>
   summarize(
+    model_name = "disaggregated_m3_avg",
     runtime = sum(runtime_minutes),
     parameters = sum(parameters),
     data_rows = sum(data_rows),
     ndraws = sum(ndraws)
   )
-```
 
-```{r}
-#| label: display-sg-m3-stats
-
-sg_m3_stats
-```
-
-```{r}
-#| label: compute-sg-m4-stats
 
 sg_m4_stats <- calculate_model_stats(targets::tar_read("sg_m4_mod")) |>
   summarize(
+    model_name = "disaggregated_m4_avg",
     runtime = sum(runtime_minutes),
     parameters = sum(parameters),
     data_rows = sum(data_rows),
     ndraws = sum(ndraws)
   )
-```
-
-```{r}
-#| label: display-sg-m4-stats
-
-sg_m4_stats
-```
-
-```{r}
-#| label: compute-sg-m5-stats
 
 sg_m5_stats <- calculate_model_stats(targets::tar_read("sg_m5_mod")) |>
   summarize(
+    model_name = "disaggregated_m5_avg",
     runtime = sum(runtime_minutes),
     parameters = sum(parameters),
     data_rows = sum(data_rows),
     ndraws = sum(ndraws)
   )
-```
 
-```{r}
-#| label: display-sg-m5-stats
-
-sg_m5_stats
+  bind_rows(sg_m1_stats,
+  sg_m2_stats, sg_m3_stats, sg_m4_stats, sg_m5_stats)
 ```
 
 ## HMC Diagnostics
@@ -1093,6 +1072,11 @@ rstan::check_hmc_diagnostics(targets::tar_read("nat_m5_mod")$fit)
 # State-Level Analysis
 
 ## State Predictions
+
+```{r}
+rm(big0_draws, dist_ref_arr, dist_test, enrollment,
+      obsv_data, combined_data, combined_data2, plotdf); gc()
+```
 
 ```{r}
 #| label: get-state-predictions
@@ -1184,5 +1168,5 @@ state_performance <- state_plotdf |>
 ```{r}
 #| label: display-state-performance
 
-state_performance
+state_performance |> knitr::kable()
 ```
