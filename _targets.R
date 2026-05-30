@@ -103,6 +103,9 @@ future::plan(future.callr::callr)
 tar_source("R/funs.R")
 # Read in postprocessing functions
 tar_source("R/postprocess.R")
+tar_source("R/district_dim.R")
+tar_source("R/summarize_draws.R")
+tar_source("R/export_parquet.R")
 # Define the targets pipeline
 # The pipeline proceeds in two stages, the first stage processes the CRDC data
 # for each year and combines all of the enrollment and law enforcement referral
@@ -563,6 +566,62 @@ list(
   tar_target(
     posterior_db,
     process_all_targets(ndraws = 500, db_path = "export/db/crdc_arrests.duckdb")
+  ),
+
+  # --- API data product targets -------------------------------------------
+  tar_target(
+    combined_dist_geo,
+    list(ccd_dist_geo_y2122, ccd_dist_geo_y1718, ccd_dist_geo_y1516)
+  ),
+  tar_target(
+    district_dim,
+    build_district_dim(combined_dist_geo)
+  ),
+  # enrollment denominator + observed arrests per (LEAID, YEAR, RACE, SEX)
+  tar_target(
+    enroll_lookup,
+    dplyr::distinct(dplyr::select(
+      dplyr::bind_rows(recent_data$data, three_year_data$data),
+      LEAID, YEAR, RACE, SEX, stu_enroll,
+      observed_arrests = ARRESTS))
+  ),
+  # arrest_summary + state_summary materialized into the API DuckDB.
+  # depends on posterior_db so the draws DB exists.
+  tar_target(
+    api_db,
+    {
+      posterior_db  # force dependency on the draws DB build
+      dir.create("export/api", recursive = TRUE, showWarnings = FALSE)
+      api_path <- "export/api/crdc_api.duckdb"
+      if (file.exists(api_path)) file.remove(api_path)
+      dcon <- DBI::dbConnect(duckdb::duckdb(),
+                             dbdir = "export/db/crdc_arrests.duckdb",
+                             read_only = TRUE)
+      on.exit(DBI::dbDisconnect(dcon, shutdown = TRUE))
+      build_arrest_summary(dcon, enroll_lookup, district_dim, api_path)
+      build_state_summary(dcon, enroll_lookup, api_path)
+      # district_dim as its own lookup table
+      acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_path, read_only = FALSE)
+      DBI::dbWriteTable(acon, "district_dim", district_dim, overwrite = TRUE)
+      DBI::dbDisconnect(acon, shutdown = TRUE)
+      write_api_meta(api_path, data_release = "civilytics-crdc-arrests-2025.1")
+      api_path
+    },
+    format = "file"
+  ),
+  tar_target(
+    draws_parquet,
+    {
+      posterior_db
+      out <- "export/parquet"
+      dcon <- DBI::dbConnect(duckdb::duckdb(),
+                             dbdir = "export/db/crdc_arrests.duckdb",
+                             read_only = TRUE)
+      on.exit(DBI::dbDisconnect(dcon, shutdown = TRUE))
+      export_draws_parquet(dcon, out)
+      out
+    },
+    format = "file"
   )
 
   # Hypothetical Model 6 specification. Not run. Run attempted in September 2025
