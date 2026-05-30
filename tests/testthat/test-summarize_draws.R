@@ -43,6 +43,44 @@ test_that("build_arrest_summary writes one row per group with count+rate+interva
   expect_equal(a$rate_lower_80, a$count_lower_80 / 100)
 })
 
+test_that("build_arrest_summary: LEAID absent from enroll_lookup yields NA rate", {
+  # Build a bespoke draws connection that includes a third LEAID not in enrollment
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
+  draws <- rbind(
+    data.frame(LEAID = "0100005", LEA_STATE = "AL", YEAR = "21-22", RACE = "BL",
+               SEX = "M", pred = 0:9, draw_id = 1:10,
+               model_id = "nat_m2_mod", subgroup_id = "nat_m2_mod",
+               stringsAsFactors = FALSE),
+    # "9999999" has no entry in enroll_lookup -> stu_enroll will be NA
+    data.frame(LEAID = "9999999", LEA_STATE = "AL", YEAR = "21-22", RACE = "BL",
+               SEX = "M", pred = 1:10, draw_id = 1:10,
+               model_id = "nat_m2_mod", subgroup_id = "nat_m2_mod",
+               stringsAsFactors = FALSE)
+  )
+  DBI::dbWriteTable(con, "predicted_draws", draws)
+
+  enroll <- fixture_enroll_lookup()[fixture_enroll_lookup()$LEAID == "0100005", ]
+  dim_df <- rbind(
+    fixture_district_dim(),
+    data.frame(LEAID = "9999999", lea_name = "Unknown SD", LEA_STATE = "AL",
+               state_name = "Alabama", lat = 32.3, lon = -86.3,
+               enrollment = 0L, stringsAsFactors = FALSE)
+  )
+  api_path <- tempfile(fileext = ".duckdb")
+
+  build_arrest_summary(draws_con = con, enroll_lookup = enroll,
+                       district_dim = dim_df, api_db_path = api_path,
+                       probs = c(0.5, 0.95))
+
+  acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_path, read_only = TRUE)
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE), add = TRUE)
+  s <- DBI::dbGetQuery(acon, "SELECT * FROM arrest_summary ORDER BY LEAID")
+
+  missing_row <- s[s$LEAID == "9999999", ]
+  expect_true(is.na(missing_row$rate_median))
+})
+
 test_that("build_state_summary aggregates per-draw then summarizes", {
   # Two LEAs in AL, same group, 2 draws each; per-draw state count = sum across LEAs
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir=":memory:")
@@ -72,9 +110,13 @@ test_that("build_state_summary aggregates per-draw then summarizes", {
   # state enrollment = 200; rate_median = 6/200
   expect_equal(s$stu_enroll, 200)
   expect_equal(s$rate_median, 6/200)
+  # HPD interval assertions for 2-draw fixture (draw totals 5 and 7)
+  expect_equal(s$count_lower_95, 5)
+  expect_equal(s$count_upper_95, 7)
+  expect_true(s$count_lower_95 <= s$count_median && s$count_upper_95 >= s$count_median)
 })
 
-test_that("write_api_meta stamps the data_release and table counts", {
+test_that("write_api_meta stamps the data_release", {
   api_path <- tempfile(fileext=".duckdb")
   acon <- DBI::dbConnect(duckdb::duckdb(), dbdir=api_path)
   DBI::dbWriteTable(acon, "arrest_summary",
@@ -87,4 +129,7 @@ test_that("write_api_meta stamps the data_release and table counts", {
   on.exit(DBI::dbDisconnect(acon, shutdown=TRUE))
   m <- DBI::dbGetQuery(acon, "SELECT * FROM meta")
   expect_equal(m$data_release[1], "civilytics-crdc-arrests-2025.1")
+  expect_equal(m$citation[1], "Knowles & Miller 2025")
+  expect_equal(m$default_model_national[1], "nat_m2_mod")
+  expect_equal(m$default_model_subgroup[1], "sg_m2_mod")
 })

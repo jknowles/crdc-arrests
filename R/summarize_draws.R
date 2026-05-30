@@ -13,12 +13,13 @@ library(DBI)
 #' @param prob posterior mass in (0,1).
 #' @param value_col column to summarize (e.g. "pred").
 #' @param source_table table/relation name (default predicted_draws).
-#' @return character SQL returning GROUP_KEYS + hpd_lower, hpd_upper.
+#' @param keys character vector of group key column names (default .GROUP_KEYS).
+#' @return character SQL returning keys + hpd_lower, hpd_upper.
 hpd_bounds_sql <- function(prob, value_col = "pred",
-                           source_table = "predicted_draws") {
+                           source_table = "predicted_draws",
+                           keys = .GROUP_KEYS) {
   stopifnot(prob > 0, prob < 1)
-  keys <- paste(.GROUP_KEYS, collapse = ", ")
-  part <- paste(.GROUP_KEYS, collapse = ", ")
+  keys_str <- paste(keys, collapse = ", ")
   sprintf("
     WITH counts AS (
       SELECT %s, COUNT(*) AS n_draws,
@@ -26,8 +27,7 @@ hpd_bounds_sql <- function(prob, value_col = "pred",
       FROM %s GROUP BY %s
     ),
     ordered AS (
-      SELECT d.*, c.k,
-             ROW_NUMBER() OVER (PARTITION BY %s ORDER BY d.%s) AS rn
+      SELECT d.*, c.k
       FROM %s d JOIN counts c USING (%s)
     ),
     windows AS (
@@ -36,17 +36,17 @@ hpd_bounds_sql <- function(prob, value_col = "pred",
       FROM ordered
     ),
     widths AS (
-      SELECT %s, lower_val, upper_val, (upper_val - lower_val) AS width,
+      SELECT %s, lower_val, upper_val,
              ROW_NUMBER() OVER (PARTITION BY %s ORDER BY (upper_val-lower_val), lower_val) AS rnb
       FROM windows WHERE upper_val IS NOT NULL
     )
     SELECT %s, lower_val AS hpd_lower, upper_val AS hpd_upper
     FROM widths WHERE rnb = 1",
-    keys, prob, source_table, keys,
-    part, value_col, source_table, keys,
-    keys, value_col, value_col, part, value_col,
-    keys, part,
-    keys
+    keys_str, prob, source_table, keys_str,
+    source_table, keys_str,
+    keys_str, value_col, value_col, keys_str, value_col,
+    keys_str, keys_str,
+    keys_str
   )
 }
 
@@ -65,6 +65,7 @@ build_arrest_summary <- function(draws_con, enroll_lookup, district_dim,
                                  api_db_path, probs = c(0.5, 0.8, 0.95)) {
   # register lookups in the draws connection for joining
   duckdb::duckdb_register(draws_con, "enroll_lookup", enroll_lookup)
+  on.exit(duckdb::duckdb_unregister(draws_con, "enroll_lookup"), add = TRUE)
 
   keys <- paste(.GROUP_KEYS, collapse = ", ")
 
@@ -73,7 +74,7 @@ build_arrest_summary <- function(draws_con, enroll_lookup, district_dim,
     CREATE OR REPLACE TEMP TABLE _base AS
     SELECT %s,
            COUNT(*) AS n_draws,
-           quantile_cont(pred, 0.5) AS count_median,
+           quantile_cont(pred, 0.5) AS count_median, -- interpolated median; count_median may be non-integer
            AVG(pred) AS count_mean,
            stddev_samp(pred) AS count_sd
     FROM predicted_draws GROUP BY %s", keys, keys)
@@ -120,7 +121,7 @@ build_arrest_summary <- function(draws_con, enroll_lookup, district_dim,
                       by = "LEAID", all.x = TRUE)
 
   acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_db_path, read_only = FALSE)
-  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE))
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE), add = TRUE, after = FALSE)
   DBI::dbWriteTable(acon, "arrest_summary", summary_df, overwrite = TRUE)
   DBI::dbExecute(acon,
     "CREATE INDEX IF NOT EXISTS idx_as_keys ON arrest_summary (LEAID, YEAR, RACE, SEX, model_id)")
@@ -139,7 +140,19 @@ build_arrest_summary <- function(draws_con, enroll_lookup, district_dim,
 build_state_summary <- function(draws_con, enroll_lookup, api_db_path,
                                 probs = c(0.5, 0.8, 0.95)) {
   duckdb::duckdb_register(draws_con, "enroll_lookup", enroll_lookup)
+  on.exit(duckdb::duckdb_unregister(draws_con, "enroll_lookup"), add = TRUE)
   skeys <- paste(.STATE_KEYS, collapse = ", ")
+
+  # warn when draws contain LEAID-YEAR-RACE-SEX combinations absent from enrollment
+  n_missing <- DBI::dbGetQuery(draws_con,
+    "SELECT COUNT(*) AS n FROM (
+       SELECT DISTINCT LEAID, YEAR, RACE, SEX FROM predicted_draws
+       EXCEPT
+       SELECT DISTINCT LEAID, YEAR, RACE, SEX FROM enroll_lookup)")$n
+  if (n_missing > 0)
+    warning(sprintf(
+      "build_state_summary: %d LEAID-YEAR-RACE-SEX cells in draws have no enrollment; state rates may be inflated.",
+      n_missing))
 
   # per-draw state totals: join enrollment per LEA-group, sum within draw
   DBI::dbExecute(draws_con, sprintf("
@@ -161,51 +174,31 @@ build_state_summary <- function(draws_con, enroll_lookup, api_db_path,
   base_sql <- sprintf("
     CREATE OR REPLACE TEMP TABLE _sbase AS
     SELECT %s, COUNT(*) AS n_draws,
-           quantile_cont(pred,0.5) AS count_median,
+           quantile_cont(pred, 0.5) AS count_median, -- interpolated median; count_median may be non-integer
            AVG(pred) AS count_mean, stddev_samp(pred) AS count_sd
     FROM _state_draws GROUP BY %s", skeys, skeys)
   DBI::dbExecute(draws_con, base_sql)
 
-  # HPD per mass over _state_draws, partitioning on state keys
+  # HPD per mass over _state_draws using shared helper, partitioning on state keys
   pct <- function(p) as.integer(round(p * 100))
-  hpd_state_sql <- function(prob) {
-    part <- skeys
-    sprintf("
-      WITH counts AS (
-        SELECT %s, COUNT(*) n, CAST(CEIL(%f*COUNT(*)) AS BIGINT) k
-        FROM _state_draws GROUP BY %s),
-      ordered AS (
-        SELECT s.*, c.k, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY s.pred) rn
-        FROM _state_draws s JOIN counts c USING (%s)),
-      windows AS (
-        SELECT %s, pred AS lower_val,
-               LEAD(pred, k-1) OVER (PARTITION BY %s ORDER BY pred) AS upper_val
-        FROM ordered),
-      widths AS (
-        SELECT %s, lower_val, upper_val,
-               ROW_NUMBER() OVER (PARTITION BY %s ORDER BY (upper_val-lower_val), lower_val) rnb
-        FROM windows WHERE upper_val IS NOT NULL)
-      SELECT %s, lower_val AS hpd_lower, upper_val AS hpd_upper
-      FROM widths WHERE rnb=1",
-      skeys, prob, skeys, part, skeys, skeys, part, skeys, part, skeys)
-  }
   for (p in probs) {
     DBI::dbExecute(draws_con, sprintf(
-      "CREATE OR REPLACE TEMP TABLE _shpd_%d AS %s", pct(p), hpd_state_sql(p)))
+      "CREATE OR REPLACE TEMP TABLE _shpd_%d AS %s",
+      pct(p), hpd_bounds_sql(p, "pred", "_state_draws", .STATE_KEYS)))
   }
 
   hpd_joins <- paste(vapply(probs, function(p) sprintf(
-    "LEFT JOIN _shpd_%d USING (%s)", pct(p), skeys), character(1)), collapse="\n")
+    "LEFT JOIN _shpd_%d USING (%s)", pct(p), skeys), character(1)), collapse = "\n")
   hpd_cols <- paste(vapply(probs, function(p) sprintf(
     "_shpd_%d.hpd_lower AS count_lower_%d, _shpd_%d.hpd_upper AS count_upper_%d",
-    pct(p), pct(p), pct(p), pct(p)), character(1)), collapse=",\n")
+    pct(p), pct(p), pct(p), pct(p)), character(1)), collapse = ",\n")
   rate_cols <- paste(c(
     "count_median / NULLIF(stu_enroll,0) AS rate_median",
     "count_mean   / NULLIF(stu_enroll,0) AS rate_mean",
     vapply(probs, function(p) sprintf(
       "count_lower_%d / NULLIF(stu_enroll,0) AS rate_lower_%d,
        count_upper_%d / NULLIF(stu_enroll,0) AS rate_upper_%d",
-      pct(p),pct(p),pct(p),pct(p)), character(1))), collapse=",\n")
+      pct(p), pct(p), pct(p), pct(p)), character(1))), collapse = ",\n")
 
   DBI::dbExecute(draws_con, sprintf("
     CREATE OR REPLACE TEMP TABLE _ssummary AS
@@ -217,7 +210,7 @@ build_state_summary <- function(draws_con, enroll_lookup, api_db_path,
 
   summary_df <- DBI::dbGetQuery(draws_con, "SELECT * FROM _ssummary")
   acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_db_path, read_only = FALSE)
-  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE))
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE), add = TRUE, after = FALSE)
   DBI::dbWriteTable(acon, "state_summary", summary_df, overwrite = TRUE)
   DBI::dbExecute(acon,
     "CREATE INDEX IF NOT EXISTS idx_ss_keys ON state_summary (LEA_STATE, YEAR, RACE, SEX, model_id)")
@@ -227,7 +220,7 @@ build_state_summary <- function(draws_con, enroll_lookup, api_db_path,
 #' Write the meta table (provenance) into the API DuckDB.
 write_api_meta <- function(api_db_path, data_release) {
   acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_db_path, read_only = FALSE)
-  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE))
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE), add = TRUE, after = FALSE)
   meta <- data.frame(
     data_release = data_release,
     citation = "Knowles & Miller 2025",
