@@ -6,7 +6,7 @@ Rights Data Collection. Cite: Knowles & Miller 2025.
 
 Response envelope: { status, data, error, meta }.
 Enums: race=AM|BL|HI|WH; sex=F|M; year=15-16|17-18|21-22;
-model=nat_m1..nat_m5|sg_m1..sg_m5 (default nat_m2/sg_m2); interval=50|80|95 (default 95).
+model=nat_m1..nat_m5|sg_m1..sg_m5 (default nat_m2; request an sg_* model explicitly for subgroup-specific fits); interval=50|80|95 (default 95).
 
 Endpoints:
   GET /estimates?leaid=&state=&race=&sex=&year=&model=&interval=&limit=&page=

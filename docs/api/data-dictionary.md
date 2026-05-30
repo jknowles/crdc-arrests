@@ -28,8 +28,8 @@ the rate, then summarize across draws. NOT the (1|LEA_STATE) random effect.
 ## Codes
 - RACE: AM=American Indian/Alaska Native, BL=Black, HI=Hispanic, WH=White.
 - SEX: F, M.
-- Models: see /models. Default nat_m2 (national) / sg_m2 (subgroup), both
-  most-recent-year + referral_rate.
+- Models: see /models. Default model when unspecified = nat_m2; the
+  subgroup-specific fits (sg_m1..sg_m5) must be requested explicitly via model=.
 
 ## National vs. subgroup
 National `nat_m*` fit all groups jointly (RACE*SEX); a row is the national model's
