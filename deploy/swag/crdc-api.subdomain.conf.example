@@ -1,0 +1,18 @@
+# Copy to SWAG proxy-confs as crdc-api.subdomain.conf and set ${API_DOMAIN}.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name crdc-api.*;     # rendered/replaced with ${API_DOMAIN}
+
+    include /config/nginx/ssl.conf;
+    client_max_body_size 0;
+
+    location / {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        set $upstream_app crdc-api;   # docker container name on the swag network
+        set $upstream_port 8000;
+        set $upstream_proto http;
+        proxy_pass $upstream_proto://$upstream_app:$upstream_port;
+    }
+}
