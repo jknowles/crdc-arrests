@@ -43,6 +43,10 @@ spec → plan → implementation cycles.
 | 10 | Live hosting | **SWAG self-host + free Cloudflare CDN caching + rate-limit** |
 | 11 | Docs/bulk | Static docs + downloadable DuckDB/Parquet on **Gitea Pages** (`pages.civilytics.org/crdc-arrests`) |
 | 12 | Portability | Container identical to a free-PaaS image (HF Space/Render) — redeployable with zero code change |
+| 13 | Routing | **Subdomain** `crdc-api.civilytics.org` (SWAG subdomain proxy-conf + Cloudflare DNS, orange-cloud) |
+| 14 | Deploy mechanism | **Gitea Action → self-hosted runner → docker socket** (no SSH) on the docker host |
+| 15 | Infra separation | Public repo is **generic**; all infra values live in **Gitea Actions secrets/vars**, never committed |
+| 16 | Summary DB delivery | Published as a **versioned `data_release` artifact**; image fetches the pinned version (not committed) |
 
 ---
 
@@ -115,11 +119,18 @@ Same estimate/interval columns as `arrest_summary`. Computed from
 > Note: this is a **population aggregate**, distinct from the model's
 > `(1|LEA_STATE)` random-effect estimate. Documented as such in the API.
 
-### 3.4 Materialization
+### 3.4 Materialization & publishing
 `district_dim`, `arrest_summary`, `state_summary` → **`export/api/crdc_api.duckdb`**
 (the only data file the container needs, est. 150–300 MB) with indices on the
 query keys. A `data_release` tag (e.g. `2025-crdc-3yr`) and pipeline metadata are
 stored in a `meta` table.
+
+This DB is **published as a versioned artifact** (tagged by `data_release`) —
+alongside the Parquet on Hugging Face, or as a Gitea release. The repo keeps
+`export/` gitignored; the **image fetches the pinned `data_release` DB** at build
+(or first-run) rather than committing the binary. This keeps the public repo
+binary-free and makes the image reproducible by any forker. A
+`scripts/publish_db.R` (credentialed, manual) performs the upload.
 
 ### 3.5 `draws_parquet` — Tier-2 bulk export
 `COPY predicted_draws TO 'export/parquet/' (FORMAT parquet,
@@ -207,39 +218,68 @@ api/
   R/db.R R/validate.R R/envelope.R
   R/handlers_estimates.R R/handlers_states.R
   R/handlers_districts.R R/handlers_models.R R/handlers_draws.R
-  Dockerfile  entrypoint.sh  docker-compose.yml  llms.txt
+  Dockerfile  entrypoint.sh  llms.txt
   tests/testthat/
+deploy/
+  docker-compose.yml                 # generic; SWAG network + domain via ${VARS}
+  swag/crdc-api.subdomain.conf.example  # templated proxy-conf (placeholders)
+  .env.example                       # names of required vars, NO values
+.gitea/workflows/deploy.yml          # generic; uses ${{ secrets.* }} / ${{ vars.* }}
+scripts/publish_hf.R  scripts/publish_db.R
 ```
 
 ---
 
 ## 5. Deployment
 
-**Live API — Option 1: self-host on SWAG, fronted by free Cloudflare.**
+**Live API — Option 1: self-host on SWAG, fronted by free Cloudflare,
+deployed from this repo via a Gitea Action.** Routed at the **subdomain
+`crdc-api.civilytics.org`**.
+
+### 5.1 Image
 - `api/Dockerfile` on `rocker/r-ver` pinned to the project R version; install
   plumber + DuckDB + minimal deps (**no brms/cmdstan** in the serving image).
-  Copy in `crdc_api.duckdb` (~150–300 MB).
+- The `crdc_api.duckdb` is **fetched at build/first-run** from the pinned
+  `data_release` artifact (HF/Gitea release) — **not** committed (see §3.4).
 - `entrypoint.sh` runs plumber on a fixed port, N workers; bind `0.0.0.0`,
   `EXPOSE` the port.
-- Deploy via existing Gitea Actions → Docker-socket flow; route through **SWAG**
-  (public reverse proxy), **not** tsdproxy (tailnet-only).
-- Put the public domain on **Cloudflare (free)**: immutable cache headers
-  `Cache-Control: public, max-age=31536000, immutable` (versioned by
-  `data_release`), a Cache Rule making the JSON edge-cacheable, plus
-  rate-limiting. Origin CPU hit only on cache misses → negligible.
-  Purge cache on each new `data_release`.
-- **Host-load mitigation rationale:** indexed query over 2.27 M rows ≈ low-ms on
-  a fraction of a core; pagination/`limit` caps + query timeout bound cost; edge
-  cache absorbs popular traffic; SWAG/Cloudflare rate-limit blunts scrapers.
 
-**Bulk + docs — Gitea Pages (`pages.civilytics.org/crdc-arrests`).**
+### 5.2 SWAG + Cloudflare wiring
+- Container **joins SWAG's external docker network** so nginx resolves it by
+  container name (`crdc-api`). Compose declares
+  `networks: swag: { external: true, name: ${SWAG_NETWORK} }`.
+- **SWAG subdomain proxy-conf** (`crdc-api.subdomain.conf`): `server_name` from
+  the deploy var, `set $upstream_app crdc-api;` `proxy_pass` to the app port.
+  A **templated `.example`** ships in the repo; the real conf is rendered from
+  Gitea vars at deploy (or kept in the private infra repo).
+- **Cloudflare (free):** DNS record for `crdc-api` (orange-cloud → edge cache);
+  Cache Rule making the JSON cacheable; immutable headers
+  `Cache-Control: public, max-age=31536000, immutable` (versioned by
+  `data_release`); rate-limiting. Purge cache on each new `data_release`.
+- **Host-load mitigation:** indexed query over 2.27 M rows ≈ low-ms on a fraction
+  of a core; pagination/`limit` caps + query timeout bound cost; edge cache
+  absorbs popular traffic; Cloudflare/SWAG rate-limit blunts scrapers.
+
+### 5.3 Deploy mechanism (open-source repo, private infra)
+- **Self-hosted Gitea runner on the docker host with the docker socket** (the
+  `gitea-docker-socket-deploy` pattern — no SSH).
+- `.gitea/workflows/deploy.yml` (generic): on push to `main`/tag → build image →
+  `docker compose up -d` with env injected from Gitea **secrets/variables**.
+- **All infra specifics live in Gitea, never in the repo:** `SWAG_NETWORK`,
+  `API_DOMAIN` (`crdc-api.civilytics.org`), `DEPLOY_*`, registry creds, any
+  Cloudflare token. Committed files reference these by name only.
+- `deploy/.env.example` documents the required variable *names* with no values.
+  A forker supplies their own → working deploy without touching code.
+
+### 5.4 Bulk + docs — Gitea Pages (`pages.civilytics.org/crdc-arrests`)
 - Static landing page + human docs + rendered OpenAPI + `llms.txt`.
 - Download links for `crdc_api.duckdb` and the HF Parquet dataset.
 - DuckDB-httpfs query examples for the raw draws.
 
-**Portability fallback.** The container is identical to what a free PaaS needs,
-so it redeploys to a **Hugging Face Docker Space** or **Render** with zero code
-change if self-host load ever becomes a problem.
+### 5.5 Portability fallback
+The image is identical to what a free PaaS needs, so it redeploys to a
+**Hugging Face Docker Space** or **Render** with zero code change if self-host
+load ever becomes a problem.
 
 ---
 
@@ -272,6 +312,7 @@ change if self-host load ever becomes a problem.
 
 - Confirm the exact RACE enum exposed (`WH, BL, AM, HI` per `models.md`; confirm
   whether `TOTAL`/other categories appear for national vs. subgroup models).
-- Confirm `data_release` tag string.
-- Confirm Hugging Face dataset repo name / namespace.
-- Confirm the public API domain (e.g. `api.civilytics.org/crdc` vs. a subdomain).
+- Confirm `data_release` tag string (spec assumes `2025-crdc-3yr`).
+- Confirm Hugging Face dataset repo namespace (e.g. `civilytics/crdc-arrest-draws`).
+- Confirm artifact host for the summary DB: HF vs. Gitea release.
+- (Resolved: API domain = `crdc-api.civilytics.org`; docs = `pages.civilytics.org/crdc-arrests`.)
