@@ -73,3 +73,18 @@ test_that("build_state_summary aggregates per-draw then summarizes", {
   expect_equal(s$stu_enroll, 200)
   expect_equal(s$rate_median, 6/200)
 })
+
+test_that("write_api_meta stamps the data_release and table counts", {
+  api_path <- tempfile(fileext=".duckdb")
+  acon <- DBI::dbConnect(duckdb::duckdb(), dbdir=api_path)
+  DBI::dbWriteTable(acon, "arrest_summary",
+                    data.frame(LEAID="x"), overwrite=TRUE)
+  DBI::dbDisconnect(acon, shutdown=TRUE)
+
+  write_api_meta(api_path, data_release="civilytics-crdc-arrests-2025.1")
+
+  acon <- DBI::dbConnect(duckdb::duckdb(), dbdir=api_path, read_only=TRUE)
+  on.exit(DBI::dbDisconnect(acon, shutdown=TRUE))
+  m <- DBI::dbGetQuery(acon, "SELECT * FROM meta")
+  expect_equal(m$data_release[1], "civilytics-crdc-arrests-2025.1")
+})

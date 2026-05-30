@@ -223,3 +223,18 @@ build_state_summary <- function(draws_con, enroll_lookup, api_db_path,
     "CREATE INDEX IF NOT EXISTS idx_ss_keys ON state_summary (LEA_STATE, YEAR, RACE, SEX, model_id)")
   invisible(api_db_path)
 }
+
+#' Write the meta table (provenance) into the API DuckDB.
+write_api_meta <- function(api_db_path, data_release) {
+  acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_db_path, read_only = FALSE)
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE))
+  meta <- data.frame(
+    data_release = data_release,
+    citation = "Knowles & Miller 2025",
+    default_model_national = "nat_m2_mod",
+    default_model_subgroup = "sg_m2_mod",
+    stringsAsFactors = FALSE
+  )
+  DBI::dbWriteTable(acon, "meta", meta, overwrite = TRUE)
+  invisible(api_db_path)
+}
