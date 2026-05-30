@@ -6,11 +6,11 @@ API_VERSION <- "v1"
 ok_envelope <- function(data, meta = list()) {
   base_meta <- list(version = API_VERSION)
   list(status = "success", data = data, error = NULL,
-       meta = utils::modifyList(base_meta, meta))
+       meta = utils::modifyList(meta, list(version = API_VERSION)))
 }
 
 #' Build an error envelope.
 err_envelope <- function(message, meta = list()) {
   list(status = "error", data = NULL, error = message,
-       meta = utils::modifyList(list(version = API_VERSION), meta))
+       meta = utils::modifyList(meta, list(version = API_VERSION)))
 }

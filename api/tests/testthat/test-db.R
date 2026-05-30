@@ -9,3 +9,9 @@ test_that("interval_cols maps mass to the right column names", {
   expect_equal(ic$lower, "rate_lower_95")
   expect_equal(ic$upper, "rate_upper_95")
 })
+
+test_that("api_connect enforces read-only — writes are rejected", {
+  con <- api_connect(TEST_API_DB)
+  on.exit(api_disconnect(con))
+  expect_error(DBI::dbExecute(con, "CREATE TABLE t (x INTEGER)"))
+})
