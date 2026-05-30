@@ -8,6 +8,7 @@ library(DBI)
 #' @param draws_con open DBI connection holding `predicted_draws`.
 #' @param out_dir output directory (created if missing).
 export_draws_parquet <- function(draws_con, out_dir) {
+  stopifnot(!grepl("'", out_dir))
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   sql <- sprintf("
     COPY (
