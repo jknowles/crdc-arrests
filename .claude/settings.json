@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Rscript -e *)",
+      "Bash(Rscript --vanilla -e *)",
+      "Bash(Rscript --no-save -e *)",
+      "Bash(scripts/run-tests.sh*)",
+      "Bash(./scripts/run-tests.sh*)"
+    ]
+  }
+}
