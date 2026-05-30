@@ -1,0 +1,21 @@
+name: test
+on:
+  push:
+    branches: [main, feature/draws-api]
+  pull_request:
+
+jobs:
+  r-tests:
+    runs-on: ubuntu-latest
+    container: rocker/r-ver:4.6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev libssl-dev libz-dev
+          install2.r --error testthat DBI duckdb plumber jsonlite httr2 callr dplyr
+      - name: Data-layer tests
+        run: Rscript -e 'q(status = sum(as.data.frame(testthat::test_dir("tests/testthat"))$failed))'
+      - name: API tests
+        run: Rscript -e 'q(status = sum(as.data.frame(testthat::test_dir("api/tests/testthat"))$failed))'
