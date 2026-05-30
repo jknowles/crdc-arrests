@@ -19,3 +19,25 @@ test_that("handle_draws returns HF shard url + duckdb snippet, not draws", {
   expect_match(res$data$duckdb_sql, "read_parquet")
   expect_match(res$data$parquet_url, "model_id=nat_m2_mod")
 })
+
+test_that("handle_draws rejects invalid state with api_bad_request", {
+  expect_error(
+    handle_draws(state="ZZ", race="BL", sex="M", year="21-22", model="nat_m2"),
+    class = "api_bad_request"
+  )
+})
+
+test_that("handle_draws with state=NULL and year=NULL omits partition segments", {
+  res <- handle_draws(state=NULL, race="BL", sex="M", year=NULL, model="nat_m2")
+  expect_match(res$data$parquet_url, "model_id=nat_m2_mod")
+  expect_false(grepl("LEA_STATE=", res$data$parquet_url))
+  expect_false(grepl("YEAR=", res$data$parquet_url))
+})
+
+test_that("handle_districts rejects invalid state with api_bad_request", {
+  con <- api_connect(TEST_API_DB); on.exit(api_disconnect(con))
+  expect_error(
+    handle_districts(con, q=NULL, state="ZZ", limit="10", offset="0"),
+    class = "api_bad_request"
+  )
+})

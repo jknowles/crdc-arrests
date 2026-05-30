@@ -1,7 +1,7 @@
 #' GET /districts handler: name/geo lookup -> LEAID.
 handle_districts <- function(con, q, state, limit, offset) {
   lim <- validate_limit(limit); off <- validate_offset(offset)
-  state <- if (!is.null(state) && nzchar(state)) state else NULL
+  state <- validate_state(if (!is.null(state) && nzchar(state)) state else NULL)
 
   where <- c("1=1"); params <- list()
   if (!is.null(q) && nzchar(q)) {

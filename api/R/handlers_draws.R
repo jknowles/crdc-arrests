@@ -5,6 +5,7 @@ HF_BASE <- sprintf("https://huggingface.co/datasets/%s/resolve/main/parquet", HF
 #' Does NOT stream draws.
 handle_draws <- function(state, race, sex, year, model) {
   model_id <- validate_model(model)
+  state <- validate_state(state)
   race <- validate_enum(race, ALLOWED_RACE, "race")
   sex  <- validate_enum(sex, ALLOWED_SEX, "sex")
   year <- validate_enum(year, ALLOWED_YEAR, "year")
