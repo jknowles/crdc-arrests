@@ -8,3 +8,10 @@ test_that("handle_states returns state aggregates", {
   expect_equal(row$rate_lower, 0.02)  # rate_lower_80
   expect_null(row$leaid)              # state grain has no LEAID
 })
+
+test_that("handle_states rejects invalid state code", {
+  con <- api_connect(TEST_API_DB); on.exit(api_disconnect(con))
+  expect_error(handle_states(con, state="ZZ", race=NULL, sex=NULL, year=NULL,
+    model=NULL, interval=NULL, limit=NULL, page=NULL),
+    class = "api_bad_request")
+})

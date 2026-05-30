@@ -19,3 +19,10 @@ test_that("handle_estimates rejects bad race", {
     year=NULL, model=NULL, interval=NULL, limit=NULL, page=NULL),
     class = "api_bad_request")
 })
+
+test_that("handle_estimates rejects invalid state code", {
+  con <- api_connect(TEST_API_DB); on.exit(api_disconnect(con))
+  expect_error(handle_estimates(con, leaid=NULL, state="ZZ", race=NULL, sex=NULL,
+    year=NULL, model=NULL, interval=NULL, limit=NULL, page=NULL),
+    class = "api_bad_request")
+})

@@ -24,6 +24,7 @@ handle_estimates <- function(con, leaid, state, race, sex, year, model,
                              interval, limit, page) {
   model_id <- validate_model(model)
   iv <- validate_interval(interval)
+  state <- validate_state(state)
   race <- validate_enum(race, ALLOWED_RACE, "race")
   sex  <- validate_enum(sex, ALLOWED_SEX, "sex")
   year <- validate_enum(year, ALLOWED_YEAR, "year")

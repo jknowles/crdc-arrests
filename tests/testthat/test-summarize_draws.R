@@ -81,6 +81,47 @@ test_that("build_arrest_summary: LEAID absent from enroll_lookup yields NA rate"
   expect_true(is.na(missing_row$rate_median))
 })
 
+test_that("build_arrest_summary: un-padded LEAID in draws still joins district geo", {
+  # Draws use 6-char LEAID "100005"; district_dim uses 7-char "0100005".
+  # The normalization should zero-pad both sides before the merge.
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
+  draws <- data.frame(
+    LEAID = "100005",          # un-padded — simulates raw CRDC data
+    LEA_STATE = "AL", YEAR = "21-22", RACE = "BL", SEX = "M",
+    pred = 0:9, draw_id = 1:10,
+    model_id = "nat_m2_mod", subgroup_id = "nat_m2_mod",
+    stringsAsFactors = FALSE
+  )
+  DBI::dbWriteTable(con, "predicted_draws", draws)
+
+  enroll <- data.frame(
+    LEAID = "100005", YEAR = "21-22", RACE = "BL", SEX = "M",
+    stu_enroll = 100L, observed_arrests = 3L,
+    stringsAsFactors = FALSE
+  )
+  dim_df <- data.frame(
+    LEAID = "0100005",         # 7-char padded — canonical form in district_dim
+    lea_name = "Alpha SD", LEA_STATE = "AL", state_name = "Alabama",
+    lat = 32.1, lon = -86.1, enrollment = 1200L,
+    stringsAsFactors = FALSE
+  )
+  api_path <- tempfile(fileext = ".duckdb")
+
+  build_arrest_summary(draws_con = con, enroll_lookup = enroll,
+                       district_dim = dim_df, api_db_path = api_path,
+                       probs = c(0.5, 0.95))
+
+  acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_path, read_only = TRUE)
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE), add = TRUE)
+  s <- DBI::dbGetQuery(acon, "SELECT * FROM arrest_summary")
+
+  expect_equal(nrow(s), 1L)
+  expect_false(is.na(s$lea_name[1]),
+    label = "un-padded LEAID should match padded district_dim entry after normalization")
+  expect_equal(s$lea_name[1], "Alpha SD")
+})
+
 test_that("build_state_summary aggregates per-draw then summarizes", {
   # Two LEAs in AL, same group, 2 draws each; per-draw state count = sum across LEAs
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir=":memory:")

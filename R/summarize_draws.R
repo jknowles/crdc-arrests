@@ -114,11 +114,28 @@ build_arrest_summary <- function(draws_con, enroll_lookup, district_dim,
     SELECT *, %s FROM joined", hpd_cols, hpd_joins, rate_cols)
   DBI::dbExecute(draws_con, assemble_sql)
 
+  # Normalize LEAID to 7-char zero-padded form (canonical district_dim format)
+  # so that CRDC-derived numeric IDs without leading zeros still join correctly.
+  norm_leaid <- function(x) {
+    num <- suppressWarnings(!is.na(as.integer(x)))
+    out <- as.character(x)
+    out[num] <- formatC(as.integer(x[num]), width = 7, flag = "0")
+    out
+  }
+
   # pull to R, join district dim (small), write to API DB
   summary_df <- DBI::dbGetQuery(draws_con, "SELECT * FROM _summary")
+  summary_df$LEAID <- norm_leaid(summary_df$LEAID)
+  district_dim$LEAID <- norm_leaid(district_dim$LEAID)
   summary_df <- merge(summary_df,
                       district_dim[, c("LEAID","lea_name","state_name","lat","lon")],
                       by = "LEAID", all.x = TRUE)
+
+  match_rate <- mean(!is.na(summary_df$lea_name))
+  if (match_rate < 0.5)
+    warning(sprintf(
+      "build_arrest_summary: only %.0f%% of LEAIDs matched district_dim geo; check LEAID formats.",
+      100 * match_rate))
 
   acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_db_path, read_only = FALSE)
   on.exit(DBI::dbDisconnect(acon, shutdown = TRUE), add = TRUE, after = FALSE)
