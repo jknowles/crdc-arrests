@@ -29,12 +29,12 @@ function(req, res) {
 }
 
 #* Liveness
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/health
 function() list(status = "ok")
 
 #* API metadata
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/
 function() {
   m <- read_meta(.CON)
@@ -53,7 +53,7 @@ function(res) {
 }
 
 #* List models
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/models
 function() handle_models()
 
@@ -62,7 +62,7 @@ function() handle_models()
 #* @param state Two-letter state
 #* @param limit Max rows (<=1000)
 #* @param offset Row offset
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/districts
 function(q="", state="", limit="100", offset="0") handle_districts(.CON, q, state, limit, offset)
 
@@ -76,7 +76,7 @@ function(q="", state="", limit="100", offset="0") handle_districts(.CON, q, stat
 #* @param interval One of 50, 80, 95 (default 95)
 #* @param limit
 #* @param page
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/estimates
 function(leaid="", state="", race="", sex="", year="", model="", interval="", limit="100", page="0")
   handle_estimates(.CON, nz(leaid), nz(state), nz(race), nz(sex), nz(year),
@@ -87,7 +87,7 @@ function(leaid="", state="", race="", sex="", year="", model="", interval="", li
 #* @param model
 #* @param year
 #* @param interval
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/estimates/<leaid>
 function(leaid, model="", year="", interval="")
   handle_estimates(.CON, leaid, NULL, NULL, NULL, nz(year), nz(model), nz(interval), "1000", "0")
@@ -101,14 +101,14 @@ function(leaid, model="", year="", interval="")
 #* @param interval
 #* @param limit
 #* @param page
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/states
 function(state="", race="", sex="", year="", model="", interval="", limit="100", page="0")
   handle_states(.CON, nz(state), nz(race), nz(sex), nz(year), nz(model), nz(interval), limit, page)
 
 #* Single state, all demographics
 #* @param state
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/states/<state>
 function(state, model="", year="", interval="")
   handle_states(.CON, state, NULL, NULL, nz(year), nz(model), nz(interval), "1000", "0")
@@ -119,7 +119,7 @@ function(state, model="", year="", interval="")
 #* @param sex
 #* @param year
 #* @param model
-#* @serializer unboxedJSON
+#* @serializer unboxedJSON list(null="null")
 #* @get /api/v1/draws
 function(state="", race="", sex="", year="", model="")
   handle_draws(nz(state), nz(race), nz(sex), nz(year), nz(model))
