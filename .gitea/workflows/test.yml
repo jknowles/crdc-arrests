@@ -18,4 +18,6 @@ jobs:
       - name: Data-layer tests
         run: Rscript -e 'q(status = sum(as.data.frame(testthat::test_dir("tests/testthat"))$failed))'
       - name: API tests
+        env:
+          NOT_CRAN: "true"
         run: Rscript -e 'q(status = sum(as.data.frame(testthat::test_dir("api/tests/testthat"))$failed))'

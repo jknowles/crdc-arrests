@@ -24,7 +24,11 @@ function(req, res) {
 #* Immutable cache headers (responses are static per data_release)
 #* @filter cacheHeaders
 function(req, res) {
-  res$setHeader("Cache-Control", "public, max-age=31536000, immutable")
+  if (grepl("/health$", req$PATH_INFO)) {
+    res$setHeader("Cache-Control", "no-store")
+  } else {
+    res$setHeader("Cache-Control", "public, max-age=31536000, immutable")
+  }
   plumber::forward()
 }
 
