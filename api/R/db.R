@@ -19,3 +19,6 @@ interval_cols <- function(interval, measure = c("rate", "count")) {
   list(lower = sprintf("%s_lower_%d", measure, interval),
        upper = sprintf("%s_upper_%d", measure, interval))
 }
+
+# Treat empty query strings as absent (plumber passes "" for missing params).
+nz <- function(x) if (is.null(x) || !nzchar(x)) NULL else x

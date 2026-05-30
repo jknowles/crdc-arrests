@@ -1,0 +1,125 @@
+library(plumber)
+# Source handlers/helpers (paths relative to where plumber is run: api/)
+for (f in list.files("R", pattern = "\\.R$", full.names = TRUE)) source(f)
+
+# One read-only connection for the process lifetime.
+.CON <- api_connect()
+reg.finalizer(environment(), function(e) api_disconnect(.CON), onexit = TRUE)
+
+#* @apiTitle CRDC School Arrest Rate API
+#* @apiDescription Small-area Bayesian estimates of school-based arrest rates from
+#*   the Civil Rights Data Collection. Summaries by district and state; raw draws
+#*   via Hugging Face. Cite: Knowles & Miller 2025.
+#* @apiVersion v1
+
+#* Error filter -> 400 for validation errors, 500 otherwise (no internal leak)
+#* @filter errorHandling
+function(req, res) {
+  tryCatch(plumber::forward(), error = function(e) {
+    if (inherits(e, "api_bad_request")) { res$status <- 400; err_envelope(conditionMessage(e)) }
+    else { res$status <- 500; err_envelope("Internal server error.") }
+  })
+}
+
+#* Immutable cache headers (responses are static per data_release)
+#* @filter cacheHeaders
+function(req, res) {
+  res$setHeader("Cache-Control", "public, max-age=31536000, immutable")
+  plumber::forward()
+}
+
+#* Liveness
+#* @serializer unboxedJSON
+#* @get /api/v1/health
+function() list(status = "ok")
+
+#* API metadata
+#* @serializer unboxedJSON
+#* @get /api/v1/
+function() {
+  m <- read_meta(.CON)
+  ok_envelope(list(name="CRDC School Arrest Rate API", docs="/__docs__/",
+                   openapi="/openapi.json", llms="/api/v1/llms.txt"),
+              meta = list(data_release = m$data_release, citation = m$citation))
+}
+
+#* Agent-facing plain-text description
+#* @serializer text
+#* @get /api/v1/llms.txt
+function(res) {
+  res$setHeader("Content-Type", "text/plain")
+  path <- if (file.exists("llms.txt")) "llms.txt" else "api/llms.txt"
+  paste(readLines(path, warn = FALSE), collapse = "\n")
+}
+
+#* List models
+#* @serializer unboxedJSON
+#* @get /api/v1/models
+function() handle_models()
+
+#* District name/geo lookup
+#* @param q Search string (district name, partial)
+#* @param state Two-letter state
+#* @param limit Max rows (<=1000)
+#* @param offset Row offset
+#* @serializer unboxedJSON
+#* @get /api/v1/districts
+function(q="", state="", limit="100", offset="0") handle_districts(.CON, q, state, limit, offset)
+
+#* LEA-level estimates
+#* @param leaid
+#* @param state
+#* @param race One of AM, BL, HI, WH
+#* @param sex One of F, M
+#* @param year One of 15-16, 17-18, 21-22
+#* @param model Model id (default nat_m2)
+#* @param interval One of 50, 80, 95 (default 95)
+#* @param limit
+#* @param page
+#* @serializer unboxedJSON
+#* @get /api/v1/estimates
+function(leaid="", state="", race="", sex="", year="", model="", interval="", limit="100", page="0")
+  handle_estimates(.CON, nz(leaid), nz(state), nz(race), nz(sex), nz(year),
+                   nz(model), nz(interval), limit, page)
+
+#* Single district, all demographics
+#* @param leaid
+#* @param model
+#* @param year
+#* @param interval
+#* @serializer unboxedJSON
+#* @get /api/v1/estimates/<leaid>
+function(leaid, model="", year="", interval="")
+  handle_estimates(.CON, leaid, NULL, NULL, NULL, nz(year), nz(model), nz(interval), "1000", "0")
+
+#* State-level estimates
+#* @param state
+#* @param race
+#* @param sex
+#* @param year
+#* @param model
+#* @param interval
+#* @param limit
+#* @param page
+#* @serializer unboxedJSON
+#* @get /api/v1/states
+function(state="", race="", sex="", year="", model="", interval="", limit="100", page="0")
+  handle_states(.CON, nz(state), nz(race), nz(sex), nz(year), nz(model), nz(interval), limit, page)
+
+#* Single state, all demographics
+#* @param state
+#* @serializer unboxedJSON
+#* @get /api/v1/states/<state>
+function(state, model="", year="", interval="")
+  handle_states(.CON, state, NULL, NULL, nz(year), nz(model), nz(interval), "1000", "0")
+
+#* Locate raw-draw Parquet shard + DuckDB query (does not stream draws)
+#* @param state
+#* @param race
+#* @param sex
+#* @param year
+#* @param model
+#* @serializer unboxedJSON
+#* @get /api/v1/draws
+function(state="", race="", sex="", year="", model="")
+  handle_draws(nz(state), nz(race), nz(sex), nz(year), nz(model))
