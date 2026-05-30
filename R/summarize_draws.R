@@ -49,3 +49,82 @@ hpd_bounds_sql <- function(prob, value_col = "pred",
     keys
   )
 }
+
+#' Materialize the LEA-level arrest summary into the API DuckDB.
+#'
+#' Computes count median/mean/sd + HPD intervals per group from a draws
+#' connection, derives rate columns by dividing by stu_enroll, joins enrollment
+#' and district name/geo, and writes table `arrest_summary` to api_db_path.
+#'
+#' @param draws_con open DBI connection holding `predicted_draws`.
+#' @param enroll_lookup df: LEAID, YEAR, RACE, SEX, stu_enroll, observed_arrests.
+#' @param district_dim df from build_district_dim().
+#' @param api_db_path path to the (created/overwritten) API DuckDB file.
+#' @param probs interval masses to compute (default 0.5, 0.8, 0.95).
+build_arrest_summary <- function(draws_con, enroll_lookup, district_dim,
+                                 api_db_path, probs = c(0.5, 0.8, 0.95)) {
+  # register lookups in the draws connection for joining
+  duckdb::duckdb_register(draws_con, "enroll_lookup", enroll_lookup)
+
+  keys <- paste(.GROUP_KEYS, collapse = ", ")
+
+  # base per-group stats
+  base_sql <- sprintf("
+    CREATE OR REPLACE TEMP TABLE _base AS
+    SELECT %s,
+           COUNT(*) AS n_draws,
+           quantile_cont(pred, 0.5) AS count_median,
+           AVG(pred) AS count_mean,
+           stddev_samp(pred) AS count_sd
+    FROM predicted_draws GROUP BY %s", keys, keys)
+  DBI::dbExecute(draws_con, base_sql)
+
+  # one HPD temp table per mass
+  pct <- function(p) as.integer(round(p * 100))
+  for (p in probs) {
+    DBI::dbExecute(draws_con, sprintf(
+      "CREATE OR REPLACE TEMP TABLE _hpd_%d AS %s",
+      pct(p), hpd_bounds_sql(p, "pred")))
+  }
+
+  # assemble: base + hpd masses + enroll + rate derivation
+  hpd_joins <- paste(vapply(probs, function(p) sprintf(
+    "LEFT JOIN _hpd_%d USING (%s)", pct(p), keys), character(1)), collapse = "\n")
+  hpd_cols <- paste(vapply(probs, function(p) sprintf(
+    "_hpd_%d.hpd_lower AS count_lower_%d, _hpd_%d.hpd_upper AS count_upper_%d",
+    pct(p), pct(p), pct(p), pct(p)), character(1)), collapse = ",\n")
+  rate_cols <- paste(c(
+    "count_median / NULLIF(stu_enroll,0) AS rate_median",
+    "count_mean   / NULLIF(stu_enroll,0) AS rate_mean",
+    vapply(probs, function(p) sprintf(
+      "count_lower_%d / NULLIF(stu_enroll,0) AS rate_lower_%d,
+       count_upper_%d / NULLIF(stu_enroll,0) AS rate_upper_%d",
+      pct(p), pct(p), pct(p), pct(p)), character(1))), collapse = ",\n")
+
+  assemble_sql <- sprintf("
+    CREATE OR REPLACE TEMP TABLE _summary AS
+    WITH joined AS (
+      SELECT b.*, %s,
+             e.stu_enroll, e.observed_arrests
+      FROM _base b
+      %s
+      LEFT JOIN enroll_lookup e USING (LEAID, YEAR, RACE, SEX)
+    )
+    SELECT *, %s FROM joined", hpd_cols, hpd_joins, rate_cols)
+  DBI::dbExecute(draws_con, assemble_sql)
+
+  # pull to R, join district dim (small), write to API DB
+  summary_df <- DBI::dbGetQuery(draws_con, "SELECT * FROM _summary")
+  summary_df <- merge(summary_df,
+                      district_dim[, c("LEAID","lea_name","state_name","lat","lon")],
+                      by = "LEAID", all.x = TRUE)
+
+  acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_db_path, read_only = FALSE)
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE))
+  DBI::dbWriteTable(acon, "arrest_summary", summary_df, overwrite = TRUE)
+  DBI::dbExecute(acon,
+    "CREATE INDEX IF NOT EXISTS idx_as_keys ON arrest_summary (LEAID, YEAR, RACE, SEX, model_id)")
+  DBI::dbExecute(acon,
+    "CREATE INDEX IF NOT EXISTS idx_as_state ON arrest_summary (LEA_STATE, model_id, YEAR)")
+  invisible(api_db_path)
+}

@@ -30,3 +30,26 @@ fixture_draws_con <- function() {
   DBI::dbWriteTable(con, "predicted_draws", draws)
   con
 }
+
+fixture_enroll_lookup <- function() {
+  data.frame(
+    LEAID = c("0100005", "0100006"),
+    YEAR  = c("21-22", "21-22"),
+    RACE  = c("BL", "WH"),
+    SEX   = c("M", "F"),
+    stu_enroll = c(100L, 200L),
+    observed_arrests = c(3L, 5L),
+    stringsAsFactors = FALSE
+  )
+}
+
+fixture_district_dim <- function() {
+  data.frame(
+    LEAID = c("0100005", "0100006"),
+    lea_name = c("Alpha SD", "Beta SD"),
+    LEA_STATE = c("AL", "AL"),
+    state_name = c("Alabama", "Alabama"),
+    lat = c(32.1, 32.2), lon = c(-86.1, -86.2),
+    enrollment = c(1200L, 3400L), stringsAsFactors = FALSE
+  )
+}
