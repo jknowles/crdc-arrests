@@ -46,7 +46,11 @@ spec → plan → implementation cycles.
 | 13 | Routing | **Subdomain** `crdc-api.civilytics.org` (SWAG subdomain proxy-conf + Cloudflare DNS, orange-cloud) |
 | 14 | Deploy mechanism | **Gitea Action → self-hosted runner → docker socket** (no SSH) on the docker host |
 | 15 | Infra separation | Public repo is **generic**; all infra values live in **Gitea Actions secrets/vars**, never committed |
-| 16 | Summary DB delivery | Published as a **versioned `data_release` artifact**; image fetches the pinned version (not committed) |
+| 16 | Summary DB delivery | Published as a **versioned `data_release` artifact** on Hugging Face; image fetches the pinned version (not committed) |
+| 17 | `data_release` tag | **`civilytics-crdc-arrests-2025.1`** (brand + CalVer; re-runs bump `.2`, `.3`) |
+| 18 | HF dataset repo | **`civilytics/crdc-school-arrest-rates`** — holds both `summary.duckdb` and `parquet/` shards |
+| 19 | Demographic enum | **RACE ∈ {AM, BL, HI, WH}, SEX ∈ {F, M}** (8 cells, no TOTAL); YEAR ∈ {15-16, 17-18, 21-22} — data-confirmed |
+| 20 | Documentation | First-class deliverable: OpenAPI + `llms.txt` (machine), Gitea Pages site + **data dictionary** (human), README (repo) |
 
 ---
 
@@ -122,15 +126,16 @@ Same estimate/interval columns as `arrest_summary`. Computed from
 ### 3.4 Materialization & publishing
 `district_dim`, `arrest_summary`, `state_summary` → **`export/api/crdc_api.duckdb`**
 (the only data file the container needs, est. 150–300 MB) with indices on the
-query keys. A `data_release` tag (e.g. `2025-crdc-3yr`) and pipeline metadata are
-stored in a `meta` table.
+query keys. The `data_release` tag (`civilytics-crdc-arrests-2025.1`) and pipeline
+metadata are stored in a `meta` table.
 
-This DB is **published as a versioned artifact** (tagged by `data_release`) —
-alongside the Parquet on Hugging Face, or as a Gitea release. The repo keeps
-`export/` gitignored; the **image fetches the pinned `data_release` DB** at build
-(or first-run) rather than committing the binary. This keeps the public repo
-binary-free and makes the image reproducible by any forker. A
-`scripts/publish_db.R` (credentialed, manual) performs the upload.
+This DB is **published as a versioned artifact** (tagged by `data_release` =
+`civilytics-crdc-arrests-2025.1`) to the Hugging Face dataset repo
+**`civilytics/crdc-school-arrest-rates`** (as `summary.duckdb`, alongside the
+`parquet/` draw shards). The repo keeps `export/` gitignored; the **image fetches
+the pinned `data_release` DB** at build (or first-run) rather than committing the
+binary. This keeps the public repo binary-free and makes the image reproducible
+by any forker. A `scripts/publish_db.R` (credentialed, manual) performs the upload.
 
 ### 3.5 `draws_parquet` — Tier-2 bulk export
 `COPY predicted_draws TO 'export/parquet/' (FORMAT parquet,
@@ -140,8 +145,9 @@ PARTITION_BY (model_id, YEAR, LEA_STATE))`, **sorted within shard by
 pruning value vs. sort-based row-group stats).
 
 A separate, credentialed, **manual** publish step (`scripts/publish_hf.R`) pushes
-shards to a Hugging Face dataset repo with a dataset card. DuckDB-httpfs read
-instructions live in the docs.
+shards to the Hugging Face dataset repo **`civilytics/crdc-school-arrest-rates`**
+(under `parquet/`) with a dataset card. DuckDB-httpfs read instructions live in
+the docs.
 
 ### 3.6 Code organization (refactor, not duplicate)
 Split the existing `R/postprocess.R` + `R/db_views_experimental.R` into focused
@@ -185,7 +191,7 @@ process to `crdc_api.duckdb`.
   "error": null,
   "meta": { "total": 412, "page": 1, "limit": 100,
             "model": "nat_m2_mod", "interval": 0.95,
-            "version": "v1", "data_release": "2025-crdc-3yr",
+            "version": "v1", "data_release": "civilytics-crdc-arrests-2025.1",
             "citation": "Knowles & Miller 2025" }
 }
 ```
@@ -193,25 +199,34 @@ process to `crdc_api.duckdb`.
 The `lower`/`upper` returned reflect the requested `interval` (50/80/95).
 
 ### 4.2 Input validation (fail-fast at boundary)
-- `model` ∈ the 10 allowed ids; `interval` ∈ {50, 80, 95}
-- `race` ∈ {WH, BL, AM, HI, …}; `sex` ∈ {M, F}; `year` ∈ {15-16, 17-18, 21-22}
+- `model` ∈ the 10 allowed ids (`nat_m1`…`nat_m5`, `sg_m1`…`sg_m5`); `interval` ∈ {50, 80, 95}
+- `race` ∈ {AM, BL, HI, WH}; `sex` ∈ {F, M}; `year` ∈ {15-16, 17-18, 21-22} (data-confirmed enums)
 - `leaid`/`state` format checks; `limit` capped (e.g. ≤ 1000), `page`/`offset` ≥ 0
 - Invalid input → `400` with a clear, non-leaking message in the envelope.
 
-### 4.3 Agent-friendliness
+### 4.3 National vs. subgroup model resolution
+- For **national** models (`nat_m*`) `subgroup_id == model_id`; a demographic
+  estimate comes from the single national fit's prediction for that `RACE×SEX`.
+- For **subgroup** models (`sg_m*`) each `RACE×SEX` group is fit separately;
+  `subgroup_id ∈ {AM_F, AM_M, BL_F, BL_M, HI_F, HI_M, WH_F, WH_M}`. A query for
+  `race=BL, sex=M, model=sg_m2` resolves to `model_id=sg_m2_mod,
+  subgroup_id=BL_M`. The API hides this mapping behind `race`/`sex` params; the
+  data dictionary documents it.
+
+### 4.4 Agent-friendliness
 - Complete **OpenAPI** with param enums + descriptions + response schema + examples.
 - Root `/` + `llms.txt`: plain-text API description with copy-paste **R (httr2)**,
   **Python (requests)**, and **DuckDB-over-HF** snippets.
 - Stable versioned path, consistent envelope, explicit enums everywhere.
 - (Future, out of scope: a thin MCP wrapper over the OpenAPI surface.)
 
-### 4.4 Errors & security
+### 4.5 Errors & security
 - Structured envelope errors; never leak internals (404 unknown LEAID/state,
   400 bad params, 500 generic).
 - Query timeout + `limit` caps guard against expensive/unbounded queries.
 - Rate-limit + CORS at the proxy/edge layer (see §5).
 
-### 4.5 File layout
+### 4.6 File layout
 ```
 api/
   plumber.R                 # assembly, OpenAPI metadata, filters (throttle/log/CORS)
@@ -240,7 +255,7 @@ deployed from this repo via a Gitea Action.** Routed at the **subdomain
 - `api/Dockerfile` on `rocker/r-ver` pinned to the project R version; install
   plumber + DuckDB + minimal deps (**no brms/cmdstan** in the serving image).
 - The `crdc_api.duckdb` is **fetched at build/first-run** from the pinned
-  `data_release` artifact (HF/Gitea release) — **not** committed (see §3.4).
+  `data_release` artifact on Hugging Face — **not** committed (see §3.4).
 - `entrypoint.sh` runs plumber on a fixed port, N workers; bind `0.0.0.0`,
   `EXPOSE` the port.
 
@@ -283,7 +298,37 @@ load ever becomes a problem.
 
 ---
 
-## 6. Testing (≥ 80% coverage, testthat 3e)
+## 6. Documentation (first-class deliverable)
+
+Three surfaces, all in scope and verified in CI where possible:
+
+**Machine-readable (for agents & programmatic clients):**
+- **OpenAPI/Swagger** auto-generated by plumber at `/openapi.json` + `/__docs__/`,
+  with param enums, descriptions, response schema, and examples.
+- **`llms.txt`** at the API root: plain-text description + copy-paste **R (httr2)**,
+  **Python (requests)**, and **DuckDB-over-HF** snippets.
+
+**Human-readable (Gitea Pages, `pages.civilytics.org/crdc-arrests`):**
+- Landing page (what this is, citation, AERA/NSF acknowledgement).
+- Usage guide + endpoint reference (rendered from OpenAPI).
+- **Data dictionary** (below).
+- Download links: `summary.duckdb` + HF Parquet dataset; DuckDB-httpfs examples.
+
+**Repo:** README section pointing to the API + docs; `deploy/.env.example`
+documenting required deploy variables.
+
+### 6.1 Data dictionary (content outline)
+- **Column defs** for `arrest_summary` / `state_summary` (keys, `n_draws`,
+  `stu_enroll`, `observed_arrests`, count + rate estimates, 50/80/95 HPD bounds).
+- **Code lists:** RACE `{AM, BL, HI, WH}`, SEX `{F, M}`, YEAR `{15-16, 17-18,
+  21-22}`, the 10 model ids + formulas (from `models.md`), default = `nat_m2`/`sg_m2`.
+- **National vs. subgroup semantics** (§4.3) and `subgroup_id` mapping.
+- **Interval interpretation:** HPD (smallest-width) at the chosen mass; rate vs.
+  count; state = draw-wise population aggregate (§3.3), not the `(1|LEA_STATE)` effect.
+- **Sample restrictions** (enroll ≥ 30, grade > 7, capped over-counts; from `models.md`).
+- **Citation** + `data_release` provenance.
+
+## 7. Testing (≥ 80% coverage, testthat 3e)
 
 - **Unit:** validators, envelope builders, query construction (pure functions).
 - **Integration:** spin up the API against a **tiny synthetic fixture DuckDB**
@@ -297,7 +342,7 @@ load ever becomes a problem.
 
 ---
 
-## 7. Explicitly Out of Scope (future specs)
+## 8. Explicitly Out of Scope (future specs)
 
 - Artifact reproduction (white paper, social posts, EDA, applied examples).
 - Full environment-capture / `renv` lockfile reproducibility polish.
@@ -308,11 +353,13 @@ load ever becomes a problem.
 
 ---
 
-## 8. Open Items for Spec Review
+## 9. Resolved Items (locked)
 
-- Confirm the exact RACE enum exposed (`WH, BL, AM, HI` per `models.md`; confirm
-  whether `TOTAL`/other categories appear for national vs. subgroup models).
-- Confirm `data_release` tag string (spec assumes `2025-crdc-3yr`).
-- Confirm Hugging Face dataset repo namespace (e.g. `civilytics/crdc-arrest-draws`).
-- Confirm artifact host for the summary DB: HF vs. Gitea release.
-- (Resolved: API domain = `crdc-api.civilytics.org`; docs = `pages.civilytics.org/crdc-arrests`.)
+- **RACE/SEX/YEAR enum** — data-confirmed: RACE `{AM, BL, HI, WH}`, SEX `{F, M}`,
+  YEAR `{15-16, 17-18, 21-22}`; 8 demographic cells, **no TOTAL**.
+- **`data_release` tag** — `civilytics-crdc-arrests-2025.1` (brand + CalVer).
+- **HF dataset repo** — `civilytics/crdc-school-arrest-rates` (summary DB + Parquet).
+- **Summary DB artifact host** — Hugging Face.
+- **API domain** — `crdc-api.civilytics.org`; docs — `pages.civilytics.org/crdc-arrests`.
+
+No open items remain.
