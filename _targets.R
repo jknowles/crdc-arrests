@@ -1,10 +1,8 @@
 # ---------------------------------------------------------------------------------------------
-# Title: Run Cohesion and PL submodels
+# Title: Build CRDC Arrest Rate Models
 # Author: Jared Knowles, Civilytics Consulting
-# Date: 12/5/2024
-# Last Edited: 10/31/2025
-# Run model.
-# Updated for multistate functionality.
+# Date: 05/05/2025
+# Last Edited: 05/31/2026
 # ------------------------------------------------------------------------------
 
 # Load libraries ---------------------------------------------------------

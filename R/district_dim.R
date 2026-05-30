@@ -35,12 +35,16 @@
 #' @return data.frame with one row per LEAID: LEAID, lea_name, LEA_STATE,
 #'   state_name, lat, lon, enrollment. Latest available year's name/geo wins.
 build_district_dim <- function(ccd_list) {
-  stopifnot(is.list(ccd_list), length(ccd_list) > 0)
+  stopifnot(
+    is.list(ccd_list),
+    length(ccd_list) > 0,
+    all(vapply(ccd_list, is.data.frame, logical(1)))
+  )
   combined <- do.call(rbind, lapply(ccd_list, function(d) {
     data.frame(
-      LEAID      = sprintf("%07s", as.character(d$leaid)),
+      LEAID      = formatC(as.integer(d$leaid), width = 7, flag = "0"),
       lea_name   = as.character(d$lea_name),
-      fips       = sprintf("%02s", as.character(d$fips)),
+      fips       = formatC(as.integer(d$fips),  width = 2, flag = "0"),
       lat        = as.numeric(d$latitude),
       lon        = as.numeric(d$longitude),
       enrollment = as.integer(d$enrollment),
@@ -50,11 +54,14 @@ build_district_dim <- function(ccd_list) {
   }))
   # latest year per LEAID wins
   combined <- combined[order(combined$LEAID, -combined$year), ]
-  dim <- combined[!duplicated(combined$LEAID), ]
-  dim$LEA_STATE  <- unname(.fips_to_state[dim$fips])
-  dim$state_name <- unname(.state_names[dim$LEA_STATE])
-  dim <- dim[, c("LEAID", "lea_name", "LEA_STATE", "state_name",
-                 "lat", "lon", "enrollment")]
-  rownames(dim) <- NULL
-  dim
+  district_dim_df <- combined[!duplicated(combined$LEAID), ]
+  district_dim_df$LEA_STATE  <- unname(.fips_to_state[district_dim_df$fips])
+  if (any(is.na(district_dim_df$LEA_STATE))) {
+    warning("Unmapped FIPS code(s) -> NA LEA_STATE; extend .fips_to_state if needed.")
+  }
+  district_dim_df$state_name <- unname(.state_names[district_dim_df$LEA_STATE])
+  district_dim_df <- district_dim_df[, c("LEAID", "lea_name", "LEA_STATE", "state_name",
+                                         "lat", "lon", "enrollment")]
+  rownames(district_dim_df) <- NULL
+  district_dim_df
 }
