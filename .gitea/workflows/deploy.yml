@@ -1,0 +1,31 @@
+name: deploy-api
+on:
+  push:
+    branches: [main]
+    paths: ['api/**', 'deploy/**', '.gitea/workflows/deploy.yml']
+
+jobs:
+  deploy:
+    runs-on: self-hosted          # runner on the docker host with the socket
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t "${{ vars.IMAGE_REF }}" ./api
+
+      - name: Deploy via docker compose (docker socket)
+        env:
+          IMAGE_REF: ${{ vars.IMAGE_REF }}
+          SWAG_NETWORK: ${{ vars.SWAG_NETWORK }}
+          API_DOMAIN: ${{ vars.API_DOMAIN }}
+          DATA_URL: ${{ secrets.DATA_URL }}
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --force-recreate
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec crdc-api curl -fs localhost:8000/api/v1/health; then exit 0; fi
+            sleep 2
+          done
+          echo "health check failed"; docker logs crdc-api; exit 1
