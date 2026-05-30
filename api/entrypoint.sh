@@ -6,7 +6,7 @@ if [ ! -f "$API_DB_PATH" ]; then
   if [ -z "${DATA_URL:-}" ]; then
     echo "ERROR: API_DB missing and DATA_URL unset." >&2; exit 1
   fi
-  echo "Fetching summary DB from $DATA_URL ..."
+  echo "Fetching summary DB ..."
   curl -fSL "$DATA_URL" -o "$API_DB_PATH"
 fi
 
