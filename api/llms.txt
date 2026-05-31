@@ -1,0 +1,35 @@
+# CRDC School Arrest Rate API (v1)
+
+Base URL: https://crdc-api.civilytics.org/api/v1
+Bayesian small-area estimates of school-based arrest rates from the US DoE Civil
+Rights Data Collection. Cite: Knowles & Miller 2025.
+
+Response envelope: { status, data, error, meta }.
+Enums: race=AM|BL|HI|WH; sex=F|M; year=15-16|17-18|21-22;
+model=nat_m1..nat_m5|sg_m1..sg_m5 (default nat_m2; request an sg_* model explicitly for subgroup-specific fits); interval=50|80|95 (default 95).
+
+Endpoints:
+  GET /estimates?leaid=&state=&race=&sex=&year=&model=&interval=&limit=&page=
+  GET /estimates/{leaid}
+  GET /states?state=&race=&sex=&year=&model=&interval=
+  GET /states/{state}
+  GET /districts?q=&state=    (name/geo lookup -> leaid)
+  GET /models
+  GET /draws?...              (returns HF Parquet shard URL + DuckDB SQL; bulk only)
+
+Example (R):
+  library(httr2)
+  resp <- request("https://crdc-api.civilytics.org/api/v1/estimates") |>
+    req_url_query(state="TX", race="BL", sex="M", model="nat_m2") |>
+    req_perform() |> resp_body_json()
+
+Example (Python):
+  import requests
+  r = requests.get("https://crdc-api.civilytics.org/api/v1/estimates",
+                   params={"state":"TX","race":"BL","sex":"M","model":"nat_m2"}).json()
+
+Raw draws (bulk, DuckDB over Hugging Face):
+  INSTALL httpfs; LOAD httpfs;
+  SELECT * FROM read_parquet(
+    'https://huggingface.co/datasets/civilytics/crdc-school-arrest-rates/resolve/main/parquet/model_id=nat_m2_mod/YEAR=21-22/LEA_STATE=TX/*.parquet',
+    hive_partitioning=true);

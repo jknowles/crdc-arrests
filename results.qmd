@@ -65,7 +65,7 @@ rdata <- targets::tar_read(recent_data)$data
 source("R/funs.R")
 ```
 
-# National Descriptive Statistics (2021-22)
+# Descriptive Statistics from Most Recent CRDC Wave
 
 These are the statistics for the most recent wave of data in the analysis.
 
@@ -183,7 +183,7 @@ nat_referral_rate
 nat_arrest_rate
 ```
 
-# Sample Continuity Analysis
+# Sample Continuity Analysis for CRDC Waves
 
 Look at how many LEAs are in multiple years of data and how many LEAs drop
 out of the data when we add successive waves of the data.
@@ -208,6 +208,8 @@ match_test(y1516$LEAID, y1718$LEAID[y1718$LEAID %in% unique(y2122$LEAID)])
 ```
 
 # District Concentration Analysis
+
+For this analysis we look at the most recent CRDC wave.
 
 ## District Size Categories
 
@@ -291,12 +293,13 @@ concentration_plot <- concentration_plot_data %>%
   ggplot(aes(x = dist_per_cum, y = cum_sum_per)) +
   geom_line() +
   geom_hline(yintercept = 0.5) +
+  geom_vline(xintercept = 0.5, linetype = 2) +
   scale_x_continuous("% of national student population",
-                     labels = scales::percent) +
+                     labels = scales::percent, limits = c(0, 0.7)) +
   scale_y_continuous("% of all arrests", labels = scales::percent) +
-  theme_minimal(base_size = 12) +
+  civilytics::theme_civilytics(font_size = 12) +
   labs(title = "Share of total arrests by cumulative district enrollment",
-       subtitle = "Horizontal line at 50% of all arrests") +
+       subtitle = "Horizontal line at 50% of all arrests, vertical line at 50% of all students") +
   theme(axis.ticks.x = element_blank(),
         panel.grid = element_blank())
 

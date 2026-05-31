@@ -106,6 +106,7 @@ year_summary |> knitr::kable(digits = 2)
 ### Summary Plot of Trends
 
 ```{r}
+#| label: national-arrest-trend-plots
 
 year_summary <- combined_data |>
   group_by(YEAR) |>
@@ -300,6 +301,8 @@ ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
 ## State Trends
 
 ```{r}
+#| label: state-trend-comparison
+
 state_trend_summary <- combined_data |>
   filter(LEA_STATE %in% c("KS", "CA")) |>
   group_by(LEA_STATE, YEAR) |>
@@ -336,6 +339,7 @@ ggplot(state_trend_summary, aes(x = YEAR, y = total_arrests, group = LEA_STATE))
 If we aggregate to the LEA level, what patterns do we see?
 
 ```{r}
+#| label: lea-panel-balance
 
 combined_data |>
     filter(total_enroll > 0) |>
@@ -374,7 +378,7 @@ combined_data |>
 ### Rankings over time
 
 ```{r}
-
+#| label: lea-arrest-count-leaderboard
 
 combined_data |>
 #  filter(total_enroll > 0) |>
@@ -418,7 +422,7 @@ combined_data |>
 ### Rankings of arrest rates
 
 ```{r}
-
+#| label: lea-arrest-rate-leaderboard
 
 combined_data |>
 #  filter(total_enroll > 0) |>

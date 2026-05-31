@@ -10,6 +10,8 @@ knitr:
     error: false
     echo: false
     fig.path: export/figures/socialmedia-
+    dev: ragg_png
+    dpi: 300
 execute:
   warning: false
   message: false
@@ -35,7 +37,7 @@ library(tidybayes)
 library(ggridges)
 library(duckdb)
 library(knitr)
-
+library(civilytics)
 
 ```
 
@@ -46,18 +48,135 @@ library(knitr)
 #| warning: false
 
 # Connect to database
-# con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb",
-#                       config = list("memory_limit" = "8GB", "threads" = "4"))
+con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb",
+                      config = list("memory_limit" = "8GB", "threads" = "4"), read_only = TRUE)
 
 # Load target data
 tydata <- targets::tar_read(three_year_data)$data
 rdata <- targets::tar_read(recent_data)$data
-
+ccd_ty <- targets::tar_read(combined_sch_data)
 crdc <- targets::tar_read(full_crdc_data_y2122)
 
 # Source custom functions
 source("R/funs.R")
 source("R/spatial_utils.R")
+
+# Logo overlay helper
+logo_file <- system.file("img", "civilytics_wordmark.png", package = "civilytics")
+
+# Output dimensions (must match ragg_png/knitr fig.width & fig.height)
+fig_w <- 11  # inches
+fig_h <- 7   # inches
+dpi   <- 300
+
+# Logo target size in inches → convert to plot fractions
+logo_w_in <- 1.5   # how wide you want the logo
+logo_h_in <- 0.375  # match your logo's aspect ratio (~4:1)
+margin_in <- 0.05  # gap from edge
+
+# add_logo_overlay <- function(p,
+#                               side = "right",
+#                               vertical = "bottom",
+#                              fig_w    = 12,
+#                              fig_h    = 8,
+#                              logo_w_in = 1.5,
+#                              logo_h_in = 0.375,
+#                              margin_in = 0.15) {
+#   logo_grob <- png::readPNG(logo_file) |> grid::rasterGrob(interpolate = TRUE)
+
+#   # Convert inches → plot fractions
+#   w <- logo_w_in / fig_w
+#   h <- logo_h_in / fig_h
+#   if ( side == "right") {
+#     x <- 1 - w - (margin_in / fig_w)   # right-anchored
+#   } else {
+#     x <- 0.05
+#  }
+#      if(vertical == "bottom") {
+#     y <- 0 #(margin_in / fig_h)
+#   } else {
+#     y <- 1 - (margin_in / fig_h)
+#   }
+
+#   cowplot::ggdraw(p) +
+#     cowplot::draw_grob(logo_grob, x = x, y = y, width = w, height = h)
+# }
+
+# Add colors
+color_fill_values <- c("WH" = "#c92d0e", "BL" = "#020684",
+                        "AM" = "#ff8f43",
+                       "TOTAL" = "#909090ff", "HI" = "#0791b6")
+color_fill_values2 <- c("White" = "#c92d0e", "Black" = "#020684",
+                        "Total" = "#909090ff", "Hispanic" = "#0791b6",
+                        "Amer. Ind." = "#ff8f43")
+
+
+model_palette <- c('Modeled' ="#000a9bff", 'Frequentist' = "#858585bb")
+
+
+
+agresti_coull <- function(numerator, denominator, confidence_level = 0.95) {
+    adj_star <- qnorm(1 - (1-confidence_level)/2)
+    # critical value
+    if (numerator > 0) {
+        num_star <- numerator + adj_star
+        denom_star <- denominator + (2 * adj_star)
+        phat <- num_star / denom_star
+        phat_se <- sqrt((phat/denom_star) * (1-phat))
+        ci_upper <- (phat + (adj_star * phat_se)) * denom_star
+        ci_lower <- (phat - (adj_star * phat_se)) * denom_star
+        sd <- mean(c(ci_upper, ci_lower)) / confidence_level
+        sd <- phat_se * denom_star
+    } else {
+
+        ci_upper <- denominator*(-log(1-confidence_level)/denominator)
+        ci_lower <- 0
+        sd <- mean(c(ci_upper, ci_lower)) / confidence_level
+        phat_se <- 0
+        phat <- mean(c(ci_upper, ci_lower))
+    }
+    return(c(ci_upper, ci_lower, sd, phat_se, phat))
+}
+
+# let's wrap model types in two dimensions
+
+add_model_time <- function(x) {
+    y <- rep("One year", length(x))
+    y[x %in% c("nat_m3_mod", "nat_m4_mod", "nat_m5_mod")] <- "Three year"
+    y[x %in% c("sg_m3_mod", "sg_m4_mod", "sg_m5_mod")] <- "Three year"
+    return(y)
+}
+
+add_model_form <- function(x) {
+    y <- rep("Stratified", length(x))
+    y[startsWith(x, "nat")] <- "Unified"
+    return(y)
+}
+
+add_model_cov <- function(x) {
+  y <- rep("Baseline", length(x))
+  y[x %in% c("sg_m2_mod", "nat_m4_mod", "nat_m5_mod", "nat_m2_mod", "sg_m4_mod", "sg_m5_mod" )] <- "Covariate"
+  return(y)
+}
+
+
+print_model_name <- function(x, lbreak = FALSE) {
+    y <- rep("Stratified", length(x))
+    y[startsWith(x, "nat")] <- "Unified"
+    x <- gsub("_mod", "", x)
+    x <- gsub("nat_m", "", x)
+    x <- gsub("sg_m", "", x)
+    if (lbreak) {
+      y <- paste0(y, "\nModel:", x)
+    }  else {
+      y <- paste0(y, " Model:", x)
+
+    }
+
+    return(y)
+}
+
+
 ```
 
 ## Post 1: State and National Totals
@@ -93,8 +212,8 @@ dist_ref_arr |>
         arrests = sum(ARRESTS),
         referrals = sum(REFERRALS)) -> nat_totals
 
-nat_arrest_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
-nat_referral_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
+nat_referral_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
+nat_arrest_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
 nat_totals
 ```
 
@@ -133,17 +252,23 @@ p1 <- ggplot(data = state_map2, aes(fill = arrests)) +
               fill = "white", size = 3.5) +
   scale_fill_distiller("Arrests", palette = "YlOrRd", direction = 1, labels = scales::comma) +
   labs(title = "Students arrested at school by state", subtitle = "34,846 school-based arrests in 2021-22", caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") +
-  theme_void() +
-  theme(
-    #plot.margin = rep(unit(6, "pt"), 4),
-        plot.background = element_rect(fill = "#FAFAF7"),
-        legend.position.inside = c(0.9, 0.32),
+  theme_civilytics_map() +
+  theme(legend.text = element_text(size = 8),
         legend.position = "inside",
-        legend.text = element_text(size = 8))
+        legend.position.inside = c(0.9, 0.32))
+
+  # theme_void() +
+  # theme(
+  #   #plot.margin = rep(unit(6, "pt"), 4),
+  #       plot.background = element_rect(fill = "#FAFAF7", color = NA),
+  #       legend.position.inside = c(0.9, 0.32),
+  #       legend.position = "inside",
+  #       legend.text = element_text(size = 8))
 
 
-plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
+
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 
 ```
 
@@ -160,17 +285,17 @@ p1 <- ggplot(data = state_map2, aes( fill = arrest_rate)) +
     fill = "white") +
   scale_fill_distiller("Arrest rate", palette = "YlOrRd", direction = 1) +
    labs(title = "Arrest rate at school by state", subtitle = "Arrests per 1,000 students enrolled", caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") +
-  theme_void()+
+  theme_civilytics_map() +
   theme(
     #plot.margin = rep(unit(6, "pt"), 4),
-        plot.background = element_rect(fill = "#FAFAF7"),
+        plot.background = element_rect(fill = "#FAFAF7", color = NA),
         legend.position.inside = c(0.9, 0.32),
         legend.position = "inside",
         legend.text = element_text(size = 8))
 
 
-
-plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+#plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
 #rm(state_map2)
@@ -211,12 +336,15 @@ p1 <- ggplot(data = state_map2, aes( fill = arrest_nnh)) +
   theme_void() +
   theme(
     #plot.margin = rep(unit(6, "pt"), 4),
-        plot.background = element_rect(fill = "#FAFAF7"),
+        plot.background = element_rect(fill = "#FAFAF7", color = NA),
         legend.position.inside = c(0.9, 0.32),
         legend.position = "inside",
         legend.text = element_text(size = 8))
 
-plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
+
+#add_logo_overlay(p1, fig_w = 11, fig_h = 7, side = "left")
+#plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 ```
 
@@ -250,7 +378,9 @@ year_summary <- combined_data |>
     .groups = "drop"
   )
 
-p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
+p1 <-
+
+  (ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
   geom_point() +
   geom_line(group = 1) +
   geom_text(aes(label = pretty_count(total_arrests)), nudge_x = 0.15) +
@@ -260,9 +390,15 @@ p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
   title = "Arrest trends across CRDC waves",
   subtitle = "Total arrests nationally.",
   caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22, 2017-18, and 2015-16") +
-  civilytics::theme_civilytics(font_size =14)
+  civilytics::theme_civilytics_dark_map()) |>
+  civilytics_logo(variant = "dark") |> grid::grid.draw()
 
-plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+civilytics_logo(p1)
+
+
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+
+
 ```
 
 
@@ -281,7 +417,9 @@ p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/100
   caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22, 2017-18, and 2015-16") +
   civilytics::theme_civilytics(font_size =14)
 
-plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+
+add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+#plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
 ```
@@ -322,7 +460,9 @@ caption = "Source: U.S. Department of Education Civil Rights Data Collection, 20
   title = "Comparing state arrest rate trends across CRDC waves", subtitle = "Kansas and California") +
   civilytics::theme_civilytics(font_size =14)
 
-plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
+
+add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+#plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
 ```
@@ -335,21 +475,24 @@ plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 #| warning: false
 
 combined_data |>
-    group_by(LEA_STATE, LEAID, YEAR) |>
+    group_by(LEA_STATE, LEA_NAME, LEAID, YEAR) |>
     filter(RACE == "TOTAL" & SEX == "TOTAL") |>
     summarize(
         total_enrollment = sum(stu_enroll, na.rm = TRUE),
     total_arrests = sum(ARRESTS, na.rm = TRUE),
     total_referrals = sum(REFERRALS, na.rm = TRUE),
+    JJ = sum(JJ == "Yes")
     ) -> lea_data
 
-lea_data |> filter(YEAR == "21-22" & LEA_STATE == "KS") |>
-    arrange(desc(total_arrests)) |>
-    inner_join(tydata |> select(YEAR, LEAID, LEA_NAME) |> distinct_all(),
-    by = join_by(YEAR, LEAID)) |>
-        select(LEA_STATE, YEAR, LEAID, LEA_NAME, everything())
+# TODO: join the LEA name for 21-22 onto the combined data to create a consistent
+# name
+
+recent_names <- lea_data |> filter(YEAR == "21-22") |> ungroup() |>
+  select(LEAID, LEA_NAME) |> distinct_all()
 
 
+lea_data <- left_join(lea_data |> ungroup() |> select(-LEA_NAME), recent_names,
+                    by = join_by(LEAID))
 
 ```
 
@@ -366,9 +509,9 @@ library(flextable)
 
 img_path <- "export/figures/socialmedia-national_lea_table.png"
 
+
+
 table_data <- lea_data |>
-  inner_join(tydata |> select(YEAR, LEAID, LEA_NAME) |> distinct_all(),
-    by = join_by(YEAR, LEAID)) |>
   mutate(YEAR = dplyr::recode_values(YEAR,
     "21-22" ~ "2021_22",
     "15-16" ~ "2015_16",
@@ -438,20 +581,1272 @@ ft <- flextable(table_data) |>
   color(color = "#555555", part = "footer") |>
   set_table_properties(layout = "fixed")
 
-# Export high-res PNG using ragg (no browser/Chrome dependency)
-{
-  dims <- flextable_dim(ft)
-  ragg::agg_png(img_path,
-    width   = dims$width,
-    height  = dims$height,
-    units   = "in",
-    res     = 300,
-    scaling = 1
-  )
-  plot(ft)
-  dev.off()
-}
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,  # extra space for logo
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Composite logo onto saved PNG using magick
+logo  <- magick::image_read(logo_file)
+table_img <- magick::image_read(img_path)
+img_w <- magick::image_info(table_img)$width
+img_h <- magick::image_info(table_img)$height
+logo_w <- round(img_w * 0.15)
+logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
+logo_h <- magick::image_info(logo)$height
+table_img <- magick::image_composite(
+  table_img, logo,
+  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
+)
+magick::image_write(table_img, img_path, format = "png")
 
 # Embed in rendered document
 knitr::include_graphics(img_path)
 ```
+
+## High arrest rate districts and coefficient of variation
+
+
+```{r}
+#| label: national_lea_table_higharrestrates
+#| message: false
+#| warning: false
+
+
+img_path <- "export/figures/socialmedia-national_lea_table_higharrestrate.png"
+
+table_data <- lea_data |>
+  mutate(YEAR = dplyr::recode_values(YEAR,
+    "21-22" ~ "2021_22",
+    "15-16" ~ "2015_16",
+    "17-18" ~ "2017_18")) |>
+  mutate(arrest_rate = total_arrests / (total_enrollment/1000)) |>
+  group_by(LEAID) |>
+  tidyr::pivot_wider(id_cols = c(LEA_STATE, LEAID, LEA_NAME),
+    values_from = c(total_enrollment, total_arrests, arrest_rate), names_from = YEAR) |>
+  arrange(desc(arrest_rate_2021_22)) |>
+  ungroup() |>
+  select(LEA_STATE, LEA_NAME, arrest_rate_2021_22, arrest_rate_2017_18,
+    arrest_rate_2015_16,
+  total_enrollment_2021_22,
+    total_arrests_2021_22, total_arrests_2017_18,
+    total_arrests_2015_16) |>
+  slice_head(n = 20) |>
+  mutate(
+    LEA_NAME                 = stringr::str_to_title(LEA_NAME),
+    arrest_rate_2021_22      = scales::comma(arrest_rate_2021_22, accuracy = 0.1),
+    arrest_rate_2017_18      = scales::comma(arrest_rate_2017_18, accuracy = 0.1),
+    arrest_rate_2015_16      = scales::comma(arrest_rate_2015_16, accuracy = 0.1),
+    total_enrollment_2021_22 = scales::comma(total_enrollment_2021_22, accuracy = 1),
+    total_arrests_2021_22    = scales::comma(total_arrests_2021_22, accuracy = 1),
+    total_arrests_2015_16    = scales::comma(total_arrests_2015_16, accuracy = 1),
+    total_arrests_2017_18    = scales::comma(total_arrests_2017_18, accuracy = 1)
+  )
+
+header_bg <- "#2c3e50"
+header_fg <- "white"
+alt_bg    <- "#f0f0eb"
+
+ft <- flextable(table_data) |>
+  set_header_labels(
+    LEA_STATE                = "State",
+    LEA_NAME                 = "District",
+    arrest_rate_2021_22      = "Rate\n(2021-22)",
+    arrest_rate_2017_18      = "Rate\n(2017-18)",
+    arrest_rate_2015_16      = "Rate\n(2015-16)",
+    total_enrollment_2021_22 = "Enrollment\n(2021-22)",
+    total_arrests_2021_22    = "Arrests\n(2021-22)",
+    total_arrests_2017_18    = "Arrests\n(2017-18)",
+    total_arrests_2015_16    = "Arrests\n(2015-16)"
+  ) |>
+  add_header_row(
+    values    = c("", "", "Arrest Rate (per 1,000 students)", "Current Year", "Historical Arrests"),
+    colwidths = c(1, 1, 3, 2, 2),
+    top       = TRUE
+  ) |>
+  add_header_lines("Top 20 School Districts by Student Arrest Rate — CRDC 2021-22") |>
+  bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(size = 11, part = "body") |>
+  bg(i = seq(2, 20, 2), bg = alt_bg, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+  align(j = c("LEA_STATE", "LEA_NAME"), align = "left",  part = "body") |>
+  align(j = c("arrest_rate_2021_22", "arrest_rate_2017_18", "arrest_rate_2015_16",
+              "total_enrollment_2021_22", "total_arrests_2021_22",
+              "total_arrests_2017_18", "total_arrests_2015_16"),
+        align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  width(j = "LEA_STATE",                width = 0.55) |>
+  width(j = "LEA_NAME",                 width = 2.0)  |>
+  width(j = "arrest_rate_2021_22",      width = 0.9)  |>
+  width(j = "arrest_rate_2017_18",      width = 0.9)  |>
+  width(j = "arrest_rate_2015_16",      width = 0.9)  |>
+  width(j = "total_enrollment_2021_22", width = 1.0)  |>
+  width(j = "total_arrests_2021_22",    width = 0.9)  |>
+  width(j = "total_arrests_2017_18",    width = 0.9)  |>
+  width(j = "total_arrests_2015_16",    width = 0.9)  |>
+  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,  # extra space for logo
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Composite logo onto saved PNG using magick
+logo  <- magick::image_read(logo_file)
+table_img <- magick::image_read(img_path)
+img_w <- magick::image_info(table_img)$width
+img_h <- magick::image_info(table_img)$height
+logo_w <- round(img_w * 0.15)
+logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
+logo_h <- magick::image_info(logo)$height
+table_img <- magick::image_composite(
+  table_img, logo,
+  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
+)
+magick::image_write(table_img, img_path, format = "png")
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+
+```
+
+
+
+```{r}
+#| label: cov_plot_quintile_total
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 9
+
+
+#dist_ref_arr
+
+# For clarity, let's look at total district size and then cut it and show CV for
+# overall district size, and then for Black, White, and Hispanic students
+
+dist_ref_arr %>%
+  group_by(LEA_STATE, LEAID) %>%
+  filter(stu_enroll > 0) |>
+  mutate(total_enroll = sum(stu_enroll[SEX == "TOTAL" & RACE == "TOTAL"]),
+         total_arrests = ARRESTS[SEX == "TOTAL" & RACE == "TOTAL"],
+         total_referrals = REFERRALS[SEX == "TOTAL" & RACE == "TOTAL"]
+  ) -> tabdf
+
+total_enroll_quint <- quantile(tabdf$total_enroll[tabdf$SEX == "TOTAL" & tabdf$RACE == "TOTAL"],
+         probs = seq(0, 1,0.2))
+
+quint_labels <- c(
+  paste0(format(total_enroll_quint[1], big.mark = ","), " - ",
+         format(total_enroll_quint[2] - 1, big.mark = ",")),
+  paste0(format(total_enroll_quint[2], big.mark = ","), " - ",
+         format(total_enroll_quint[3] - 1, big.mark = ",")),
+  paste0(format(total_enroll_quint[3], big.mark = ","), " - ",
+         format(total_enroll_quint[4] - 1, big.mark = ",")),
+  paste0(format(total_enroll_quint[4], big.mark = ","), " - ",
+         format(total_enroll_quint[5] - 1, big.mark = ",")),
+  paste0(">", format(total_enroll_quint[5], big.mark = ","))
+)
+# cut by enrollment quintiles
+
+plotdf <- tabdf %>%
+    ungroup() |>
+  mutate(size = cut(total_enroll, total_enroll_quint, labels = quint_labels,
+      ordered_result = TRUE)
+  ) %>%
+  #mutate(size = as.numeric(size)) %>%
+  filter(SEX == "TOTAL") %>%
+  filter(!is.na(size)) %>%
+  group_by(size, RACE) %>%
+  summarize(count = n(),
+            all_enroll = sum(total_enroll),
+            mean_arr_rate = mean(arrest_rate, na.rm =TRUE),
+            sd_arr_rate = sd(arrest_rate, na.rm = TRUE),
+            mean_ref_rate = mean(referral_rate, na.rm = TRUE),
+            sd_ref_rate = sd(referral_rate, na.rm = TRUE)) %>%
+  mutate(cov_arrests = sd_arr_rate / mean_arr_rate * 100,
+         cov_referrals = sd_ref_rate / mean_ref_rate * 100)
+
+plotdf$race_lab <- crdc_race_recode(plotdf$RACE)
+
+
+p1 <- ggplot(plotdf[plotdf$RACE== "TOTAL",],
+       aes(x = size, y = cov_arrests/100, color = race_lab, group = race_lab)) +
+  geom_smooth(method = "loess", show.legend = FALSE) +
+  geom_point(size = 4) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_y_continuous(labels = scales::label_percent(big.mark = ","),
+  limits = c(0, 30)) +
+  civilytics::theme_civilytics(font_size = 14) +
+  theme(legend.position = "bottom",
+  axis.title.x = element_text(margin = margin(t = 15))) +
+  labs(x = "Total Enrollment Quintile",
+      color = "",
+       title = "CV for Arrest Rates by Total Enrollment",
+       y = "CV (% scale)")
+
+add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+
+```
+
+```{r}
+#| label: cov_plot_decile_total
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 9
+
+total_enroll_decile <- quantile(
+  tabdf$total_enroll[tabdf$SEX == "TOTAL" & tabdf$RACE == "TOTAL"],
+  probs = seq(0, 1, 0.1)
+)
+
+decile_labels <- c(
+  sapply(1:9, function(i) {
+    paste0(format(total_enroll_decile[i], big.mark = ","), " - ",
+           format(total_enroll_decile[i + 1] - 1, big.mark = ","))
+  }),
+  paste0(">", format(total_enroll_decile[10], big.mark = ","))
+)
+
+plotdf <- tabdf %>%
+  ungroup() |>
+  mutate(size = cut(total_enroll, total_enroll_decile, labels = decile_labels,
+      ordered_result = TRUE)
+  ) %>%
+  filter(SEX == "TOTAL") %>%
+  filter(!is.na(size)) %>%
+  group_by(size, RACE) %>%
+  summarize(count = n(),
+            all_enroll = sum(total_enroll),
+            mean_arr_rate = mean(arrest_rate, na.rm = TRUE),
+            sd_arr_rate = sd(arrest_rate, na.rm = TRUE),
+            mean_ref_rate = mean(referral_rate, na.rm = TRUE),
+            sd_ref_rate = sd(referral_rate, na.rm = TRUE)) %>%
+  mutate(cov_arrests = sd_arr_rate / mean_arr_rate * 100,
+         cov_referrals = sd_ref_rate / mean_ref_rate * 100)
+
+plotdf$race_lab <- crdc_race_recode(plotdf$RACE)
+
+p1 <- ggplot(plotdf[plotdf$RACE == "TOTAL",],
+       aes(x = size, y = cov_arrests/100, color = race_lab, group = race_lab)) +
+  geom_smooth(method = "loess", show.legend = FALSE, se=FALSE) +
+  geom_point(size = 4) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_y_continuous(labels = scales::label_percent(big.mark = ","),
+    limits = c(0, 25), breaks = c(0, 5, 10, 15, 20, 25),
+    expand = expansion(mult = c(0, 0.1))) +
+  civilytics::theme_civilytics(font_size = 14) +
+  theme(legend.position = "none",
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Total Enrollment Decile",
+       color = "",
+       title = "Arrest Rate Coefficient of Variation",
+       subtitle = "By enrollment deciles",
+       caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22",
+       y = "CV (% scale)")
+
+add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+
+
+```
+
+
+```{r}
+#| label: cov_plot_decile_byraceeth
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 9
+
+
+
+p1 <- ggplot(plotdf[plotdf$RACE %in% c("AM","BL", "WH", "TOTAL", "HI"),],
+       aes(x = size, y = cov_arrests/100, color = race_lab, group = race_lab)) +
+  geom_smooth(method = "loess", show.legend = FALSE, se = FALSE) +
+  geom_point(size = 4) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_y_continuous(labels = scales::label_percent(big.mark = ","),
+  breaks = c(0, 5, 10, 15, 20, 30, 40),
+  limits = c(0, 40), expand = expansion(mult = c(0, 0.1))) +
+  civilytics::theme_civilytics(font_size = 12) +
+  theme(legend.position = "bottom",
+  axis.title.x = element_text(margin = margin(t = 15))) +
+  labs(x = "Total Enrollment Decile",
+       title = "Arrests",
+       y = "CV (% scale)",
+       color = "Race / Ethnicity")
+
+  # #theme(legend.position = c(0.8, 0.7))+
+  # labs(x = "Total Enrollment Quantile",
+  #      y = "CV (% scale)",
+  #      title = "Figure 2: Coefficient of Variation for Arrest Rates by District Population",
+  #      color = "Race")
+
+
+p2 <- ggplot(plotdf[plotdf$RACE %in% c("AM", "BL", "WH", "TOTAL", "HI"),],
+       aes(x = size, y = cov_referrals/100, color = race_lab, group = race_lab)) +
+  geom_smooth(method = "loess", show.legend = FALSE, se = FALSE) +
+  geom_point(size = 4) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_y_continuous(labels = scales::label_percent(big.mark = ","),
+  breaks = c(0, 5, 10, 15, 20, 30, 40),
+  limits = c(0, 40), expand = expansion(mult = c(0, 0.1)))  +
+  civilytics::theme_civilytics(font_size = 12) +
+  theme(legend.position = "bottom",
+  axis.title.x = element_text(margin = margin(t = 15)))  +
+  labs(x = "Total Enrollment Decile",
+       title = "Referrals",
+       y = "",
+       color = "Race / Ethnicity")
+
+# +
+#   labs(x = "Total Enrollment Quantile",
+#        y = "CV (% scale)",
+#        color = "Race")
+
+
+library(patchwork)
+
+pw <- p1 + p2
+
+
+pw <- pw + plot_annotation(title = "Coefficient of Variation by District Total Enrollment",
+      subtitle = "By race/ethnicity\nLoess smooth and observed values shown for each student group",
+       caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22",) +
+  plot_layout(guides = "collect") &
+  civilytics::theme_civilytics(font_size = 11) +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = -20),
+        panel.grid.major.y = element_line(color = "gray80"))
+
+add_logo_overlay(pw, fig_w = 11, fig_h = 7)
+
+```
+
+
+## Arrests by race
+
+```{r}
+dist_ref_arr |>
+    ungroup() |>
+    filter(RACE != "TOTAL" & SEX != "TOTAL") |>
+    group_by(RACE, SEX) |>
+    summarize(
+        lea_count = n_distinct(LEAID),
+        enrollment = sum(stu_enroll),
+        arrests = sum(ARRESTS),
+        referrals = sum(REFERRALS)) |>
+    mutate(arrest_rate = arrests / (enrollment / 1000),
+            referral_rate = referrals / (enrollment/1000)) -> nat_sg_totals
+
+nat_sg_totals |>
+    filter(RACE %in% c("AM", "WH", "HI", "BL"))
+```
+
+
+
+```{r}
+#| label: sg_summary_arrestNNH
+#| fig-width: 9
+#| warning: false
+#| message: false
+
+pw <- ggplot(nat_sg_totals |> mutate(SEX = ifelse(SEX == "M", "Male students", "Female students")) |>
+   filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
+  aes(x = crdc_race_recode(RACE), y = 1000 / arrest_rate,
+  fill = crdc_race_recode(RACE)) +
+    scale_fill_manual(values = color_fill_values2) +
+  geom_col() +
+  geom_text(aes(label = civilytics::pretty_count(round(1000/arrest_rate,0))),
+              vjust = -0.25) +
+  facet_wrap(~SEX) +
+  civilytics::theme_civilytics(font_size = 12) +
+  labs(x = "", y = "NNH", fill = "Race / Ethnicity",
+  title = "Enrolled students per arrest by race/ethnicity and sex",
+  subtitle = "Number needed to harm (NNH), higher numbers are lower arrest rates\nBy race/ethnicity and sex",
+       caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
+                    labels = scales::comma) +
+  theme(legend.position = "bottom", axis.ticks.x = element_blank())
+
+add_logo_overlay(pw, fig_w = 11, fig_h = 7)
+
+
+
+```
+
+
+
+
+```{r}
+#| label: arrests_concentration_by_sg
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 8
+p1 <- dist_ref_arr %>%
+    filter(RACE != "TOTAL" & SEX  == "TOTAL") %>%
+    filter(RACE %in% c("BL", "WH", "HI", "AM")) |>
+  group_by(RACE) %>%
+  arrange(RACE, desc(ARRESTS)) %>%
+  mutate(total_arr = sum(ARRESTS),
+         total_pop = sum(stu_enroll)) %>%
+  filter(ARRESTS > 0) %>%
+  mutate(cum_sum = cumsum(ARRESTS)) %>%
+  mutate(cum_sum_per = cum_sum / total_arr) %>%
+  mutate(dist_per = stu_enroll / total_pop) %>%
+  mutate(dist_per_cum = cumsum(dist_per)) %>%
+  ggplot(aes(x = dist_per_cum, y = cum_sum_per, color = crdc_race_recode(RACE),
+             group = crdc_race_recode(RACE))) +
+  geom_line(linewidth = 1.1) +
+  geom_hline(yintercept = 0.5) +
+  scale_color_manual(values = color_fill_values2) +
+  scale_x_continuous("% of national student population",
+                     labels = scales::percent) +
+  scale_y_continuous("% of all arrests", labels = scales::percent) +
+ civilytics::theme_civilytics(font_size =12) +
+  labs(title = "Share of cumulative arrests by student population",
+       subtitle = "Horizontal line at 50% of all arrests",
+       caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22",
+       color = "Race/Eth.") +
+  theme(axis.ticks.x = element_blank(),
+        panel.grid = element_blank()) +
+  theme(legend.position = "inside",
+    legend.position.inside = c(0.8, 0.2))
+
+add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+```
+
+
+```{r}
+#| label: am_districts_table
+#| message: false
+#| warning: false
+
+img_path <- "export/figures/socialmedia-am_districts_table.png"
+
+# Your data pipeline with flextable conversion
+table_data <- dist_ref_arr %>%
+    filter(RACE != "TOTAL" & SEX  == "TOTAL") %>%
+    filter(RACE %in% c("AM")) |>
+  group_by(RACE) %>%
+  arrange(RACE, desc(ARRESTS)) %>%
+  mutate(total_arr = sum(ARRESTS),
+         total_pop = sum(stu_enroll)) %>%
+  filter(ARRESTS > 0) %>%
+  mutate(cum_sum = cumsum(ARRESTS)) %>%
+  mutate(cum_sum_per = cum_sum / total_arr) %>%
+  mutate(dist_per = stu_enroll / total_pop) %>%
+  mutate(dist_per_cum = cumsum(dist_per)) |>
+  filter(cum_sum_per <= 0.518) |>
+  mutate(arr_rate = ARRESTS / (stu_enroll/1000)) |>
+  ungroup () |>
+  select(YEAR, LEA_STATE, LEAID, ARRESTS, REFERRALS, stu_enroll, arr_rate, total_enroll) |>
+  inner_join(recent_names) |>
+  select(YEAR, LEA_STATE, LEA_NAME, everything())
+
+# Store row count before formatting
+n_rows <- nrow(table_data)
+
+# Format the data for flextable
+table_data <- table_data |>
+  select(-LEAID) |>
+  mutate(
+    LEA_NAME                 = stringr::str_to_title(LEA_NAME),
+    YEAR                     = dplyr::recode_values(YEAR,
+      "21-22" ~ "2021-22",
+      "17-18" ~ "2017-18",
+      "15-16" ~ "2015-16"),
+    ARRESTS                  = scales::comma(ARRESTS, accuracy = 1),
+    REFERRALS                = scales::comma(REFERRALS, accuracy = 1),
+    arr_rate                 = round(arr_rate, 2),
+    stu_enroll               = scales::comma(stu_enroll, accuracy = 1),
+    total_enroll             = scales::comma(total_enroll, accuracy = 1)
+  )
+
+header_bg <- "#2c3e50"
+header_fg <- "white"
+alt_bg    <- "#f0f0eb"
+
+ft <- flextable(table_data) |>
+  set_header_labels(
+    YEAR                     = "Year",
+    LEA_STATE                = "State",
+    LEA_NAME                 = "District",
+    ARRESTS                  = "Arrests",
+    REFERRALS                = "Referrals",
+    arr_rate                 = "Arrests per 1,000",
+    stu_enroll               = "Enrollment",
+    total_enroll             = "Total Enrollment"
+  ) |>
+  add_header_lines("Top Districts for American Indian/Alaska Native Student Arrests") |>
+  add_header_lines("Districts contributing to 51.8% of arrests") |>
+  bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(size = 10, part = "body") |>
+  #bg(i = seq(2, n_rows + 1, 2), bg = alt_bg, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+  align(j = c("LEA_STATE", "LEA_NAME"), align = "left", part = "body") |>
+  align(j = c("ARRESTS", "REFERRALS", "arr_rate","stu_enroll", "total_enroll"), align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  width(j = "YEAR",                width = 0.8) |>
+  width(j = "LEA_STATE",           width = 0.6)  |>
+  width(j = "LEA_NAME",            width = 2.5)  |>
+  width(j = "ARRESTS",             width = 0.9)  |>
+  width(j = "REFERRALS",           width = 0.9)  |>
+  width(j = "arr_rate",           width = 0.9)  |>
+  width(j = "stu_enroll",          width = 1.2)  |>
+  width(j = "total_enroll",        width = 1.2)  |>
+  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") |>
+  add_footer_lines("Nationally, 529 American Indian / Alaska Native student arrests were reported.") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Composite logo onto saved PNG using magick
+logo  <- magick::image_read(logo_file)
+table_img <- magick::image_read(img_path)
+img_w <- magick::image_info(table_img)$width
+img_h <- magick::image_info(table_img)$height
+logo_w <- round(img_w * 0.15)
+logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
+logo_h <- magick::image_info(logo)$height
+table_img <- magick::image_composite(
+  table_img, logo,
+  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
+)
+magick::image_write(table_img, img_path, format = "png")
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+
+```
+
+Let's do a three year look:
+
+```{r}
+
+img_path <- "export/figures/socialmedia-am_districts_table_3yr.png"
+threewave <- bind_rows(targets::tar_read(full_crdc_data_y2122), targets::tar_read(full_crdc_data_y1718), targets::tar_read(full_crdc_data_y1516))
+
+threewave <- threewave %>%
+  group_by(YEAR,LEA_STATE, LEAID, RACE, SEX) %>%
+  summarize(ARRESTS = sum(ARRESTS),
+            REFERRALS = sum(REFERRALS),
+            stu_enroll = sum(stu_enroll),
+            jj_count = sum(JJ == "Yes")) |>
+  mutate(arrest_rate = ARRESTS / (stu_enroll / 1000),
+         referral_rate = REFERRALS / (stu_enroll / 1000)) %>%
+  group_by(YEAR, LEA_STATE, LEAID) |>
+  mutate(total_enroll = sum(stu_enroll[RACE != "TOTAL" &
+                                         SEX != "TOTAL"]))
+
+
+
+# Your data pipeline with flextable conversion
+table_data <- dist_ref_arr %>%
+    filter(RACE != "TOTAL" & SEX  == "TOTAL") %>%
+    filter(RACE %in% c("AM")) |>
+  group_by(RACE) %>%
+  arrange(RACE, desc(ARRESTS)) %>%
+  mutate(total_arr = sum(ARRESTS),
+         total_pop = sum(stu_enroll)) %>%
+  filter(ARRESTS > 0) %>%
+  mutate(cum_sum = cumsum(ARRESTS)) %>%
+  mutate(cum_sum_per = cum_sum / total_arr) %>%
+  mutate(dist_per = stu_enroll / total_pop) %>%
+  mutate(dist_per_cum = cumsum(dist_per)) |>
+  filter(cum_sum_per <= 0.518) |>
+  mutate(arr_rate = ARRESTS / (stu_enroll/1000)) |>
+  ungroup () |>
+  select(YEAR, LEA_STATE, LEAID, ARRESTS, REFERRALS, stu_enroll, arr_rate, total_enroll) |>
+  inner_join(recent_names) |>
+  select(YEAR, LEA_STATE, LEA_NAME, everything())
+
+
+# Your data pipeline with flextable conversion
+table_data3 <- threewave %>%
+    filter(RACE != "TOTAL" & SEX  == "TOTAL") %>%
+    filter(RACE %in% c("AM")) |>
+  group_by(RACE) %>%
+  arrange(RACE, desc(ARRESTS)) %>%
+  filter(LEAID %in% table_data$LEAID) |>
+  mutate(total_arr = sum(ARRESTS),
+         total_pop = sum(stu_enroll)) %>%
+  #filter(ARRESTS > 0) %>%
+  mutate(cum_sum = cumsum(ARRESTS)) %>%
+  mutate(cum_sum_per = cum_sum / total_arr) %>%
+  mutate(dist_per = stu_enroll / total_pop) %>%
+  mutate(dist_per_cum = cumsum(dist_per)) |>
+  mutate(arr_rate = ARRESTS / (stu_enroll/1000)) |>
+  ungroup () |>
+  select(YEAR, LEA_STATE, LEAID, ARRESTS, REFERRALS, stu_enroll, arr_rate, total_enroll) |>
+  inner_join(recent_names) |>
+  group_by(LEAID) |> arrange(LEAID, YEAR) |>
+  select(YEAR, LEA_STATE, LEA_NAME, everything())
+
+table_data3 <- table_data3 |> ungroup() |>
+  select(YEAR, LEA_STATE, LEA_NAME, ARRESTS, stu_enroll) |>
+  tidyr::pivot_wider(names_from = YEAR, values_from = c(ARRESTS, stu_enroll)) |>
+  mutate(LEA_NAME                 = stringr::str_to_title(LEA_NAME)) |>
+  ungroup() |>
+  arrange(desc(`ARRESTS_21-22`))
+  # |>
+  # sleect(LEA_STATE, LEA_NAME, )
+  # select(LEA_STATE, LEA_NAME, ends_with("15-16"), ends_with("17-18"), everything())
+
+
+
+
+ft <- flextable(table_data3) |>
+  set_header_labels(
+    LEA_STATE                = "State",
+    LEA_NAME                 = "District",
+    `ARRESTS_15-16`                  = "Arrests 2015-16",
+    `ARRESTS_17-18`                  = "Arrests 2017-18",
+    `ARRESTS_21-22`                  = "Arrests 2021-22",
+    `stu_enroll_15-16`               = "Enrollment 2015-16",
+    `stu_enroll_17-18`                = "Enrollment 2017-18",
+    `stu_enroll_21-22`                 = "Enrollment 2021-22"
+  ) |>
+  add_header_lines("For districts contributing to 51.8% of arrests in 2021-22") |>
+  add_header_lines("Three year data on American Indian/Alaska Native Student Arrests") |>
+   bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(size = 10, part = "body") |>
+  #bg(i = seq(2, n_rows + 1, 2), bg = alt_bg, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+  align(j = c("LEA_STATE", "LEA_NAME"), align = "left", part = "body") |>
+  align(j = c("`ARRESTS_15-16`", "`ARRESTS_17-18`", "`ARRESTS_21-22`","`stu_enroll_15-16`", "`stu_enroll_17-18`", "`stu_enroll_21-22`"), align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  # width(j = "YEAR",                width = 0.8) |>
+  width(j = "LEA_STATE",           width = 0.6)  |>
+  width(j = "LEA_NAME",            width = 2.5)  |>
+  # width(j = "ARRESTS",             width = 0.9)  |>
+  # width(j = "REFERRALS",           width = 0.9)  |>
+  # width(j = "arr_rate",           width = 0.9)  |>
+  # width(j = "stu_enroll",          width = 1.2)  |>
+  # width(j = "total_enroll",        width = 1.2)  |>
+  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") |>
+  add_footer_lines("Nationally, 529 American Indian / Alaska Native student arrests were reported in 2021-22.") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Composite logo onto saved PNG using magick
+logo  <- magick::image_read(logo_file)
+table_img <- magick::image_read(img_path)
+img_w <- magick::image_info(table_img)$width
+img_h <- magick::image_info(table_img)$height
+logo_w <- round(img_w * 0.15)
+logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
+logo_h <- magick::image_info(logo)$height
+table_img <- magick::image_composite(
+  table_img, logo,
+  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
+)
+magick::image_write(table_img, img_path, format = "png")
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+
+```
+
+
+Let's look at model estimates for these places.
+
+
+```{r}
+#| label: arrests_model_comparison_am
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 12
+#| fig-height: 8
+focal_dist <- sample(unique(table_data$LEAID), 1)
+focal_dist <- "4659820" # rapid city
+focal_dist <- "4666270" #sioux falls
+obsv_focal <- rdata |> filter(LEAID == focal_dist) |> filter(RACE == "AM")
+# Make plot title
+unique(obsv_focal$LEA_NAME)
+unique(obsv_focal$LEA_STATE)
+dist_name_for_title <- paste0(tools::toTitleCase(tolower(unique(obsv_focal$LEA_NAME))),
+                            " in ", state.name[state.abb==unique(obsv_focal$LEA_STATE)])
+
+dist_test <- get_prediction_summary(con, confidence_level = 0.95, RACE = "AM",
+      central_tendency = "median", YEAR = "21-22", LEAID = focal_dist)
+
+dist_draws <- get_prediction_draws(con,  YEAR = "21-22", RACE = "AM", LEAID = focal_dist)
+
+
+obsv_plot <- obsv_focal |> ungroup() |> group_by(LEAID, YEAR) |>
+    summarize(arrests = sum(ARRESTS),
+             enroll = sum(stu_enroll)) |>
+    mutate(ci_upper = agresti_coull(arrests, enroll, confidence_level = 0.95)[1],
+            ci_lower = agresti_coull(arrests, enroll, confidence_level = 0.95)[2]) |>
+    mutate(type = "Frequentist")
+
+plot_draws <- dist_draws |>
+  filter(!(grepl("_m5", model_id))) |>
+  filter(!(grepl("sg_", model_id))) |>
+  group_by(model_id, draw_id) |>
+              summarize(pred = sum(pred)) |>
+  group_by(model_id) |>
+  arrange(model_id, desc(pred)) |>
+  mutate( ordvar = 1:n()) |>
+  mutate(fillvar = abs(ordvar - 250))
+
+
+
+# Starting with your filtered and summarized data
+result <- dist_draws |>
+  filter(!(grepl("_m5", model_id))) |>
+  filter(!(grepl("sg_", model_id))) |>
+  group_by(model_id, draw_id) |>
+  summarize(pred = sum(pred), .groups = "drop") |>
+  group_by(model_id) |>
+  # Add rank (descending by pred value)
+  mutate(
+    rank = rank(-pred, ties.method = "min")
+  )
+
+# Calculate HPD intervals for each model_id using base R
+# First, get unique model_ids
+model_ids <- unique(result$model_id)
+
+# Initialize vectors to store HPD bounds
+lower_hpd_vec <- numeric(nrow(result))
+upper_hpd_vec <- numeric(nrow(result))
+within_hpd_vec <- logical(nrow(result))
+
+# Loop through each model_id to calculate HPD
+for (i in seq_along(model_ids)) {
+  current_model <- model_ids[i]
+  model_rows <- which(result$model_id == current_model)
+  model_preds <- result$pred[model_rows]
+
+  # Sort predictions for this model
+  sorted_preds <- sort(model_preds)
+
+  # Find the narrowest window containing 95% of values
+  n_values <- length(sorted_preds)
+  window_size <- ceiling(0.95 * n_values)
+
+  # Calculate all possible windows
+  window_widths <- numeric(n_values - window_size + 1)
+  window_starts <- numeric(n_values - window_size + 1)
+  window_ends <- numeric(n_values - window_size + 1)
+
+  for (j in 1:(n_values - window_size + 1)) {
+    window_starts[j] <- sorted_preds[j]
+    window_ends[j] <- sorted_preds[j + window_size - 1]
+    window_widths[j] <- window_ends[j] - window_starts[j]
+  }
+
+  # Find the narrowest window
+  min_width_idx <- which.min(window_widths)
+  lower_hpd <- window_starts[min_width_idx]
+  upper_hpd <- window_ends[min_width_idx]
+
+  # Assign HPD bounds and within_hpd flag to all rows for this model
+  lower_hpd_vec[model_rows] <- lower_hpd
+  upper_hpd_vec[model_rows] <- upper_hpd
+  within_hpd_vec[model_rows] <- model_preds >= lower_hpd & model_preds <= upper_hpd
+}
+
+# Add HPD information to the result data frame
+result$lower_hpd <- lower_hpd_vec
+result$upper_hpd <- upper_hpd_vec
+result$within_hpd <- within_hpd_vec
+
+# Arrange by model_id and rank
+result <- result |>
+  arrange(model_id, rank)
+
+# To filter only rows within HPD
+hpd_only <- result |> filter(within_hpd)
+
+result <- result |>
+  mutate(model_time = add_model_time(model_id),
+    model_label = paste0(add_model_time(model_id), "\n", add_model_cov(model_id)))
+
+
+
+
+p1 <- ggplot(result, aes(x = pred, y = model_label, group = model_label)) +
+  geom_density_ridges(scale = 0.9, rel_min_height = 0.01) +
+    geom_density_ridges_gradient(data = result |> filter(within_hpd),
+    aes(fill = after_stat(x)), scale = 0.9, gradient_lwd = 1.0, rel_min_height = 0.01) +
+    geom_pointrange(data = obsv_plot %>%
+                   tidyr::crossing(model_id = unique(result$model_id)) |>
+                   mutate(model_label = paste0(add_model_time(model_id), "\n", add_model_cov(model_id)),
+                            model_time = add_model_time(model_id)),
+  aes(y = model_label, x = arrests, xmin = ci_lower, fill = NULL, xmax = ci_upper), color = I("#2993fd"),
+  position = position_nudge(y = 0.2)) +
+     scale_fill_viridis_c(name = "Arrests", option = "C", guide = guide_none()) +
+        scale_y_discrete("Model", limits = rev,
+                #labels = function(x) print_model_name(x, lbreak = TRUE),
+                expand = expansion(mult = c(0.1, 0.15))) +
+    facet_wrap(~add_model_time(model_id), ncol = 2, scales = "free") +
+    labs(title = stringr::str_wrap(paste0("Predicted arrests probability density interval for ", dist_name_for_title, " for American Indian students"), 90),
+    x = "Predicted arrests", y = "Model type",
+    color = "Model or observed",
+    subtitle = stringr::str_wrap("Observed arrests and frequentist interval shown in bright blue pointrange. Colored fill represents the 95% highest posterior density for each model, shaded to emphasize number of arrests.", 90)) +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    theme(legend.position = "bottom",
+    panel.grid.major.y = element_line(color = "gray50"),
+    axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+add_logo_overlay(p1, fig_w = 12, fig_h = 8, side = "left")
+
+```
+
+
+
+## Post 8 Expected vs Observed Arrests
+
+
+```{r}
+#| label: compute-expected-arrests
+thresh <- c(0, 1000, 10000, 20000, Inf)
+labs <- c("0-999", "1,000-9,999", "10,000-19,999","20,000+")
+
+dist_size_summary <- dist_ref_arr %>%
+   ungroup() %>%
+     filter(RACE == "TOTAL" & SEX == "TOTAL") %>%
+   mutate(popcut = cut(stu_enroll,
+                       breaks = thresh,
+                       labels = labs,
+                       include.lowest= TRUE)) %>%
+   group_by(popcut) %>%
+ mutate(expec_arrest = 1 - pbinom(0, stu_enroll, nat_arrest_rate/1000,
+                              lower.tail = TRUE)) %>% select(-jj_count, - RACE, - SEX) |>
+   summarize(dists = n(),
+             dists_w_arrests = sum(ARRESTS > 0),
+             expec_distw_arrests = as.integer(round(sum(expec_arrest),0))) %>%
+   mutate(dist_w_arrest_per = pretty_per(dists_w_arrests/dists),
+          expect_w_arrest_per = pretty_per(expec_distw_arrests/dists))
+```
+
+```{r}
+#| label: display-expected-arrests
+
+#dist_size_summary |> knitr::kable()
+
+img_path <- "export/figures/socialmedia-expected_arrest_table.png"
+
+ft <- flextable(dist_size_summary) |>
+  set_header_labels(
+    popcut                = "Enrollment Range",
+    dists                 = "Districts",
+    dists_w_arrests                     = "Districts reporting an arrest",
+    expec_distw_arrests                  = "Districts expected with an arrest",
+    dist_w_arrest_per                    = "% of districts with an arrest",
+    expect_w_arrest_per =     "% districts expected with an arrest"
+  ) |>
+  add_header_lines("Expected Arrests based on National Arrest Rate") |>
+  #add_header_lines("Three year data on American Indian/Alaska Native Student Arrests") |>
+   bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(size = 10, part = "body") |>
+  #bg(i = seq(2, n_rows + 1, 2), bg = alt_bg, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+   align(j = c("popcut"), align = "left", part = "body") |>
+  align(j = c("dists","dists_w_arrests", "expec_distw_arrests", "dist_w_arrest_per", "expect_w_arrest_per"), align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  width(j = "popcut",                width = 1.7) |>
+  width(j = "dists",           width = 1.1)  |>
+  width(j = "dists_w_arrests",            width = 1.1)  |>
+  width(j = "dist_w_arrest_per",            width = 1.1)  |>
+  width(j = "expect_w_arrest_per",            width = 1.1)  |>
+  # width(j = "ARRESTS",             width = 0.9)  |>
+  # width(j = "REFERRALS",           width = 0.9)  |>
+  # width(j = "arr_rate",           width = 0.9)  |>
+  # width(j = "stu_enroll",          width = 1.2)  |>
+  # width(j = "total_enroll",        width = 1.2)  |>
+  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection") |>
+  add_footer_lines("National arrest rate in 2021-22 was 0.71 arrests per 1,000 students.") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Composite logo onto saved PNG using magick
+logo  <- magick::image_read(logo_file)
+table_img <- magick::image_read(img_path)
+img_w <- magick::image_info(table_img)$width
+img_h <- magick::image_info(table_img)$height
+logo_w <- round(img_w * 0.15)
+logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
+logo_h <- magick::image_info(logo)$height
+table_img <- magick::image_composite(
+  table_img, logo,
+  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
+)
+magick::image_write(table_img, img_path, format = "png")
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+
+```
+
+
+
+
+```{r}
+
+# Get 100 highest arrests
+rdata |> group_by(LEA_STATE, LEAID, LEA_NAME) |>
+      summarize(total_enroll = sum(stu_enroll),
+            total_arrests = sum(ARRESTS)) |>
+      arrange(desc(total_arrests)) |>
+      ungroup() |>
+      slice_head(n= 100) -> bigarr
+
+# Get 100 largest districts
+rdata |> group_by(LEA_STATE, LEAID, LEA_NAME) |>
+      summarize(total_enroll = sum(stu_enroll),
+            total_arrests = sum(ARRESTS)) |>
+      arrange(desc(total_enroll)) |>
+      ungroup() |>
+      slice_head(n= 100) -> big100
+
+# Get largest districts with 0 arrests
+rdata |> group_by(LEA_STATE, LEAID, LEA_NAME) |>
+      summarize(total_enroll = sum(stu_enroll),
+            total_arrests = sum(ARRESTS)) |>
+      filter(total_arrests == 0) |>
+      arrange(desc(total_enroll)) |>
+      ungroup() |>
+      slice_head(n= 100) -> big0
+```
+
+
+```{r}
+# focal_dist <- "4823640"
+# focal_dist <- "4826580"
+# focal_dist <- "2502790"
+focal_dist <- "3412690" # patterson
+
+obsv_focal <- rdata |> filter(LEAID == focal_dist)
+# Make plot title
+unique(obsv_focal$LEA_NAME)
+unique(obsv_focal$LEA_STATE)
+dist_name_for_title <- paste0(tools::toTitleCase(tolower(unique(obsv_focal$LEA_NAME))),
+                            " in ", state.name[state.abb==unique(obsv_focal$LEA_STATE)])
+
+
+dist_test <- get_prediction_summary(con, confidence_level = 0.95,
+      central_tendency = "median", YEAR = "21-22", LEAID = focal_dist)
+
+dist_draws <- get_prediction_draws(con,  YEAR = "21-22", LEAID = focal_dist)
+
+
+obsv_plot <- obsv_focal |> ungroup() |>
+    summarize(arrests = sum(ARRESTS),
+             enroll = sum(stu_enroll)) |>
+    mutate(ci_upper = agresti_coull(arrests, enroll, confidence_level = 0.95)[1],
+            ci_lower = agresti_coull(arrests, enroll, confidence_level = 0.95)[2]) |>
+    mutate(type = "Frequentist")
+
+model_plot <- dist_draws |>
+    group_by(model_id, draw_id) |>
+    summarize(arrestst = sum(pred)) |>
+    group_by(model_id) |>
+    summarize(arrests = median(arrestst),
+            ci_upper = quantile(arrestst, 1 - (1 - 0.95)/2),
+            ci_lower = quantile(arrestst, (1 - 0.95)/2),
+            enroll = obsv_plot$enroll[1]) |>
+    rename(type = model_id)
+
+plotdf <- bind_rows(obsv_plot %>%
+  tidyr::crossing(model_id = unique(model_plot$type)),
+  model_plot |> mutate(model_id = type)) |>
+    mutate(type = ifelse(type == "Frequentist", type, "Modeled"))
+
+
+
+
+
+```
+
+```{r}
+
+img_path <- "export/figures/socialmedia-big0_example_dist_table.png"
+
+table_data3 <- tydata |> filter(LEAID == focal_dist) |>
+  group_by(LEA_STATE, LEA_NAME, YEAR) |>
+  summarize(arrests = sum(ARRESTS), enroll = sum(stu_enroll))
+
+ft <- flextable(table_data3) |>
+  set_header_labels(
+    LEA_STATE                = "State",
+    LEA_NAME                 = "District",
+    YEAR                     = "CRDC Wave",
+    arrests                  = "Arrests",
+    enroll                    = "Enrollment"
+  ) |>
+  add_header_lines("Suspiciously Low Reported Arrest Counts") |>
+  #add_header_lines("Three year data on American Indian/Alaska Native Student Arrests") |>
+   bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(size = 10, part = "body") |>
+  #bg(i = seq(2, n_rows + 1, 2), bg = alt_bg, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+  align(j = c("YEAR", "LEA_STATE", "LEA_NAME"), align = "left", part = "body") |>
+  align(j = c("arrests", "enroll"), align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  width(j = "YEAR",                width = 0.8) |>
+  width(j = "LEA_STATE",           width = 0.6)  |>
+  width(j = "LEA_NAME",            width = 2.5)  |>
+  # width(j = "ARRESTS",             width = 0.9)  |>
+  # width(j = "REFERRALS",           width = 0.9)  |>
+  # width(j = "arr_rate",           width = 0.9)  |>
+  # width(j = "stu_enroll",          width = 1.2)  |>
+  # width(j = "total_enroll",        width = 1.2)  |>
+  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection") |>
+  add_footer_lines("Enrollment shown is for grades 7-12.") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Composite logo onto saved PNG using magick
+logo  <- magick::image_read(logo_file)
+table_img <- magick::image_read(img_path)
+img_w <- magick::image_info(table_img)$width
+img_h <- magick::image_info(table_img)$height
+logo_w <- round(img_w * 0.15)
+logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
+logo_h <- magick::image_info(logo)$height
+table_img <- magick::image_composite(
+  table_img, logo,
+  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
+)
+magick::image_write(table_img, img_path, format = "png")
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+```
+
+```{r}
+#| label: zero_arrest_counts_draws
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 12
+#| fig-height: 10
+
+plot_draws <- dist_draws |> group_by(model_id, draw_id) |>
+              summarize(pred = sum(pred))
+ndraws <- 500 # draws per model per group, 500 * 8
+
+plot_draws <- plot_draws |>
+              mutate(pred = ifelse(pred > 16, 16, pred))
+
+
+
+p1 <- ggplot(plot_draws |> filter(!(grepl("_m5", model_id))) |>
+             # filter(grepl("nat_", model_id)) |>
+            filter(add_model_cov(model_id) == "Baseline") |>
+            filter(add_model_time(model_id) == "Three year"),
+    aes(x = pred, y = model_id, group = model_id)) +
+    geom_density_ridges2(stat = "binline", scale= 0.9, binwidth = 1,
+                          color = "#000a9bff") +
+      geom_text(
+    stat = "bin",
+    aes(
+      y = group + (0.9 * after_stat(count/max(count))),
+      label = ifelse(stat(count) > 25, pretty_per(after_stat(count/ndraws)), "")
+      #label = ifelse(stat(count) > 0, pretty_per(stat(count/max(count)), ndigit = 3), "")
+    ),
+    nudge_y = 0.0,
+    vjust = -0.25, size = 3, color = "black", binwidth = 1
+  ) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
+    expand = expansion(add = c(0.25, 1.1))) +
+    scale_x_continuous(breaks = c(5:16), limits = c(4, 17),
+    expand = expansion(add = c(0.25, 1), mult = c(0, 0.2))) +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    labs(title = "Three year models", subtitle = "Baseline", x ="", y = "") +
+    theme(axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+
+p2 <- ggplot(plot_draws |> filter(!(grepl("_m5", model_id))) |>
+  #filter(grepl("nat_", model_id)) |>
+  filter(add_model_cov(model_id) == "Baseline") |>
+     filter(add_model_time(model_id) == "One year"),
+    aes(x = pred, y = model_id, group = model_id)) +
+    geom_density_ridges2(stat = "binline", scale= 0.9, binwidth = 1,
+                          color = "#000a9bff") +
+      geom_text(
+    stat = "bin",
+    aes(
+      y = group + (0.9 * after_stat(count/max(count))),
+      label = ifelse(stat(count) > 25, pretty_per(after_stat(count/ndraws)), "")
+      #label = ifelse(stat(count) > 0, pretty_per(stat(count/max(count)), ndigit = 3), "")
+    ),
+    nudge_y = 0.0,
+    vjust = -0.25, size = 3, color = "black", binwidth = 1
+  ) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
+    expand = expansion(add = c(0.25, 1.2)), name = "Model type") +
+    scale_x_continuous(breaks = c(0:8), limits = c(-0.5, 8),
+    expand = expansion(add = c(0.25, 1), mult = c(0, 0.2))) +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    labs(title = "One year models", subtitle = "Baseline", x = "", y = "Model type")+
+    theme(axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+p3 <- ggplot(plot_draws |> filter(!(grepl("_m5", model_id))) |>
+ # filter(grepl("nat_", model_id)) |>
+            filter(add_model_cov(model_id) == "Covariate") |>
+            filter(add_model_time(model_id) == "Three year"),
+    aes(x = pred, y = model_id, group = model_id)) +
+    geom_density_ridges2(stat = "binline", scale= 0.9, binwidth = 1,
+                          color = "#000a9bff") +
+      geom_text(
+    stat = "bin",
+    aes(
+      y = group + (0.9 * after_stat(count/max(count))),
+      label = ifelse(stat(count) > 25, pretty_per(after_stat(count/ndraws)), "")
+      #label = ifelse(stat(count) > 0, pretty_per(stat(count/max(count)), ndigit = 3), "")
+    ),
+    nudge_y = 0.0,
+    vjust = -0.25, size = 3, color = "black", binwidth = 1
+  ) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
+    expand = expansion(add = c(0.25, 1.1))) +
+    scale_x_continuous(breaks = c(0:12), limits = c(-0.5, 13),
+   expand = expansion(add = c(0.25, 1), mult = c(0, 0.2))) +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    labs(title = "Three year models", subtitle = "Covariates",
+            x = "Predicted Arrests", y ="") +
+    theme(axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+
+p4 <- ggplot(plot_draws |> filter(!(grepl("_m5", model_id))) |>
+#  filter(grepl("nat_", model_id)) |>
+      filter(add_model_cov(model_id) == "Covariate") |>
+     filter(add_model_time(model_id) == "One year"),
+    aes(x = pred, y = model_id, group = model_id)) +
+    geom_density_ridges2(stat = "binline", scale= 0.9, binwidth = 1,
+                          color = "#000a9bff") +
+      geom_text(
+    stat = "bin",
+    aes(
+      y = group + (0.9 * after_stat(count/max(count))),
+      label = ifelse(stat(count) > 25, pretty_per(after_stat(count/ndraws)), "")
+      #label = ifelse(stat(count) > 0, pretty_per(stat(count/max(count)), ndigit = 3), "")
+    ),
+    nudge_y = 0.0,
+    vjust = -0.25, size = 3, color = "black", binwidth = 1
+  ) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
+    expand = expansion(add = c(0.25, 1.2))) +
+    scale_x_continuous(breaks = c(0:8), limits = c(-0.5, 8),
+    expand = expansion(add = c(0.25, 1), mult = c(0, 0.2))) +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    labs(title = "One year models", subtitle = "Covariates",
+     y = "", x = "Predicted Arrests")+
+    theme(axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+pfull <- p2+ p1 + p4 + p3  + plot_annotation(
+  title = paste0("All model draws for ", dist_name_for_title),
+  caption = "Observed arrests in 2021-22 are 0.\nArrests are top-coded at 16 or more for visual clarity.\nValues with fewer than 5% predicted likelihood are not labeled.",
+  subtitle = 'Frequency of predicted arrests from 500 draws of posterior for each model'
+)
+
+add_logo_overlay(pfull, fig_w = 12, fig_h = 10, side = "left")
+
+```
+
+In our first example, we look at how Bayesian prediction models differ from
+frequentist intervals in the case of no observed arrests. The Paterson New Jersey
+school district has `r pretty_count(obsv_focal$total_enroll[1])`
+in our dataset - so having 0 arrests is suspicious.
+
+In the case of no arrests, the observed interval is constant - from 0 to 3, and shown in gray
+alongside the Bayesian prediction interval in blue for
+each of our 10 models. The models are sorted into single-year specifications
+on the left and three year specifications on the right. We see that the single-year
+models, except for stratfiied model 1, have much narrower intervals than the
+frequentist interval - confirming the advantage of the modeling methodology for increasing
+precision.
+
+However, these models still suggest that 0 arrests is the median estimate (the point).
+Here the three year models disagree - the intervals are all wider
+than the frequentist interval and the median estimated arrests is greater than 0.
+In particular models without covariates (Unifed Model 3
+and Stratified Model 3) suggest that more than 10 arrests are most liklely. The
+reason becomes clear when we look at the multiple years of data and see that
+in 15-16 Paterson had 47 arrests reported and in 17-18 it had 11 arrests reported.
+
+
+## Arrest Rate Corrections

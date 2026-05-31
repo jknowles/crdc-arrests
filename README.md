@@ -193,3 +193,15 @@ This research was supported by a grant from the American Educational Research As
 receives funds for its "AERA Grants Program" from the National Science Foundation under NSF award
 NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or
 NSF.
+
+## API & Data Product
+
+Model results are published so you don't have to re-run the pipeline:
+
+- **API:** `https://crdc-api.civilytics.org/api/v1/` — district & state estimates
+  (point + 50/80/95% credible intervals). See `api/llms.txt` and the OpenAPI spec
+  at `/api/v1/openapi.json`.
+- **Bulk draws:** partitioned Parquet on Hugging Face
+  (`civilytics/crdc-school-arrest-rates`), queryable shard-by-shard with DuckDB.
+- **Build it yourself:** the `api_db` and `draws_parquet` targets produce the
+  summary DuckDB and Parquet from `tar_make()`. See `docs/api/data-dictionary.md`.
