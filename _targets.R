@@ -33,10 +33,10 @@ CPU_CAPACITY <- {
 # completes in one pass; if NTHREADS < NCHAINS it needs another sampling pass.
 # This may be necessary on memory-constrained devices.
 NTHREADS <- {
-  v <- suppressWarnings(as.integer(Sys.getenv("CRDC_NTHREADS", "4"))); if (is.na(v)) 4L else v
+  v <- suppressWarnings(as.integer(Sys.getenv("CRDC_NTHREADS", "4"))); if (is.na(v) || v < 1) 4L else v
 }
 NCHAINS <- {
-  v <- suppressWarnings(as.integer(Sys.getenv("CRDC_NCHAINS", "4"))); if (is.na(v)) 4L else v
+  v <- suppressWarnings(as.integer(Sys.getenv("CRDC_NCHAINS", "4"))); if (is.na(v) || v < 1) 4L else v
 }
 # Number of chains that can run in parallel given the core budget.
 N_PAR_CHAINS <- CPU_CAPACITY %/% NTHREADS
