@@ -9,7 +9,18 @@ jobs:
     runs-on: ubuntu-latest
     container: rocker/r-ver:4.6.0
     steps:
-      - uses: actions/checkout@v4
+      # Shell checkout: rocker/r-ver has neither node (for actions/checkout@v4)
+      # nor git preinstalled, so install git then clone with the auto token.
+      - name: Checkout (shell, no node)
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          apt-get update -qq && apt-get install -y --no-install-recommends git ca-certificates
+          host="${GITHUB_SERVER_URL#https://}"; host="${host:-gitea.civilytics.org}"
+          tmpd="$(mktemp -d)"
+          git clone --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
+            "https://oauth2:${REPO_TOKEN}@${host}/${GITHUB_REPOSITORY:-jared/aera-crdc2}.git" "$tmpd"
+          cp -a "$tmpd/." . && rm -rf "$tmpd"
       - name: Install deps
         run: |
           apt-get update && apt-get install -y --no-install-recommends \
