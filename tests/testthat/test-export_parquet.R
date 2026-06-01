@@ -36,3 +36,26 @@ test_that("export_draws_parquet rejects out_dir containing a single quote", {
   con <- fixture_draws_con(); on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   expect_error(export_draws_parquet(con, out_dir = "/tmp/bad'path"), class = "simpleError")
 })
+
+test_that("export_draws_parquet chunks per model_id (all models exported)", {
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
+  draws <- rbind(
+    data.frame(LEAID="0100005", LEA_STATE="AL", YEAR="21-22", RACE="BL", SEX="M",
+               pred=0:9, draw_id=1:10, model_id="nat_m2_mod",
+               subgroup_id="nat_m2_mod", stringsAsFactors=FALSE),
+    data.frame(LEAID="0100006", LEA_STATE="AL", YEAR="21-22", RACE="WH", SEX="F",
+               pred=rep(5L,10), draw_id=1:10, model_id="sg_m2_mod",
+               subgroup_id="sg_m2_mod", stringsAsFactors=FALSE)
+  )
+  DBI::dbWriteTable(con, "predicted_draws", draws)
+  out <- file.path(tempfile(), "pq")
+  export_draws_parquet(con, out_dir = out)
+  files <- list.files(out, recursive = TRUE, pattern = "\\.parquet$")
+  expect_true(any(grepl("model_id=nat_m2_mod", files)))
+  expect_true(any(grepl("model_id=sg_m2_mod", files)))
+  rcon <- DBI::dbConnect(duckdb::duckdb()); on.exit(DBI::dbDisconnect(rcon, shutdown=TRUE), add=TRUE)
+  n <- DBI::dbGetQuery(rcon, sprintf(
+    "SELECT COUNT(*) n FROM read_parquet('%s/**/*.parquet', hive_partitioning=true)", out))$n
+  expect_equal(n, 20)
+})
