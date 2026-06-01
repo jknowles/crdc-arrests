@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted          # runner on the docker host with the socket
+    runs-on: ubuntu-latest        # runner has /var/run/docker.sock mounted (no `self-hosted` label)
     steps:
       # Shell checkout: the runner image has no `node`, so the JS-based
       # actions/checkout@v4 fails with "exec: node: not found". Clone via git
