@@ -48,8 +48,8 @@ recommendations to get you started.
 
 | Component | Minimum Version | Notes |
 |-----------|-----------------|-------|
-| **R** | 4.4.x | Tested on R 4.4.3 (Linux) |
-| **CmdStan** | 2.35+ | Required for `cmdstanr` backend |
+| **R** | 4.6.0 | Pinned via `renv.lock`; see [REPRODUCIBILITY.md](REPRODUCIBILITY.md) |
+| **CmdStan** | 2.37.0 | Required for `cmdstanr` backend (installed via `setup.R`) |
 | **Hardware** | ≥ 12 CPU cores, ≥ 64 GB RAM (recommended) | Parallel MCMC chains and large data joins |
 
 ### R Packages
@@ -59,7 +59,7 @@ data pipeline.
 
 ```r
 install.packages(c(
-  "targets", "tarchetypes", "stantargets",
+  "targets", "tarchetypes",
   "tibble", "dplyr", "tidyr", "qs2", "quarto",
   "brms", "cmdstanr", "crew", "future.callr",
   "educationdata"
@@ -70,6 +70,11 @@ install.packages(c(
 
 
 ## Usage
+
+> **New here?** Start with [REPRODUCIBILITY.md](REPRODUCIBILITY.md) — it covers
+> `setup.R`, the multi-day compute reality, and how to size the run to your
+> hardware (the MCMC-parallelism × RAM tradeoff). Use `scripts/smoke-pipeline.sh`
+> (DEV_MODE) to validate your setup in minutes before the full run.
 
 This project is executed as a `targets` pipeline. This allows for caching of
 intermediate results as well as organizing the data preparation, modeling, and
