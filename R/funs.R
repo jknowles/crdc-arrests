@@ -1383,6 +1383,41 @@ pretty_per <- function (x, ndigit = 1)
 }
 
 
+#' Canonical CRDC CSV paths per year, relative to `dest_dir`.
+#'
+#' Single source of truth for the file locations the targets pipeline expects.
+#' These MUST match the `enrollment_path`/`le_path` columns in `_targets.R`'s
+#' `crdc_data` tibble (asserted by tests/testthat/test-download-paths.R).
+#' Pure: computes paths only, touches no filesystem.
+#'
+#' @param year one of "2021-22", "2017-18", "2015-16".
+#' @param dest_dir extraction root (default "tmp/data").
+#' @return list(enrollment_path, le_path).
+crdc_expected_paths <- function(year, dest_dir = "tmp/data") {
+  valid_years <- c("2021-22", "2017-18", "2015-16")
+  if (!year %in% valid_years) {
+    stop("Year must be one of: ", paste(valid_years, collapse = ", "))
+  }
+  switch(year,
+    "2021-22" = list(
+      enrollment_path = file.path(dest_dir, "2021-22-crdc-data", "SCH", "Enrollment.csv"),
+      le_path         = file.path(dest_dir, "2021-22-crdc-data", "SCH", "Referrals and Arrests.csv")
+    ),
+    "2017-18" = {
+      base <- file.path(dest_dir, "2017-18-crdc-data-corrected-05242021",
+                        "2017-18 Public-Use Files", "Data", "SCH", "CRDC", "CSV")
+      list(enrollment_path = file.path(base, "Enrollment.csv"),
+           le_path         = file.path(base, "Referrals and Arrests.csv"))
+    },
+    "2015-16" = {
+      f <- file.path(dest_dir, "2015-16-crdc-data", "Data Files and Layouts",
+                     "CRDC 2015-16 School Data.csv")
+      list(enrollment_path = f, le_path = f)
+    }
+  )
+}
+
+
 #' Download and extract CRDC data files
 #'
 #' Downloads the Civil Rights Data Collection (CRDC) public use files from the
