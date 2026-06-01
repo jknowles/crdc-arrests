@@ -20,16 +20,19 @@ export_draws_parquet <- function(draws_con, out_dir,
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
   if (!is.null(temp_dir)) {
+    stopifnot(!grepl("'", temp_dir))
     dir.create(temp_dir, recursive = TRUE, showWarnings = FALSE)
     DBI::dbExecute(draws_con, sprintf("PRAGMA temp_directory='%s'", temp_dir))
   }
   if (!is.null(memory_limit)) {
+    stopifnot(!grepl("'", memory_limit))
     DBI::dbExecute(draws_con, sprintf("SET memory_limit='%s'", memory_limit))
   }
   if (!is.null(threads)) {
     DBI::dbExecute(draws_con, sprintf("SET threads=%d", as.integer(threads)))
   }
-  # No global buffering to preserve insertion order; we ORDER BY inside each COPY.
+  # Let the engine skip the insertion-order scan; the explicit ORDER BY in each
+  # COPY below governs row ordering within every shard.
   DBI::dbExecute(draws_con, "SET preserve_insertion_order=false")
 
   models <- DBI::dbGetQuery(
