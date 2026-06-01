@@ -19,7 +19,7 @@ jobs:
           host="${GITHUB_SERVER_URL#https://}"; host="${host:-gitea.civilytics.org}"
           tmpd="$(mktemp -d)"
           git clone --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
-            "https://oauth2:${REPO_TOKEN}@${host}/${GITHUB_REPOSITORY:-jared/aera-crdc2}.git" "$tmpd"
+            "https://oauth2:${REPO_TOKEN}@${host}/${GITHUB_REPOSITORY:-jared/crdc-arrests}.git" "$tmpd"
           cp -a "$tmpd/." . && rm -rf "$tmpd"
       - name: Install deps
         run: |
