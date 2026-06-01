@@ -175,9 +175,15 @@ parse_demographic_id <- function(model_id) {
 #' Main function to process all targets
 process_all_targets <- function(ndraws = 500, db_path = "export/db/crdc_arrests.duckdb") {
 
-  # Connect to DuckDB
-  con <- dbConnect(duckdb(), dbdir = db_path, read_only = FALSE)
-  on.exit(dbDisconnect(con))
+  # Connect to DuckDB. Retain the driver in `drv` for the function's lifetime —
+  # an anonymous dbConnect(duckdb(), ...) can be GC'd during the long
+  # draws-streaming loop, yielding "Invalid connection". See R/build_api_artifacts.R.
+  drv <- duckdb::duckdb(dbdir = db_path, read_only = FALSE)
+  con <- DBI::dbConnect(drv)
+  on.exit({
+    DBI::dbDisconnect(con, shutdown = TRUE)
+    duckdb::duckdb_shutdown(drv)
+  })
 
   # Define target names and their corresponding objects
   target_info <- list(
