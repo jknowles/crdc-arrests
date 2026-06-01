@@ -53,3 +53,17 @@ fixture_district_dim <- function() {
     enrollment = c(1200L, 3400L), stringsAsFactors = FALSE
   )
 }
+
+# A tiny on-disk predicted_draws DuckDB file (for the retained-driver wrappers,
+# which open their own connection from a db path).
+fixture_draws_db_file <- function(models = c("nat_m2_mod", "sg_m2_mod")) {
+  path <- tempfile(fileext = ".duckdb")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = path)
+  draws <- do.call(rbind, lapply(models, function(m)
+    data.frame(LEAID = "0100005", LEA_STATE = "AL", YEAR = "21-22",
+               RACE = "BL", SEX = "M", pred = 0:9, draw_id = 1:10,
+               model_id = m, subgroup_id = m, stringsAsFactors = FALSE)))
+  DBI::dbWriteTable(con, "predicted_draws", draws)
+  DBI::dbDisconnect(con, shutdown = TRUE)
+  path
+}
