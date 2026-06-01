@@ -53,10 +53,9 @@ Canonical (your env has `tarchetypes`):
 - [ ] Copy `deploy/swag/crdc-api.subdomain.conf.example` → SWAG `proxy-confs/crdc-api.subdomain.conf`; set `server_name` to `crdc-api.civilytics.org`; confirm upstream `crdc-api:8000` on `${SWAG_NETWORK}`.
 - [ ] Reload SWAG (`docker exec swag nginx -s reload` or restart).
 
-**Cloudflare (civilytics.org zone):**
-- [ ] DNS record `crdc-api` → your host, **orange-cloud (proxied)**.
-- [ ] Cache Rule: make `crdc-api.civilytics.org/api/*` JSON cacheable (respect origin `Cache-Control`; the API already sets `immutable` per `data_release`, and `no-store` on `/health`).
-- [ ] (Optional) Rate-limit rule on `/api/*`.
+**Cloudflare (civilytics.org zone): DNS-only at launch — no change needed.**
+- [x] `crdc-api.civilytics.org` resolves via the existing **DNS-only** `*.civilytics.org` wildcard (→ SWAG host `141.154.68.245`); SWAG terminates TLS with its `*.civilytics.org` wildcard cert. Cloudflare is not in the request path — same posture as the other self-hosted services.
+- [ ] **Deferred → Gitea issue #1** (if traffic grows): add a *specific* **proxied** `crdc-api` A record (overrides the wildcard for just this name) + a Cache Rule on `/api/*` (respect origin `Cache-Control`; the API sets `immutable` per `data_release`, `no-store` on `/health`) + optional rate-limit, to enable edge caching of the immutable JSON. Prereq: zone SSL/TLS mode = Full/Full(strict).
 
 **Trigger + verify:**
 - [ ] Land the change on `main` (push or merge) → Gitea Action builds the image, fetches `DATA_URL`, `docker compose up -d`, runs the health check.
