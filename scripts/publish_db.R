@@ -7,7 +7,7 @@ release <- "civilytics-crdc-arrests-2025.1"
 stopifnot(nzchar(Sys.getenv("HF_TOKEN")), file.exists(db))
 
 cmd <- sprintf(
-  "huggingface-cli upload %s %s summary.duckdb --repo-type=dataset --commit-message='%s'",
+  "hf upload %s %s summary.duckdb --repo-type=dataset --commit-message='%s'",
   repo, shQuote(db), paste("publish summary", release))
 message("Running: ", cmd)
 status <- system(cmd)

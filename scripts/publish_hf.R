@@ -8,7 +8,7 @@ repo <- "civilytics/crdc-school-arrest-rates"
 stopifnot(nzchar(Sys.getenv("HF_TOKEN")), dir.exists(parquet_dir))
 
 cmd <- sprintf(
-  "huggingface-cli upload %s %s parquet --repo-type=dataset --commit-message='%s'",
+  "hf upload %s %s parquet --repo-type=dataset --commit-message='%s'",
   repo, shQuote(parquet_dir), "publish parquet civilytics-crdc-arrests-2025.1")
 message("Running: ", cmd)
 status <- system(cmd)
