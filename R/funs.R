@@ -1478,7 +1478,8 @@ download_crdc_data <- function(year,
                                zip_file = NULL,
                                overwrite = FALSE) {
 
-  # Validate year parameter
+  # Validate year up front (fail-fast). crdc_expected_paths() re-checks, but the
+  # early guard gives a clear error before any directory/extraction work runs.
   valid_years <- c("2021-22", "2017-18", "2015-16")
   if (!year %in% valid_years) {
     stop("Year must be one of: ", paste(valid_years, collapse = ", "))

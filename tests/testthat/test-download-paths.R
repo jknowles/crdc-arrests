@@ -24,12 +24,20 @@ test_that("crdc_expected_paths rejects unknown years", {
 })
 
 test_that("download_crdc_data computes the contract paths without downloading", {
-  # No zip_file + existing dir short-circuits extraction; we only check paths.
-  dest <- tempfile("crdc_dest_")
-  dir.create(file.path(dest, "2017-18-crdc-data-corrected-05242021"), recursive = TRUE)
-  res <- suppressWarnings(suppressMessages(
-    download_crdc_data(year = "2017-18", dest_dir = dest)))
-  exp <- crdc_expected_paths("2017-18", dest_dir = dest)
-  expect_equal(res$enrollment_path, exp$enrollment_path)
-  expect_equal(res$le_path, exp$le_path)
+  # Pre-create each year's extract dir so extraction short-circuits (existing
+  # dir + no zip_file => function falls through to path computation). The temp
+  # dirs have no CSVs, so the function emits "file not found" warnings — expected
+  # here; we are only checking that returned paths match the canonical contract.
+  year_dirs <- c("2021-22" = "2021-22-crdc-data",
+                 "2017-18" = "2017-18-crdc-data-corrected-05242021",
+                 "2015-16" = "2015-16-crdc-data")
+  for (y in names(year_dirs)) {
+    dest <- tempfile("crdc_dest_")
+    dir.create(file.path(dest, year_dirs[[y]]), recursive = TRUE)
+    res <- suppressWarnings(suppressMessages(
+      download_crdc_data(year = y, dest_dir = dest)))
+    exp <- crdc_expected_paths(y, dest_dir = dest)
+    expect_equal(res$enrollment_path, exp$enrollment_path, info = y)
+    expect_equal(res$le_path, exp$le_path, info = y)
+  }
 })
