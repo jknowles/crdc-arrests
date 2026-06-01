@@ -112,6 +112,8 @@ tmp/data/
         └── CRDC 2015-16 School Data.csv
 ```
 
+> The automated `download_crdc_data()` extracts to exactly these paths, which match `_targets.R`. If a future CRDC re-release changes the folder names, update `crdc_expected_paths()` in `R/funs.R` and the `crdc_data` tibble in `_targets.R` together.
+
 ## Function Reference
 
 ### `auto_download_crdc_data()`

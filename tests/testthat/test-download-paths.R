@@ -22,3 +22,14 @@ test_that("crdc_expected_paths matches the canonical _targets.R contract", {
 test_that("crdc_expected_paths rejects unknown years", {
   expect_error(crdc_expected_paths("2099-00"), "Year must be one of")
 })
+
+test_that("download_crdc_data computes the contract paths without downloading", {
+  # No zip_file + existing dir short-circuits extraction; we only check paths.
+  dest <- tempfile("crdc_dest_")
+  dir.create(file.path(dest, "2017-18-crdc-data-corrected-05242021"), recursive = TRUE)
+  res <- suppressWarnings(suppressMessages(
+    download_crdc_data(year = "2017-18", dest_dir = dest)))
+  exp <- crdc_expected_paths("2017-18", dest_dir = dest)
+  expect_equal(res$enrollment_path, exp$enrollment_path)
+  expect_equal(res$le_path, exp$le_path)
+})

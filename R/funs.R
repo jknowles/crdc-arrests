@@ -1493,7 +1493,7 @@ download_crdc_data <- function(year,
   # Determine the expected directory name after extraction
   year_dir <- switch(year,
     "2021-22" = "2021-22-crdc-data",
-    "2017-18" = "2017-18-crdc-data",
+    "2017-18" = "2017-18-crdc-data-corrected-05242021",
     "2015-16" = "2015-16-crdc-data"
   )
 
@@ -1534,21 +1534,10 @@ download_crdc_data <- function(year,
     })
   }
 
-  # Determine file paths based on year
-  if (year == "2021-22") {
-    enrollment_path <- file.path(extract_dir, "SCH", "Enrollment.csv")
-    le_path <- file.path(extract_dir, "SCH", "Referrals and Arrests.csv")
-  } else if (year == "2017-18") {
-    enrollment_path <- file.path(extract_dir, "2017-18 Public-Use Files",
-                                  "Data", "SCH", "CRDC", "CSV", "Enrollment.csv")
-    le_path <- file.path(extract_dir, "2017-18 Public-Use Files",
-                         "Data", "SCH", "CRDC", "CSV", "Referrals and Arrests.csv")
-  } else { # 2015-16
-    # For 2015-16, both enrollment and LE data are in the same file
-    enrollment_path <- file.path(extract_dir, "Data Files and Layouts",
-                                  "CRDC 2015-16 School Data.csv")
-    le_path <- enrollment_path  # Same file for both
-  }
+  # Canonical paths (single source of truth shared with the targets pipeline).
+  paths <- crdc_expected_paths(year, dest_dir = dest_dir)
+  enrollment_path <- paths$enrollment_path
+  le_path <- paths$le_path
 
   # Verify files exist
   if (!file.exists(enrollment_path)) {
