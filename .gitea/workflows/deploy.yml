@@ -9,7 +9,19 @@ jobs:
   deploy:
     runs-on: self-hosted          # runner on the docker host with the socket
     steps:
-      - uses: actions/checkout@v4
+      # Shell checkout: the runner image has no `node`, so the JS-based
+      # actions/checkout@v4 fails with "exec: node: not found". Clone via git
+      # using the auto-injected Actions token (masked in logs).
+      - name: Checkout (shell, no node)
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          host="${GITHUB_SERVER_URL#https://}"; host="${host:-gitea.civilytics.org}"
+          tmpd="$(mktemp -d)"
+          git clone --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
+            "https://oauth2:${REPO_TOKEN}@${host}/${GITHUB_REPOSITORY:-jared/aera-crdc2}.git" "$tmpd"
+          cp -a "$tmpd/." . && rm -rf "$tmpd"
+          echo "checked out $(git rev-parse --short HEAD)"
 
       - name: Build image
         run: docker build -t "${{ vars.IMAGE_REF }}" ./api
