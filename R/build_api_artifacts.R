@@ -22,10 +22,12 @@ open_draws_con <- function(db_path, read_only = TRUE,
   con <- DBI::dbConnect(drv)
   stopifnot(DBI::dbIsValid(con))
   if (!is.null(temp_dir)) {
+    stopifnot(!grepl("'", temp_dir))
     dir.create(temp_dir, recursive = TRUE, showWarnings = FALSE)
     DBI::dbExecute(con, sprintf("PRAGMA temp_directory='%s'", temp_dir))
   }
   if (!is.null(memory_limit)) {
+    stopifnot(!grepl("'", memory_limit))
     DBI::dbExecute(con, sprintf("SET memory_limit='%s'", memory_limit))
   }
   if (!is.null(threads)) {
@@ -57,21 +59,25 @@ build_api_db <- function(draws_db_path, api_path, enroll_lookup, district_dim,
   h <- open_draws_con(draws_db_path, read_only = TRUE,
                       memory_limit = memory_limit, threads = threads,
                       temp_dir = temp_dir)
-  on.exit(close_draws_con(h), add = TRUE)
+  on.exit(close_draws_con(h), add = TRUE, after = FALSE)
 
   build_arrest_summary(h$con, enroll_lookup, district_dim, api_path)
   build_state_summary(h$con, enroll_lookup, api_path)
 
   # district_dim as its own lookup table (own short-lived connection on api_path)
   acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_path, read_only = FALSE)
+  on.exit(DBI::dbDisconnect(acon, shutdown = TRUE), add = TRUE, after = FALSE)
   DBI::dbWriteTable(acon, "district_dim", district_dim, overwrite = TRUE)
-  DBI::dbDisconnect(acon, shutdown = TRUE)
 
   write_api_meta(api_path, data_release = data_release)
   invisible(api_path)
 }
 
 #' Export Hive-partitioned parquet from the big draws DB (retained driver).
+#'
+#' @param draws_db_path read-only source DuckDB holding predicted_draws.
+#' @param out_dir output parquet directory.
+#' @param memory_limit,threads,temp_dir DuckDB resource bounds (NULL = defaults).
 build_draws_parquet <- function(draws_db_path, out_dir,
                                 memory_limit = NULL, threads = NULL,
                                 temp_dir = NULL) {
