@@ -15,9 +15,11 @@ test_that("handle_models lists all 10 with a default flag", {
 
 test_that("handle_draws returns HF shard url + duckdb snippet, not draws", {
   res <- handle_draws(state="AL", race="BL", sex="M", year="21-22", model="nat_m2")
-  expect_match(res$data$parquet_url, "huggingface.co/datasets/civilytics/crdc-school-arrest-rates")
+  # hf:// protocol (DuckDB can glob it; https resolve URLs reject globs) +
+  # full model_id/YEAR/LEA_STATE partition depth, in order
+  expect_match(res$data$parquet_url, "^hf://datasets/civilytics/crdc-school-arrest-rates/parquet")
+  expect_match(res$data$parquet_url, "model_id=nat_m2_mod/YEAR=21-22/LEA_STATE=AL/[*][.]parquet$")
   expect_match(res$data$duckdb_sql, "read_parquet")
-  expect_match(res$data$parquet_url, "model_id=nat_m2_mod")
 })
 
 test_that("handle_draws rejects invalid state with api_bad_request", {
@@ -27,11 +29,12 @@ test_that("handle_draws rejects invalid state with api_bad_request", {
   )
 })
 
-test_that("handle_draws with state=NULL and year=NULL omits partition segments", {
+test_that("handle_draws keeps partition depth with wildcards when year/state omitted", {
   res <- handle_draws(state=NULL, race="BL", sex="M", year=NULL, model="nat_m2")
-  expect_match(res$data$parquet_url, "model_id=nat_m2_mod")
-  expect_false(grepl("LEA_STATE=", res$data$parquet_url))
-  expect_false(grepl("YEAR=", res$data$parquet_url))
+  # all three partition levels must be present (wildcards for the unfiltered
+  # ones) so the glob depth matches model_id/YEAR/LEA_STATE on disk
+  expect_match(res$data$parquet_url, "^hf://")
+  expect_match(res$data$parquet_url, "model_id=nat_m2_mod/[*]/[*]/[*][.]parquet$")
 })
 
 test_that("handle_districts rejects invalid state with api_bad_request", {
