@@ -123,6 +123,7 @@ tar_source("R/postprocess.R")
 tar_source("R/district_dim.R")
 tar_source("R/summarize_draws.R")
 tar_source("R/export_parquet.R")
+tar_source("R/build_api_artifacts.R")
 # Define the targets pipeline
 # The pipeline proceeds in two stages, the first stage processes the CRDC data
 # for each year and combines all of the enrollment and law enforcement referral
@@ -608,21 +609,16 @@ list(
     api_db,
     {
       posterior_db  # force dependency on the draws DB build
-      dir.create("export/api", recursive = TRUE, showWarnings = FALSE)
-      api_path <- "export/api/crdc_api.duckdb"
-      if (file.exists(api_path)) file.remove(api_path)
-      dcon <- DBI::dbConnect(duckdb::duckdb(),
-                             dbdir = "export/db/crdc_arrests.duckdb",
-                             read_only = TRUE)
-      on.exit(DBI::dbDisconnect(dcon, shutdown = TRUE))
-      build_arrest_summary(dcon, enroll_lookup, district_dim, api_path)
-      build_state_summary(dcon, enroll_lookup, api_path)
-      # district_dim as its own lookup table
-      acon <- DBI::dbConnect(duckdb::duckdb(), dbdir = api_path, read_only = FALSE)
-      DBI::dbWriteTable(acon, "district_dim", district_dim, overwrite = TRUE)
-      DBI::dbDisconnect(acon, shutdown = TRUE)
-      write_api_meta(api_path, data_release = "civilytics-crdc-arrests-2025.1")
-      api_path
+      build_api_db(
+        draws_db_path = "export/db/crdc_arrests.duckdb",
+        api_path      = "export/api/crdc_api.duckdb",
+        enroll_lookup = enroll_lookup,
+        district_dim  = district_dim,
+        data_release  = "civilytics-crdc-arrests-2025.1",
+        memory_limit  = sprintf("%dGB", duckdb_mem_limit_gb()),
+        threads       = 6,
+        temp_dir      = "tmp/duckdb_spill"
+      )
     },
     format = "file"
   ),
@@ -630,13 +626,13 @@ list(
     draws_parquet,
     {
       posterior_db
-      out <- "export/parquet"
-      dcon <- DBI::dbConnect(duckdb::duckdb(),
-                             dbdir = "export/db/crdc_arrests.duckdb",
-                             read_only = TRUE)
-      on.exit(DBI::dbDisconnect(dcon, shutdown = TRUE))
-      export_draws_parquet(dcon, out)
-      out
+      build_draws_parquet(
+        draws_db_path = "export/db/crdc_arrests.duckdb",
+        out_dir       = "export/parquet",
+        memory_limit  = sprintf("%dGB", duckdb_mem_limit_gb()),
+        threads       = 6,
+        temp_dir      = "tmp/duckdb_spill"
+      )
     },
     format = "file"
   )
