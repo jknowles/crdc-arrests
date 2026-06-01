@@ -32,3 +32,26 @@ jobs:
         env:
           NOT_CRAN: "true"
         run: Rscript -e 'q(status = sum(as.data.frame(testthat::test_dir("api/tests/testthat"))$failed))'
+
+  pipeline-validate:
+    runs-on: ubuntu-latest
+    container: rocker/r-ver:4.6.0
+    steps:
+      - name: Checkout (shell, no node)
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          apt-get update -qq && apt-get install -y --no-install-recommends git ca-certificates
+          host="${GITHUB_SERVER_URL#https://}"; host="${host:-gitea.civilytics.org}"
+          tmpd="$(mktemp -d)"
+          git clone --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
+            "https://oauth2:${REPO_TOKEN}@${host}/${GITHUB_REPOSITORY:-jared/crdc-arrests}.git" "$tmpd"
+          cp -a "$tmpd/." . && rm -rf "$tmpd"
+      - name: Install source-time deps (NO model packages)
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev libssl-dev libz-dev
+          install2.r --error targets tarchetypes tibble dplyr tidyr \
+            future future.callr crew DBI duckdb tidybayes
+      - name: Validate pipeline graph (parses, loads, NO fitting)
+        run: Rscript -e 'library(tarchetypes); targets::tar_validate()'
