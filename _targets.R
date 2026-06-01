@@ -10,24 +10,41 @@ library(targets)
 library(tarchetypes) # Load other packages as needed.
 library(tibble)
 
-# Define computational resources  ---------------------------------------------------------
+# Define computational resources  ---------------------------------------------
+#
+# SIZING — the full pipeline fits many large Bayesian models and takes ~DAYS even
+# on a 24-core / 128 GB machine. The dominant tradeoff is MCMC parallelism x RAM:
+#   peak RAM  ~=  (chains running in parallel) x (per-chain data + sampler footprint)
+# To fit a smaller machine, REDUCE concurrency (fewer parallel chains) and/or raise
+# threads-per-chain so each chain finishes faster while fewer run at once:
+#   * NCHAINS   — chains per model (4 is the published setting).
+#   * NTHREADS  — within-chain threads. nthreads==nchains => one sampling pass.
+#   * N_PAR_CHAINS / MCMC_WORKERS — how many chains/models run concurrently.
+# Lower CRDC_CORES (or set CRDC_NTHREADS higher) if you hit memory pressure. See
+# REPRODUCIBILITY.md for a cores x RAM sizing table.
+# All three are env-overridable so you need not edit this file to size a run.
 
-CPU_CAPACITY <- parallel::detectCores(logical = FALSE)
+CPU_CAPACITY <- {
+  v <- suppressWarnings(as.integer(Sys.getenv("CRDC_CORES", "")))
+  if (is.na(v) || v < 1) parallel::detectCores(logical = FALSE) else v
+}
 
-# Set the computational parameters - the number of threads is per brms model
-# when nthreads == nchains then the model completes in one pass, if nthreads
-# is less than nchains, then the model will need to complete another sampling
-# pass. This may be necessary on memory constrained devices.
-
-NTHREADS <- 4
-NCHAINS <- 4
-# Calculate the number of chains that can be run in parallel
+# The number of threads is per brms model. When NTHREADS == NCHAINS the model
+# completes in one pass; if NTHREADS < NCHAINS it needs another sampling pass.
+# This may be necessary on memory-constrained devices.
+NTHREADS <- {
+  v <- suppressWarnings(as.integer(Sys.getenv("CRDC_NTHREADS", "4"))); if (is.na(v)) 4L else v
+}
+NCHAINS <- {
+  v <- suppressWarnings(as.integer(Sys.getenv("CRDC_NCHAINS", "4"))); if (is.na(v)) 4L else v
+}
+# Number of chains that can run in parallel given the core budget.
 N_PAR_CHAINS <- CPU_CAPACITY %/% NTHREADS
 
-# When testing the code to confirm the pipeline is functioning it is helpful to
-# set this to TRUE to greatly reduce the runtime and confirm the pipeline is
-# fully working before running the full model.
-DEV_MODE <- FALSE
+# DEV_MODE greatly reduces runtime to confirm the pipeline works end-to-end before
+# committing to the full multi-day run. Toggle WITHOUT editing this file:
+#   CRDC_DEV_MODE=true Rscript -e 'targets::tar_make(...)'   (see scripts/smoke-pipeline.sh)
+DEV_MODE <- isTRUE(as.logical(Sys.getenv("CRDC_DEV_MODE", "FALSE")))
 # Set the global limit on how many students must be enrolled to be included in
 # the model. The final report used 30 students total per LEA as the threshold.
 # When in DEV_MODE this is greatly increased.
