@@ -2,6 +2,7 @@
 *.html
 /export
 /cache
+/.crdc-cache
 *.xlsx
 /tmp
 .env

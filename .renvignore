@@ -10,8 +10,7 @@ _targets/
 cache/
 inst/
 #
-# Quarto report documents belong to Subsystem 3 (artifact reproduction —
-# deferred). They pull render-only packages (magick, shiny, tigris, flextable,
-# officer, ...) that are NOT part of the modeling pipeline. Re-enable the
-# relevant ones and re-snapshot when Subsystem 3 is built.
-*.qmd
+# Quarto report documents are Subsystem 3 (artifact reproduction). They are now
+# in scope: their render-only deps (magick, tigris, flextable, ggdist, ...)
+# belong in renv.lock so anyone can rebuild the published artifacts. Discovery
+# is therefore enabled for all in-scope docs (no *.qmd exclusion).
