@@ -36,10 +36,12 @@ docs) or Subsystem 2 (pipeline) behavior, and it never refits a model.
 
 ## Locked decisions (from brainstorming — not relitigated)
 
-1. **White paper = imported narrative.** The published civilytics.com report is
-   brought into the repo as a new authored **`white_paper.qmd`** (narrative +
-   embedded results). **The user supplies the report source**; we port it
-   faithfully. (`results.qmd` remains the exhaustive results engine.)
+1. **White paper = imported narrative.** The published report — authored natively
+   in Word, **`inst/AERA Final Report Knowles Miller_preprint.docx`** (provided) —
+   is ported into a new **`white_paper.qmd`** via pandoc (`docx`→`qmd`), then its
+   tables/figures are re-wired to the artifact-backed chunks. Its sections map
+   directly onto the existing docs (Results ↔ `results.qmd`, Applied Examples ↔
+   `applied_examples.qmd`), which stay as the exhaustive results engines.
 2. **Push everything public via staged intermediates.** Rather than cut content
    the public product can't back, we *expand* the published surface: new pipeline
    targets materialize each doc input as portable parquet, published so a stranger
@@ -238,7 +240,7 @@ pipeline**, so the difference between stages is legible:
 | `combined_eda.qmd` | `tar_read()`→`read_parquet`; keep `tigris` maps + `civilytics` theme. |
 | `annual_descriptives_template.qmd` | parameterized `read_parquet(crdc_path(sprintf("stages/crdc/model_data_%s.parquet", suffix)))` etc. |
 | `model_descriptives_template.qmd` | Same parameterized re-point; give it a **distinct** `fig.path` (currently collides with `appliedexample-`). |
-| **`white_paper.qmd`** (new) | Authored from the user-supplied report source; themed via `use_civilytics_theme()`; figures/tables wired to the artifacts (patterns above). |
+| **`white_paper.qmd`** (new) | pandoc-port `inst/AERA Final Report…preprint.docx` → qmd; preserve prose + the 5 model equations (LaTeX) + 12 tables + 9 figures; re-wire tables/figures to artifact-backed chunks (shared with `results.qmd`/`applied_examples.qmd` — DRY note below); themed via `use_civilytics_theme()`. |
 
 No analytical/plotting logic changes — figures stay visually identical; only the
 data source and model labels change.
@@ -251,9 +253,13 @@ data source and model labels change.
 `publish_stages`). Render targets depend on the staging targets for graph
 correctness; `cue = never` keeps both out of routine `tar_make()`.
 
-**Sequencing note.** `white_paper.qmd` *authoring* is gated on the user-supplied
-report source. The themed scaffold (brand files, format YAML, artifact-wired
-result/figure chunks) can be built first; the prose is ported once provided.
+**Sequencing note.** The source is in `inst/` (Word docx). Port order: pandoc
+`docx`→`qmd` for prose/structure → apply `civilytics` theme/format → replace the 8
+static embedded PNGs + 12 tables with artifact-backed chunks. **DRY:** the paper's
+Results / Applied-Examples figures overlap `results.qmd` / `applied_examples.qmd`;
+factor the shared figure/table-generating code into `R/` helpers (or child chunks)
+so the paper and the standalone docs cannot drift. `inst/results.r` is a useful
+cross-reference for figure/table provenance.
 
 ## E. One-command render + caching primer + determinism
 
@@ -363,7 +369,9 @@ branch (e.g. `feature/pooled-rename`). This subsystem makes that merge cheap:
 
 | File | Change |
 |------|--------|
-| `white_paper.qmd` | new (imported narrative; civilytics theme; artifact-wired) |
+| `white_paper.qmd` | new (pandoc port of the inst/ docx; civilytics theme; artifact-wired) |
+| `inst/AERA Final Report…preprint.docx`, `inst/results.r` | source inputs (paper prose + figure provenance; not modified) |
+| `R/paper_figures.R` (or shared child chunks) | new — shared figure/table code for paper + results/applied_examples (DRY) |
 | `results.qmd`, `applied_examples.qmd`, `social_media_posts.qmd`, `combined_eda.qmd` | re-point reads via `crdc_path()`; registry labels; remove store `tar_read` |
 | `annual_descriptives_template.qmd`, `model_descriptives_template.qmd` | parameterized re-point; fix `model_descriptives` `fig.path` collision |
 | `R/crdc_path.R` | new — path-resolver + caching (returns URI string) |
