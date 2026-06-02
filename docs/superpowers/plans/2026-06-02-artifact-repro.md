@@ -669,7 +669,7 @@ universal pieces); add figure builders as the re-point tasks surface duplication
 
 ```r
 # tests/testthat/test-paper_figures.R
-test_that("open_draws_con exposes a predicted_draws view over local parquet", {
+test_that("open_draws_view exposes a predicted_draws view over local parquet", {
   # tiny synthetic draws parquet matching the published schema
   d <- tempfile(); dir.create(file.path(d, "parquet"), recursive = TRUE)
   drv <- duckdb::duckdb(); con0 <- DBI::dbConnect(drv)
@@ -679,8 +679,8 @@ test_that("open_draws_con exposes a predicted_draws view over local parquet", {
   DBI::dbDisconnect(con0, shutdown = TRUE); duckdb::duckdb_shutdown(drv)
 
   withr::with_envvar(c(CRDC_ARTIFACTS = d), {
-    h <- open_draws_con()
-    on.exit(close_draws_con(h))
+    h <- open_draws_view()
+    on.exit(close_draws_view(h))
     res <- get_prediction_summary(h$con, model = "nat_m2_mod")
     expect_equal(res$model_id, "nat_m2_mod")
     expect_true("fitted_value" %in% names(res))
@@ -701,9 +701,9 @@ test_that("with_model_labels adds a model_label column from the registry", {
 ```r
 #' Open a DuckDB connection exposing `predicted_draws` as a view over the
 #' published draws parquet (local mirror or hf://). Returns a handle; close with
-#' close_draws_con(). The existing get_prediction_summary()/get_state_prediction_summary()
+#' close_draws_view(). The existing get_prediction_summary()/get_state_prediction_summary()
 #' work unchanged against this connection.
-open_draws_con <- function() {
+open_draws_view <- function() {
   drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
   DBI::dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
   DBI::dbExecute(con, sprintf(
@@ -713,7 +713,7 @@ open_draws_con <- function() {
   list(con = con, drv = drv)
 }
 
-close_draws_con <- function(h) {
+close_draws_view <- function(h) {
   DBI::dbDisconnect(h$con, shutdown = TRUE)
   duckdb::duckdb_shutdown(h$drv)
 }
@@ -733,7 +733,7 @@ with_model_labels <- function(df, id_col = "model_id") {
 }
 ```
 
-> Note: `read_stage_df()` and `open_draws_con()` are **path/connection helpers**,
+> Note: `read_stage_df()` and `open_draws_view()` are **path/connection helpers**,
 > not data-access wrappers — they return native handles/frames; the docs still
 > issue native `get_prediction_summary()` / SQL. This is the agreed shape.
 
@@ -756,7 +756,7 @@ git commit -m "feat(artifact-repro): shared draws-connection + stage-read + labe
 
 | Current (store) | Replacement |
 |---|---|
-| `con <- dbConnect(duckdb(), "export/db/crdc_arrests.duckdb", …)` | `h <- open_draws_con(); con <- h$con` (close at end: `close_draws_con(h)`) |
+| `con <- dbConnect(duckdb(), "export/db/crdc_arrests.duckdb", …)` | `h <- open_draws_view(); con <- h$con` (close at end: `close_draws_view(h)`) |
 | `tar_read(three_year_data)$data` | `read_stage_df("stages/inputs/three_year_data.parquet")` |
 | `tar_read(recent_data)$data` | `read_stage_df("stages/inputs/recent_data.parquet")` |
 | `tar_read("combined_model_data")` | `read_stage_df("stages/inputs/combined_model_data.parquet")` |
@@ -772,7 +772,7 @@ git commit -m "feat(artifact-repro): shared draws-connection + stage-read + labe
 
 ```r
 source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
-h <- open_draws_con(); con <- h$con          # predicted_draws view over published parquet
+h <- open_draws_view(); con <- h$con          # predicted_draws view over published parquet
 # tabular inputs
 tydata        <- read_stage_df("stages/inputs/three_year_data.parquet")
 rdata         <- read_stage_df("stages/inputs/recent_data.parquet")
@@ -808,7 +808,7 @@ if (!any(file.exists(file.path(crdc_cache_dir(), "stages/models")))) {
 }
 ```
 
-- [ ] **Step 5: Close the connection at the end of the doc**: `close_draws_con(h)`.
+- [ ] **Step 5: Close the connection at the end of the doc**: `close_draws_view(h)`.
 
 - [ ] **Step 6: Confirm no store reads remain**
 
@@ -828,15 +828,15 @@ git commit -m "refactor(artifact-repro): re-point results.qmd to published artif
 
 **Files:** Modify `applied_examples.qmd`
 
-**Read-map:** `con <- dbConnect(...)` → `h <- open_draws_con(); con <- h$con`;
+**Read-map:** `con <- dbConnect(...)` → `h <- open_draws_view(); con <- h$con`;
 `tar_read(three_year_data)$data` → `read_stage_df("stages/inputs/three_year_data.parquet")`;
 `tar_read(recent_data)$data` → `read_stage_df("stages/inputs/recent_data.parquet")`.
 Apply `with_model_labels()` to the model-name maps (`applied_examples.qmd:188-210`).
 
-- [ ] **Step 1: Add the setup chunk** (source helpers + `open_draws_con()` + the two `read_stage_df` calls).
+- [ ] **Step 1: Add the setup chunk** (source helpers + `open_draws_view()` + the two `read_stage_df` calls).
 - [ ] **Step 2: Replace the two `tar_read` calls + the `con` construction.**
 - [ ] **Step 3: Swap hard-coded model labels** for `crdc_model_label(...)` where the doc renames `*_mod` to display text.
-- [ ] **Step 4: `close_draws_con(h)` at the end.**
+- [ ] **Step 4: `close_draws_view(h)` at the end.**
 - [ ] **Step 5: Confirm** `rg -n 'tar_read|tar_load|crdc_arrests\.duckdb' applied_examples.qmd` → no matches.
 - [ ] **Step 6: Commit**
 
@@ -851,7 +851,7 @@ git commit -m "refactor(artifact-repro): re-point applied_examples.qmd to publis
 
 **Files:** Modify `social_media_posts.qmd`
 
-**Read-map:** `con` → `open_draws_con()`; `tar_read(three_year_data)$data` /
+**Read-map:** `con` → `open_draws_view()`; `tar_read(three_year_data)$data` /
 `recent_data$data` → `read_stage_df("stages/inputs/…")`;
 `tar_read(combined_model_data)` / `combined_sch_data` →
 `read_stage_df("stages/inputs/…")`; `tar_read(full_crdc_data_y2122/1718/1516)` →
@@ -859,10 +859,10 @@ git commit -m "refactor(artifact-repro): re-point applied_examples.qmd to publis
 `magick`/`ragg` table images, themes, and logos untouched. Apply
 `with_model_labels()` where model ids are displayed.
 
-- [ ] **Step 1: Add setup chunk** (source helpers + `open_draws_con()` + the `read_stage_df` calls for the six inputs).
+- [ ] **Step 1: Add setup chunk** (source helpers + `open_draws_view()` + the `read_stage_df` calls for the six inputs).
 - [ ] **Step 2: Replace `con` + each `tar_read`.**
 - [ ] **Step 3: Registry labels** on any displayed `*_mod` names.
-- [ ] **Step 4: `close_draws_con(h)` at end.**
+- [ ] **Step 4: `close_draws_view(h)` at end.**
 - [ ] **Step 5: Confirm** `rg -n 'tar_read|tar_load|crdc_arrests\.duckdb' social_media_posts.qmd` → no matches.
 - [ ] **Step 6: Commit**
 
@@ -1379,7 +1379,7 @@ exact read-maps + snippets + a verifying `rg`/test step.
 **Type consistency:** target names `model_stats_artifact` / `hmc_diagnostics_artifact`
 / `pooled_fits_artifact` (Task 6) vs helper fns `stage_model_stats` /
 `stage_hmc_diagnostics` / `stage_pooled_fits` (Tasks 4-5) — distinct by design
-(target ≠ function). `open_draws_con()`/`close_draws_con()`/`read_stage_df()`/
+(target ≠ function). `open_draws_view()`/`close_draws_view()`/`read_stage_df()`/
 `with_model_labels()` (Task 9) used consistently in Tasks 10-14,18.
 `crdc_path()`/`crdc_cache_dir()`/`crdc_pooled_ids()`/`crdc_model_label()` names
 consistent across tasks.
