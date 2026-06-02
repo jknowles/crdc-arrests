@@ -193,14 +193,14 @@ list(
       intersect_crdc_ccd(crdc = full_crdc_data, ccd = ccd_sch_geo)
     )
   ),
-  # Render the annual report for each year using tar_quarto_rep
-  # tarchetypes::tar_render_rep(
-  #     name = annual_report,
-  #     path = "annual_descriptives_template.qmd",
-  #     params = crdc_data |> select(year_full, target_name) |>
-  #         mutate(output_file = paste0("annual_descriptives_", year_full, ".html")),
-  #     cue = tar_cue(mode = "never")
-  #   ),
+  # Render the annual report for each year (cue=never: explicit renders only).
+  tarchetypes::tar_render_rep(
+    name = annual_report,
+    path = "annual_descriptives_template.qmd",
+    params = crdc_data |> dplyr::select(year_full, target_name) |>
+      dplyr::mutate(output_file = paste0("annual_descriptives_", year_full, ".html")),
+    cue = tar_cue(mode = "never")
+  ),
   # Combine model data from all years
   tar_target(
     combined_model_data,
@@ -218,12 +218,13 @@ list(
       ccd_sch_geo_y1516
     )
   ),
-  # # Render EDA document for combined data
-  # tarchetypes::tar_render(
-  #   name = combined_eda,
-  #   path = "combined_eda.qmd",
-  #   output_file = "crdc_combined_three_year_eda_report.html"
-  # ),
+  # Render EDA document for combined data (cue=never).
+  tarchetypes::tar_render(
+    name = combined_eda,
+    path = "combined_eda.qmd",
+    output_file = "crdc_combined_three_year_eda_report.html",
+    cue = tar_cue(mode = "never")
+  ),
   # Prep combined data for modeling
   tar_target(
     three_year_data,
@@ -703,7 +704,24 @@ list(
       nat_m4_mod = nat_m4_mod, nat_m5_mod = nat_m5_mod
     ), dir = "export/stages"),
     format = "file"
-  )
+  ),
+
+  # --- Subsystem 3: reproducible render targets (cue=never; explicit renders only).
+  # Docs read published artifacts via crdc_path(), so they render standalone too. ---
+  tarchetypes::tar_render(white_paper, "white_paper.qmd",
+    output_file = "white_paper.html", cue = tar_cue(mode = "never")),
+  tarchetypes::tar_render(results_report, "results.qmd",
+    output_file = "results.html", cue = tar_cue(mode = "never")),
+  tarchetypes::tar_render(applied_examples, "applied_examples.qmd",
+    output_file = "applied_examples.html", cue = tar_cue(mode = "never")),
+  tarchetypes::tar_render(social_media_posts, "social_media_posts.qmd",
+    output_file = "social_media_posts.html", cue = tar_cue(mode = "never")),
+  tarchetypes::tar_render_rep(
+    name = model_descriptives,
+    path = "model_descriptives_template.qmd",
+    params = crdc_data |> dplyr::select(year_full, target_name) |>
+      dplyr::mutate(output_file = paste0("model_descriptives_", year_full, ".html")),
+    cue = tar_cue(mode = "never"))
 
   # Hypothetical Model 6 specification. Not run. Run attempted in September 2025
   # but was canceled after 7 days of continuous compute failed to produce results.
