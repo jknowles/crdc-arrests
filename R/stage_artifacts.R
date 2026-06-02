@@ -36,3 +36,36 @@ stage_crdc_artifacts <- function(named, dir = "export/stages") {
     stage_write_parquet(named[[nm]], file.path(dir, "crdc", paste0(nm, ".parquet"))),
     character(1), USE.NAMES = FALSE)
 }
+
+#' Materialize calculate_model_stats() across a named list of model objects,
+#' tagged with model_id + registry label. `stats_fn` is injectable for testing.
+stage_model_stats <- function(models, dir = "export/stages",
+                              stats_fn = calculate_model_stats) {
+  stopifnot(!is.null(names(models)))
+  rows <- lapply(names(models), function(id) {
+    s <- stats_fn(models[[id]], model_prefix = id)
+    s$model_id    <- id
+    s$model_label <- crdc_model_label(id)
+    s
+  })
+  df <- do.call(rbind, rows)
+  stage_write_parquet(df, file.path(dir, "diagnostics/model_stats.parquet"))
+}
+
+#' Extract structured HMC sampler diagnostics for the pooled fits.
+#' `pooled_fits` is a named list of brmsfit objects (names = model_id).
+stage_hmc_diagnostics <- function(pooled_fits, dir = "export/stages") {
+  rows <- lapply(names(pooled_fits), function(id) {
+    sf <- pooled_fits[[id]]$fit
+    data.frame(
+      model_id      = id,
+      model_label   = crdc_model_label(id),
+      num_divergent = rstan::get_num_divergent(sf),
+      num_max_tree  = rstan::get_num_max_treedepth(sf),
+      min_bfmi      = suppressWarnings(min(rstan::get_bfmi(sf))),
+      stringsAsFactors = FALSE
+    )
+  })
+  stage_write_parquet(do.call(rbind, rows),
+                      file.path(dir, "diagnostics/hmc_diagnostics.parquet"))
+}

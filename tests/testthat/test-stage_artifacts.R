@@ -31,3 +31,16 @@ test_that("stage_crdc_artifacts writes one parquet per named element", {
                   c("full_crdc_data_y2122.parquet", "model_data_y2122.parquet"))
   expect_true(all(file.exists(out)))
 })
+
+test_that("stage_model_stats binds per-model stats with registry labels", {
+  d <- tempfile()
+  fake <- function(models, model_prefix = NULL) data.frame(term = "b", est = 1.0)
+  ids <- c("nat_m2_mod", "sg_m4_mod")
+  models <- stats::setNames(list("FIT_A", "FIT_B"), ids)
+  p <- stage_model_stats(models, dir = d, stats_fn = fake)
+  drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
+  on.exit({DBI::dbDisconnect(con, shutdown = TRUE); duckdb::duckdb_shutdown(drv)})
+  res <- DBI::dbGetQuery(con, sprintf("SELECT * FROM read_parquet('%s')", p))
+  expect_setequal(res$model_id, ids)
+  expect_setequal(res$model_label, c("Pooled (m2)", "Student-group (m4)"))
+})
