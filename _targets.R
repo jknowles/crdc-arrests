@@ -124,6 +124,12 @@ tar_source("R/district_dim.R")
 tar_source("R/summarize_draws.R")
 tar_source("R/export_parquet.R")
 tar_source("R/build_api_artifacts.R")
+# Subsystem 3: artifact reproduction helpers
+tar_source("R/model_registry.R")
+tar_source("R/crdc_path.R")
+tar_source("R/stage_artifacts.R")
+tar_source("R/publish_stages.R")
+tar_source("R/paper_figures.R")
 # Define the targets pipeline
 # The pipeline proceeds in two stages, the first stage processes the CRDC data
 # for each year and combines all of the enrollment and law enforcement referral
@@ -634,6 +640,68 @@ list(
         temp_dir      = "tmp/duckdb_spill"
       )
     },
+    format = "file"
+  ),
+
+  # --- Subsystem 3: staged intermediate artifacts (owner-side; read the store) ---
+  tar_target(
+    stage_inputs,
+    stage_inputs_artifacts(three_year_data, recent_data,
+                           combined_model_data, combined_sch_data,
+                           dir = "export/stages"),
+    format = "file"
+  ),
+  tar_target(
+    stage_crdc,
+    stage_crdc_artifacts(list(
+      full_crdc_data_y2122 = full_crdc_data_y2122,
+      full_crdc_data_y1718 = full_crdc_data_y1718,
+      full_crdc_data_y1516 = full_crdc_data_y1516,
+      model_data_y2122 = model_data_y2122,
+      model_data_y1718 = model_data_y1718,
+      model_data_y1516 = model_data_y1516,
+      popcounts_y2122 = popcounts_y2122,
+      popcounts_y1718 = popcounts_y1718,
+      popcounts_y1516 = popcounts_y1516,
+      schenrollraw_y2122 = schenrollraw_y2122,
+      schenrollraw_y1718 = schenrollraw_y1718,
+      schenrollraw_y1516 = schenrollraw_y1516,
+      lerefs_y2122 = lerefs_y2122,
+      lerefs_y1718 = lerefs_y1718,
+      lerefs_y1516 = lerefs_y1516,
+      ccd_sch_geo_y2122 = ccd_sch_geo_y2122,
+      ccd_sch_geo_y1718 = ccd_sch_geo_y1718,
+      ccd_sch_geo_y1516 = ccd_sch_geo_y1516,
+      ccd_dist_geo_y2122 = ccd_dist_geo_y2122,
+      ccd_dist_geo_y1718 = ccd_dist_geo_y1718,
+      ccd_dist_geo_y1516 = ccd_dist_geo_y1516
+    ), dir = "export/stages"),
+    format = "file"
+  ),
+  tar_target(
+    model_stats_artifact,
+    stage_model_stats(list(
+      nat_m1_mod = nat_m1_mod, nat_m2_mod = nat_m2_mod, nat_m3_mod = nat_m3_mod,
+      nat_m4_mod = nat_m4_mod, nat_m5_mod = nat_m5_mod,
+      sg_m1_mod = sg_m1_mod, sg_m2_mod = sg_m2_mod, sg_m3_mod = sg_m3_mod,
+      sg_m4_mod = sg_m4_mod, sg_m5_mod = sg_m5_mod
+    ), dir = "export/stages"),
+    format = "file"
+  ),
+  tar_target(
+    hmc_diagnostics_artifact,
+    stage_hmc_diagnostics(list(
+      nat_m1_mod = nat_m1_mod, nat_m2_mod = nat_m2_mod, nat_m3_mod = nat_m3_mod,
+      nat_m4_mod = nat_m4_mod, nat_m5_mod = nat_m5_mod
+    ), dir = "export/stages"),
+    format = "file"
+  ),
+  tar_target(
+    pooled_fits_artifact,
+    stage_pooled_fits(list(
+      nat_m1_mod = nat_m1_mod, nat_m2_mod = nat_m2_mod, nat_m3_mod = nat_m3_mod,
+      nat_m4_mod = nat_m4_mod, nat_m5_mod = nat_m5_mod
+    ), dir = "export/stages"),
     format = "file"
   )
 
