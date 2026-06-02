@@ -51,3 +51,39 @@ with_model_labels <- function(df, id_col = "model_id") {
   df$model_label <- crdc_model_label(df[[id_col]])
   df
 }
+
+#' Apply Civilytics branding to ALL figures in a document. Call ONCE in a doc's
+#' setup chunk. Sets the ggplot theme globally (no extra deps) and, when `magick`
+#' is available, stamps the Civilytics logo onto every rendered PNG via a knitr
+#' `fig.process` hook. Degrades gracefully (theme only) when magick is absent.
+#' Returns TRUE if the logo hook was installed, FALSE otherwise (invisibly).
+cv_apply_branding <- function(logo = TRUE,
+                              position = c("bottom-right", "bottom-left",
+                                           "top-right", "top-left"),
+                              type = c("wordmark", "mark"),
+                              height_frac = 0.06) {
+  position <- match.arg(position); type <- match.arg(type)
+  ggplot2::theme_set(civilytics::theme_civilytics())          # theme on every figure
+  if (!isTRUE(logo)) return(invisible(FALSE))
+  if (!requireNamespace("magick", quietly = TRUE)) {
+    message("cv_apply_branding(): theme set; magick not installed, logo overlay skipped.")
+    return(invisible(FALSE))
+  }
+  logo_file <- system.file("img",
+    if (type == "mark") "civilytics-mark.png" else "civilytics-wordmark.png",
+    package = "civilytics")
+  grav <- switch(position, `bottom-right` = "southeast", `bottom-left` = "southwest",
+                 `top-right` = "northeast", `top-left` = "northwest")
+  knitr::opts_chunk$set(fig.process = function(path, options = NULL) {
+    if (!grepl("\\.png$", path, ignore.case = TRUE) || !nzchar(logo_file)) return(path)
+    img <- magick::image_read(path)
+    h   <- magick::image_info(img)$height
+    lg  <- magick::image_resize(
+      magick::image_read(logo_file),
+      magick::geometry_size_pixels(height = max(1L, round(h * height_frac))))
+    magick::image_write(
+      magick::image_composite(img, lg, gravity = grav, offset = "+18+14"), path)
+    path
+  })
+  invisible(TRUE)
+}

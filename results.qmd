@@ -56,6 +56,7 @@ if (!dir.exists("export/figures")) {
 # Source the artifact-reproduction helpers + project functions
 source("R/funs.R")
 source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
+cv_apply_branding()   # civilytics theme on all figures (+ logo when magick present)
 
 # Connect to a `predicted_draws` VIEW over the PUBLISHED draws parquet.
 # CRDC_ARTIFACTS selects the source: local "export" (owner) or hf:// (stranger).

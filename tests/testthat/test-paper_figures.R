@@ -51,3 +51,19 @@ test_that("with_model_labels adds a model_label column from the registry", {
   out <- with_model_labels(df)
   expect_equal(out$model_label, c("Pooled (m2)", "Student-group (m1)"))
 })
+
+test_that("cv_apply_branding sets the civilytics theme; logo hook gated on magick", {
+  old <- ggplot2::theme_get(); on.exit(ggplot2::theme_set(old), add = TRUE)
+  # logo = FALSE: applies theme, installs no hook, returns FALSE
+  expect_false(cv_apply_branding(logo = FALSE))
+  fam <- ggplot2::theme_get()$text$family
+  expect_true(!is.null(fam) && nzchar(fam))   # a custom (civilytics) theme is active
+
+  if (requireNamespace("magick", quietly = TRUE)) {
+    expect_true(cv_apply_branding(logo = TRUE))                 # hook installed
+    knitr::opts_chunk$set(fig.process = NULL)                  # clean up global hook
+  } else {
+    expect_message(res <- cv_apply_branding(logo = TRUE), "magick not installed")
+    expect_false(res)
+  }
+})
