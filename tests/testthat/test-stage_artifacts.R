@@ -44,3 +44,11 @@ test_that("stage_model_stats binds per-model stats with registry labels", {
   expect_setequal(res$model_id, ids)
   expect_setequal(res$model_label, c("Pooled (m2)", "Student-group (m4)"))
 })
+
+test_that("stage_pooled_fits writes one qs2 per pooled model, round-trips", {
+  d <- tempfile()
+  fits <- list(nat_m1_mod = list(tag = "A"), nat_m2_mod = list(tag = "B"))
+  out  <- stage_pooled_fits(fits, dir = d)
+  expect_setequal(basename(out), c("pooled_m1.qs2", "pooled_m2.qs2"))
+  expect_equal(qs2::qs_read(out[grepl("pooled_m1", out)])$tag, "A")
+})

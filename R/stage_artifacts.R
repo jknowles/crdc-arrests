@@ -69,3 +69,15 @@ stage_hmc_diagnostics <- function(pooled_fits, dir = "export/stages") {
   stage_write_parquet(do.call(rbind, rows),
                       file.path(dir, "diagnostics/hmc_diagnostics.parquet"))
 }
+
+#' Save the pooled (nat_*) brms fits as qs2, named by spec (pooled_m#.qs2).
+stage_pooled_fits <- function(pooled_fits, dir = "export/stages") {
+  reg <- crdc_model_registry()
+  vapply(names(pooled_fits), function(id) {
+    spec <- reg$spec[match(id, reg$id)]
+    path <- file.path(dir, "models", sprintf("pooled_%s.qs2", spec))
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    qs2::qs_save(pooled_fits[[id]], path)
+    path
+  }, character(1), USE.NAMES = FALSE)
+}
