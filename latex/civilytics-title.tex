@@ -1,0 +1,41 @@
+% Civilytics — title-page partial.
+% Replaces Quarto's default \maketitle. Uses values from YAML
+% (\thetitle, \theauthor, \thedate) plus an \ifabstract block.
+
+\begin{titlepage}
+  \pagecolor{paper}
+  \color{ink}
+  \vspace*{0.5in}
+  {\sffamily\bfseries\scriptsize\color{ember}\MakeUppercase{— Civilytics Research}\par}
+  \vspace{12pt}
+  {\displayfont\fontsize{32pt}{34pt}\selectfont\bfseries\color{ink}\thetitle\par}
+  \vspace{8pt}
+  \ifx\thesubtitle\@empty\else
+    {\rmfamily\itshape\fontsize{14pt}{18pt}\selectfont\color{ink2}\thesubtitle\par}
+  \fi
+  \vspace{18pt}
+  \noindent\rule{\linewidth}{2pt}\par
+  \vspace{1pt}
+  \noindent{\color{rule}\rule{\linewidth}{0.4pt}}\par
+  \vspace{8pt}
+  \noindent
+  \begin{minipage}[t]{0.5\linewidth}
+    {\sffamily\scriptsize\color{ink3}\MakeUppercase{Authors}\par}
+    \vspace{2pt}
+    {\sffamily\small\color{ink}\theauthor\par}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.4\linewidth}\raggedleft
+    {\sffamily\scriptsize\color{ink3}\MakeUppercase{Published}\par}
+    \vspace{2pt}
+    {\sffamily\small\color{ink}\thedate\par}
+  \end{minipage}\par
+  \vspace{1.5cm}
+
+  % Pulse mark, in ember
+  \begin{center}
+    \begin{tikzpicture}[overlay, remember picture]
+    \end{tikzpicture}
+    {\color{ember}\rule{40pt}{2pt}}
+  \end{center}
+\end{titlepage}
+\clearpage

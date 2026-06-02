@@ -1,0 +1,331 @@
+/*-- scss:defaults --*/
+// =============================================================
+// Civilytics — Quarto HTML report + website theme
+// Built on Bootstrap defaults via Quarto's SCSS pipeline.
+// Inherits all tokens from _tokens.scss.
+// =============================================================
+@import "_tokens.scss";
+
+// Quarto-specific defaults
+$navbar-bg:       $paper;
+$navbar-fg:       $ink;
+$navbar-hl:       $accent-600;
+$footer-bg:       $ink;
+$footer-fg:       $paper;
+
+$code-bg:         $paper-2;
+$code-color:      $accent-700;
+$pre-bg:          $ink;
+$pre-color:       $paper;
+
+// Tighter table look
+$table-border-color: $rule;
+$table-color:        $ink;
+
+// Headings inherit display family + tight tracking
+$h1-font-size: 2.875rem;
+$h2-font-size: 2.125rem;
+$h3-font-size: 1.625rem;
+$h4-font-size: 1.25rem;
+$headings-font-family:  $font-display;
+$headings-font-weight:  800;
+$headings-line-height:  1.08;
+$headings-color:        $ink;
+
+$callout-color-note:    $navy-600;
+$callout-color-tip:     $teal-600;
+$callout-color-caution: $accent-700;
+$callout-color-warning: $warning;
+$callout-color-important: $danger;
+
+
+/*-- scss:rules --*/
+// =============================================================
+// Editorial layer — overrides Bootstrap + Quarto defaults so
+// rendered .qmd files look like Civilytics publications, not
+// generic blog posts.
+// =============================================================
+
+@import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+body {
+  font-family: $font-sans;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: $ink;
+  background: $paper;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+// Headings — display sans for headlines, tight tracking
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-display;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  color: $ink;
+}
+h1 { font-weight: 900; letter-spacing: -0.035em; line-height: 1.02; }
+h2 { font-weight: 800; letter-spacing: -0.03em;  margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid $rule; }
+h3 { font-weight: 700; margin-top: 1.75rem; }
+h4 { font-weight: 700; }
+h5, h6 { font-family: $font-sans; font-weight: 600; text-transform: none; }
+
+// Article-body prose — long-form reading uses Source Serif 4
+.quarto-title-block { margin-bottom: 2.5rem; }
+.quarto-title .title {
+  font-family: $font-display;
+  font-weight: 900;
+  font-size: 3.25rem;
+  line-height: 1.0;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.75rem;
+}
+.quarto-title .subtitle {
+  font-family: $font-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.375rem;
+  color: $ink-2;
+  line-height: 1.4;
+  max-width: 60ch;
+}
+.quarto-title-meta {
+  font-family: $font-sans;
+  font-size: 0.8125rem;
+  color: $ink-3;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-top: 3px double $ink;
+  border-bottom: 1px solid $rule;
+  padding: 0.75rem 0;
+  margin-top: 1.5rem;
+}
+.quarto-title-meta .quarto-title-meta-heading { color: $ink-4; font-size: 0.6875rem; }
+.quarto-title-meta .quarto-title-meta-contents { color: $ink; font-size: 0.875rem; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+// Lead / abstract — italic serif lockup
+.abstract, p.abstract {
+  font-family: $font-serif;
+  font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: $ink;
+  border-left: 2px solid $accent-600;
+  padding-left: 1.25rem;
+  margin: 2rem 0 2.5rem;
+  max-width: 62ch;
+}
+
+// Body paragraphs in article
+main p, main li {
+  font-family: $font-serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: $ink;
+  text-wrap: pretty;
+}
+main ul, main ol { padding-left: 1.5em; }
+main li { margin-bottom: 0.4em; }
+
+// Links — civic navy, thickening underline
+a { color: $navy-600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; transition: color 120ms ease; }
+a:hover { color: $navy-700; text-decoration-thickness: 2px; }
+a:visited { color: $plum-600; }
+
+// Pullquote / blockquote
+blockquote {
+  font-family: $font-serif;
+  font-style: italic;
+  font-size: 1.625rem;
+  line-height: 1.4;
+  color: $ink;
+  border-left: 3px solid $accent-600;
+  padding: 0.5rem 0 0.5rem 1.5rem;
+  margin: 2rem 0;
+}
+blockquote p { font-family: inherit !important; font-size: inherit !important; line-height: inherit !important; }
+
+// Code — light by default
+code, kbd, samp {
+  font-family: $font-mono;
+  font-size: 0.92em;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+code:not(pre code) {
+  background: $paper-2;
+  color: $accent-700;
+  padding: 0.1em 0.4em;
+  border-radius: 2px;
+  border: 1px solid $rule;
+}
+
+// Code blocks — light variant (default), with a dark-emphasis option below
+div.sourceCode, pre.sourceCode {
+  background: $paper-2;
+  border: 1px solid $rule;
+  border-radius: 8px;
+}
+div.sourceCode pre {
+  background: transparent;
+  color: $ink;
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  margin: 0;
+}
+// Highlight tokens (Quarto/Pandoc default classes)
+pre.sourceCode {
+  .kw { color: $navy-700; font-weight: 600; }       // keyword
+  .dt { color: $teal-600; }                          // data type
+  .st { color: $accent-700; }                        // string
+  .co { color: $ink-3; font-style: italic; }         // comment
+  .fu { color: $navy-600; }                          // function
+  .op, .sc { color: $ink-2; }                        // operator
+  .dv, .fl { color: $plum-600; }                     // numbers
+  .va { color: $brass-600; }                         // variable
+}
+// Dark variant — opt in by adding {.dark} to the code chunk
+.cell.dark div.sourceCode,
+div.sourceCode.dark,
+pre.dark {
+  background: $ink;
+  border-color: $navy-800;
+  pre, code { color: $paper; }
+  .kw { color: lighten($navy-300, 5%); }
+  .dt { color: $teal-300; }
+  .st { color: $accent-300; }
+  .co { color: $ink-4; }
+  .fu { color: $navy-200; }
+  .op, .sc { color: $paper-3; }
+  .dv, .fl { color: $plum-300; }
+}
+
+// Tables — editorial grid
+.table, table {
+  font-family: $font-sans;
+  font-size: 0.9375rem;
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+  margin: 1.5rem 0;
+}
+.table thead th, table thead th {
+  font-family: $font-sans;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $ink-3;
+  border-top: 2px solid $ink;
+  border-bottom: 1px solid $rule-strong;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+}
+.table tbody td, table tbody td {
+  border-bottom: 1px solid $rule;
+  padding: 0.55rem 0.75rem;
+  color: $ink;
+}
+.table tbody tr:last-child td, table tbody tr:last-child td { border-bottom: 2px solid $ink; }
+.table.numeric td, table .numeric { font-family: $font-mono; }
+
+// Figures + captions
+figure, .quarto-figure { margin: 2rem 0; }
+figcaption, .figure-caption, .quarto-figcaption {
+  font-family: $font-sans;
+  font-size: 0.8125rem;
+  color: $ink-3;
+  line-height: 1.45;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid $rule;
+  text-align: left;
+}
+
+// Callouts — keep Quarto markup, restyle as editorial sidebars
+.callout {
+  border-radius: 8px;
+  border: 1px solid $rule;
+  background: $paper-2;
+  margin: 1.5rem 0;
+  border-left: 3px solid $navy-600;
+}
+.callout-note    { border-left-color: $navy-600; }
+.callout-tip     { border-left-color: $teal-600; }
+.callout-caution { border-left-color: $accent-700; }
+.callout-warning { border-left-color: $warning; }
+.callout-important { border-left-color: $danger; }
+.callout-title { font-family: $font-sans; font-weight: 600; font-size: 0.9375rem; color: $ink; text-transform: none; letter-spacing: 0; }
+.callout-body p { font-family: $font-sans !important; font-size: 0.9375rem !important; line-height: 1.55 !important; }
+
+// Eyebrow / kicker (Quarto category renders as `.quarto-categories`)
+.quarto-categories {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.quarto-categories .quarto-category {
+  font-family: $font-sans;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: $accent-600;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.quarto-categories .quarto-category::before { content: "—  "; color: $accent-600; }
+
+// Navbar (used by website projects)
+.navbar {
+  background: rgba(250, 247, 242, 0.92) !important;
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid $rule;
+  padding: 0.875rem 0;
+}
+.navbar-brand { font-family: $font-display; font-weight: 800; font-size: 1.125rem; letter-spacing: -0.02em; color: $ink !important; }
+.navbar-nav .nav-link { font-family: $font-sans; font-weight: 500; font-size: 0.9375rem; color: $ink-2 !important; padding: 0.4rem 0.85rem !important; }
+.navbar-nav .nav-link:hover, .navbar-nav .nav-link.active { color: $accent-600 !important; }
+
+// Footer
+.nav-footer, footer.footer {
+  background: $ink;
+  color: $paper;
+  font-family: $font-sans;
+  font-size: 0.875rem;
+  padding: 2rem 0;
+  border-top: 4px solid $accent-600;
+}
+.nav-footer a, footer.footer a { color: $paper; text-decoration: underline; text-decoration-thickness: 1px; }
+
+// TOC — right-side sidebar
+#TOC, .sidebar.toc-active, nav#TOC {
+  font-family: $font-sans;
+  font-size: 0.8125rem;
+}
+#TOC ul, nav#TOC ul { list-style: none; padding-left: 0.75rem; border-left: 1px solid $rule; }
+#TOC li, nav#TOC li { margin: 0.25rem 0; }
+#TOC a, nav#TOC a { color: $ink-3; text-decoration: none; }
+#TOC a:hover, #TOC a.active, nav#TOC a:hover, nav#TOC a.active { color: $accent-600; border-left: 2px solid $accent-600; padding-left: 0.5rem; margin-left: -0.75rem; }
+
+// HR — editorial divider
+hr { border: none; border-top: 1px solid $rule; margin: 2.5rem 0; }
+hr.section-break { border: none; height: 4px; background: linear-gradient(to right, $accent-600 60px, $rule 60px); margin: 3rem 0; }
+
+// Listing pages (website blog/index)
+.quarto-listing .listing-item {
+  background: white;
+  border: 1px solid $rule;
+  border-top: 3px solid $accent-600;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: border-color 120ms ease;
+}
+.quarto-listing .listing-item:hover { border-color: $rule-strong; }
+.quarto-listing .listing-title a { color: $ink; text-decoration: none; font-family: $font-display; font-weight: 800; }
+.quarto-listing .listing-date { font-family: $font-sans; font-size: 0.75rem; color: $ink-3; text-transform: uppercase; letter-spacing: 0.08em; }
+
+// Selection
+::selection { background: $accent-200; color: $ink; }

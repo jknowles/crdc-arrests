@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Civilytics mark">
+  <rect width="100" height="100" fill="#0E1A2B"></rect>
+  <g fill="none" stroke="#FAF7F2" stroke-linecap="butt">
+    <path d="M 82.77 27.06 A 40 40 0 1 0 82.77 72.94" stroke-width="15"></path>
+    <path d="M 30 50 L 35 50 L 38 44 L 42 56 L 46 42 L 50 58 L 54 50 L 64 50" stroke-width="3.5" stroke-linecap="square"></path>
+  </g>
+</svg>

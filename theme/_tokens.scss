@@ -1,0 +1,73 @@
+/*-- scss:defaults --*/
+// =============================================================
+// Civilytics tokens — single source of truth for colors + type.
+// Mirrored from colors_and_type.css so figures, themes, and
+// preview pages stay in sync.
+// =============================================================
+
+// Neutrals — warm paper → civic ink
+$paper:        #FAF7F2 !default;
+$paper-2:      #F2EDE4 !default;
+$paper-3:      #E6DFD1 !default;
+$rule:         #D6CEBD !default;
+$rule-strong:  #B8AE97 !default;
+
+$ink:          #0E1A2B !default;
+$ink-2:        #2B3A52 !default;
+$ink-3:        #5A6A82 !default;
+$ink-4:        #8C97AB !default;
+
+// Brand — Civic Navy
+$navy-900: #0E1A2B; $navy-800: #132339; $navy-700: #1A2E4A;
+$navy-600: #22406A; $navy-500: #2E5590; $navy-400: #4A74B0;
+$navy-300: #7A9BCA; $navy-200: #B3C6E0; $navy-100: #DDE6F2; $navy-50: #EEF3FA;
+
+// Accent — Ember
+$accent-900: #451A00; $accent-800: #6B2B00; $accent-700: #923D00;
+$accent-600: #C25311; $accent-500: #DB6C25; $accent-400: #EA8A49;
+$accent-300: #F2A976; $accent-200: #F8C8A3; $accent-100: #FBE0C6; $accent-50: #FDF1E4;
+
+// Supporting (data-viz)
+$teal-600: #1F6F70; $teal-300: #7CB3B3; $teal-100: #D3E6E6;
+$plum-600: #6B3A5E; $plum-300: #B392A7; $plum-100: #E7DAE1;
+$moss-600: #4A6B2F; $moss-300: #9CB47D; $moss-100: #DEE8CF;
+$brass-600: #B8751C; $brass-100: #F9E6C8;
+
+// Semantic
+$success: $moss-600; $warning: #9A5F18; $danger: #A6271D; $info: $navy-500;
+
+// Bootstrap-friendly aliases (used by Quarto's HTML theme)
+$body-bg:     $paper !default;
+$body-color:  $ink !default;
+$primary:     $navy-600 !default;
+$secondary:   $accent-600 !default;
+$success-bs:  $success !default;
+$info-bs:     $info !default;
+$warning-bs:  $warning !default;
+$danger-bs:   $danger !default;
+$light:       $paper-2 !default;
+$dark:        $ink !default;
+
+$link-color:        $navy-600 !default;
+$link-hover-color:  $navy-700 !default;
+
+// Type stacks
+$font-display: 'Libre Franklin', 'Franklin Gothic', 'Inter', system-ui, sans-serif !default;
+$font-serif:   'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif !default;
+$font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif !default;
+$font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace !default;
+
+$font-family-sans-serif:  $font-sans !default;
+$font-family-monospace:   $font-mono !default;
+$font-family-base:        $font-sans !default;
+
+// Sizing
+$font-size-base:   1rem !default;
+$line-height-base: 1.65 !default;
+
+// Borders + radii
+$border-color:   $rule !default;
+$border-radius:        4px !default;
+$border-radius-sm:     2px !default;
+$border-radius-lg:     8px !default;
+$border-radius-xl:    14px !default;

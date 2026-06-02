@@ -1,0 +1,63 @@
+/* Civilytics — extras layered on top of the SCSS theme.
+   Use for utilities that don't need to participate in the
+   Bootstrap variable cascade. */
+
+/* Stat callout — drop into reports for hero numbers */
+.stat-callout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 2rem;
+  margin: 2rem 0 2.5rem;
+  padding: 1.5rem 0;
+  border-top: 3px double #0E1A2B;
+  border-bottom: 1px solid #D6CEBD;
+}
+.stat-callout .stat-num {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 700;
+  font-size: 3rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #0E1A2B;
+  font-variant-numeric: tabular-nums;
+  display: block;
+}
+.stat-callout .stat-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5A6A82;
+  margin-top: 0.4rem;
+}
+.stat-callout .stat-label.accent { color: #C25311; }
+
+/* Pulse glyph utility — matches design system */
+.civilytics-pulse {
+  display: inline-block;
+  vertical-align: middle;
+  width: 30px;
+  height: 14px;
+}
+
+/* Section eyebrow — use above an h1/h2 */
+.eyebrow {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #C25311;
+  margin: 0 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 24px;
+  height: 2px;
+  background: #C25311;
+}
