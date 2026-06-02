@@ -9,6 +9,7 @@ Collection public datasets.
 ## Table of Contents
 
 - [Abstract](#abstact)
+- [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Usage](#installation)
 - [Key Targets & Outputs](#key-targets--outputs)
@@ -38,6 +39,79 @@ This research was supported by a grant from the American Educational Research As
 From the final report:
 
 > School-based punishment and discipline can be enormously consequential for students’ lives. Researchers have documented racial disparities in all outcomes along the school punishment continuum with Black students overrepresented among those experiencing every form of school punishment, including school-based arrests. To date, most public-facing analyses of school-based arrests focus on observed counts or rates with some exclusion restrictions based on sample size. These analyses quickly draw attention to outliers (some of which are data errors) and have limited use in making direct geographic, demographic, or temporal comparisons. Bayesian hierarchical models of rare events have been used to improve accuracy of rate estimates in a wide variety of fields. We show that by using this strategy we can greatly increase the ability to draw comparisons in arrest rates by increasing the rates’ precision. We evaluate the tradeoffs of several different model specifications of arrest rates in terms of precision and coverage and include applied examples of using model predictions to make informed comparisons.
+
+
+## Repository Structure
+
+The project is organized around a **modeling-pipeline core** plus **three subsystems**
+built on top of it (full plan in [`docs/superpowers/specs/ROADMAP.md`](docs/superpowers/specs/ROADMAP.md)):
+
+1. **Draws API** — a public data product (live API + Hugging Face dataset) so people use the estimates without re-running the models.
+2. **Pipeline reproducibility** — environment capture so a stranger can `tar_make()` from source.
+3. **Artifact reproduction** — deterministically rebuild the published documents (white paper, results, figures) from published data, with no model run.
+
+### Top-level layout
+
+```text
+_targets.R              Pipeline definition: data prep → models → draws → API + staged artifacts
+_packages.R             Package-discovery shim for renv (string-only deps like cmdstanr/qs2)
+R/                      All pipeline + helper functions (see table below)
+tests/testthat/         Data-layer unit/integration tests (API tests live in api/tests/)
+scripts/                Operational scripts: run-tests, smoke-pipeline, publish_*, render/cache
+
+  ── Subsystem 1 · Draws API ───────────────────────────────────────────────
+api/                    plumber API: endpoints, OpenAPI, Dockerfile, llms.txt
+deploy/                 docker-compose + deploy config (Gitea Action → docker socket)
+docs/api/               API docs-site sources: data dictionary, runbook, index
+
+  ── Subsystem 2 · Reproducibility ─────────────────────────────────────────
+renv/  renv.lock  .Rprofile   Locked R library (R 4.6.0) + activation
+setup.R                 One-stop bootstrap: renv::restore + CmdStan pin + sanity checks
+.renvignore             Keeps scratch/doc-only deps out of the locked library
+REPRODUCIBILITY.md      Toolchain, machine sizing, determinism, artifact reproduction
+DOWNLOAD_GUIDE.md       How to obtain the CRDC source data
+
+  ── Subsystem 3 · Artifact reproduction ───────────────────────────────────
+white_paper.qmd         The report (ported from the Word source), rebuilt from artifacts
+results.qmd             Results engine: stats, tables, figures for the paper
+applied_examples.qmd    Prediction-interval case studies
+social_media_posts.qmd  Branded social-media figures/tables
+combined_eda.qmd        Three-year combined exploratory analysis
+annual_descriptives_template.qmd / model_descriptives_template.qmd
+                        Per-CRDC-wave descriptive report templates (tar_render_rep)
+_brand.yml              Civilytics Quarto brand (colors / fonts / logo)
+theme/  latex/  typst/  assets/   Brand theme files + logos (referenced by _brand.yml/formats)
+inst/                   Paper source (Word .docx, .bib) — git-ignored EXCEPT *.bib
+docs/data-stages.md     Provenance map: each published stage artifact → its pipeline stage
+
+  ── Documentation & specs ─────────────────────────────────────────────────
+docs/superpowers/specs/   One design spec per subsystem + ROADMAP.md
+docs/superpowers/plans/   Implementation plans
+models.md                 Model specifications & sample-restriction notes
+
+  ── Generated · NOT in git (produced by running the pipeline) ──────────────
+_targets/               targets store (~18 GB; only meta/ tracked, for provenance/resume)
+export/                 Built outputs: db/ (69 GB draws), api/, parquet/, figures/, stages/
+tmp/                    Scratch: downloaded data/, duckdb_spill/, pages build, scratch scripts
+```
+
+### The `R/` directory
+
+| Area | Files | Role |
+|---|---|---|
+| Data prep & utilities | `funs.R` | CRDC/CCD ingest, reshaping, validation; `get_*_prediction_summary()`, `calculate_model_stats()` |
+| Draws & summaries | `postprocess.R`, `summarize_draws.R`, `export_parquet.R` | model draws → DuckDB → parquet / summary tables |
+| API artifacts | `build_api_artifacts.R`, `district_dim.R` | build the API summary DB + district lookup |
+| Artifact reproduction | `crdc_path.R`, `model_registry.R`, `stage_artifacts.R`, `publish_stages.R`, `paper_figures.R`, `check_read_contract.R` | artifact resolver/cache, model id↔label registry, stage materializers, HF publish, shared render helpers + branding, read-contract guard |
+
+### How a document reproduces
+
+Each `.qmd` reads **published artifacts** through `crdc_path()` — set
+`CRDC_ARTIFACTS=export` to read locally (owner) or use the default `hf://…`
+(stranger) — and never touches the `_targets/` store, so it renders standalone
+(`quarto render`). The same docs are also `cue="never"` render targets in
+`_targets.R`. See [`docs/data-stages.md`](docs/data-stages.md) and
+[Reproduce the published artifacts](#reproduce-the-published-artifacts-no-7run).
 
 
 ## Prerequisites
