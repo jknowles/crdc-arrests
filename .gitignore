@@ -5,7 +5,10 @@
 *.xlsx
 /tmp
 .env
-/inst
+# inst/ holds source materials (Word docx, headshots, scratch) — ignored,
+# EXCEPT the paper bibliography, which white_paper.qmd needs at render time.
+/inst/*
+!/inst/*.bib
 
 # renv
 renv/library/
