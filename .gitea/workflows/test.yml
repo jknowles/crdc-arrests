@@ -8,6 +8,12 @@ jobs:
   r-tests:
     runs-on: ubuntu-latest
     container: rocker/r-ver:4.6.0
+    env:
+      # The committed .Rprofile auto-activates renv's (empty, gitignored) project
+      # library, which shadows the packages install2.r puts in the site library.
+      # Disable the autoloader so CI uses those packages. CI deliberately does NOT
+      # renv::restore (it's a light parse/test run, not a full env rebuild).
+      RENV_CONFIG_AUTOLOADER_ENABLED: "false"
     steps:
       # Shell checkout: rocker/r-ver has neither node (for actions/checkout@v4)
       # nor git preinstalled, so install git then clone with the auto token.
@@ -36,6 +42,10 @@ jobs:
   pipeline-validate:
     runs-on: ubuntu-latest
     container: rocker/r-ver:4.6.0
+    env:
+      # See r-tests: disable the renv autoloader so the install2.r-installed
+      # packages (not the empty project library) are on .libPaths().
+      RENV_CONFIG_AUTOLOADER_ENABLED: "false"
     steps:
       - name: Checkout (shell, no node)
         env:
