@@ -47,19 +47,21 @@ library(civilytics)
 #| message: false
 #| warning: false
 
-# Connect to database
-con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb",
-                      config = list("memory_limit" = "8GB", "threads" = "4"), read_only = TRUE)
-
-# Load target data
-tydata <- targets::tar_read(three_year_data)$data
-rdata <- targets::tar_read(recent_data)$data
-ccd_ty <- targets::tar_read(combined_sch_data)
-crdc <- targets::tar_read(full_crdc_data_y2122)
-
-# Source custom functions
+# Source custom functions + artifact-reproduction helpers
 source("R/funs.R")
 source("R/spatial_utils.R")
+source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
+
+# predicted_draws VIEW over the PUBLISHED draws parquet (CRDC_ARTIFACTS selects
+# local "export" for the owner, hf:// for a stranger). Existing
+# get_prediction_summary(con, ...) calls work unchanged.
+h <- open_draws_view(); con <- h$con
+
+# Load model-input data from the published staged artifacts
+tydata <- read_stage_df("stages/inputs/three_year_data.parquet")
+rdata  <- read_stage_df("stages/inputs/recent_data.parquet")
+ccd_ty <- read_stage_df("stages/inputs/combined_sch_data.parquet")
+crdc   <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
 
 # Logo overlay helper
 logo_file <- system.file("img", "civilytics_wordmark.png", package = "civilytics")
@@ -357,12 +359,12 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
 #| message: false
 #| warning: false
 
-#combined_data <- targets::tar_read(combined_model_data)
+#combined_data <- read_stage_df("stages/inputs/combined_model_data.parquet")
 
 # Unfiltered CRDC without requiring join to CCD
-combined_data <- bind_rows(targets::tar_read(full_crdc_data_y2122),
-                            targets::tar_read(full_crdc_data_y1718),
-                            targets::tar_read(full_crdc_data_y1516))
+combined_data <- bind_rows(read_stage_df("stages/crdc/full_crdc_data_y2122.parquet"),
+                            read_stage_df("stages/crdc/full_crdc_data_y1718.parquet"),
+                            read_stage_df("stages/crdc/full_crdc_data_y1516.parquet"))
 
 
 year_summary <- combined_data |>
@@ -1157,7 +1159,7 @@ Let's do a three year look:
 ```{r}
 
 img_path <- "export/figures/socialmedia-am_districts_table_3yr.png"
-threewave <- bind_rows(targets::tar_read(full_crdc_data_y2122), targets::tar_read(full_crdc_data_y1718), targets::tar_read(full_crdc_data_y1516))
+threewave <- bind_rows(read_stage_df("stages/crdc/full_crdc_data_y2122.parquet"), read_stage_df("stages/crdc/full_crdc_data_y1718.parquet"), read_stage_df("stages/crdc/full_crdc_data_y1516.parquet"))
 
 threewave <- threewave %>%
   group_by(YEAR,LEA_STATE, LEAID, RACE, SEX) %>%
@@ -1850,3 +1852,10 @@ in 15-16 Paterson had 47 arrests reported and in 17-18 it had 11 arrests reporte
 
 
 ## Arrest Rate Corrections
+
+```{r}
+#| label: cleanup
+#| include: false
+
+close_draws_view(h)
+```
