@@ -87,7 +87,8 @@ docs/data-stages.md     Provenance map: each published stage artifact → its pi
   ── Documentation & specs ─────────────────────────────────────────────────
 docs/superpowers/specs/   One design spec per subsystem + ROADMAP.md
 docs/superpowers/plans/   Implementation plans
-models.md                 Model specifications & sample-restriction notes
+docs/models.md            Model specifications & sample-restriction notes
+docs/hf-dataset-card.md   Hugging Face dataset card for the published data product
 
   ── Generated · NOT in git (produced by running the pipeline) ──────────────
 _targets/               targets store (~18 GB; only meta/ tracked, for provenance/resume)
