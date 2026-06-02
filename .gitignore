@@ -6,3 +6,9 @@
 /tmp
 .env
 /inst
+
+# renv
+renv/library/
+renv/local/
+renv/cellar/
+renv/staging/
