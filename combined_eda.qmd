@@ -20,13 +20,13 @@ library(targets)
 library(dplyr)
 library(ggplot2)
 library(knitr)
-
+source("R/crdc_path.R"); source("R/paper_figures.R")
 
 options(scipen = 9)
 options(width = 120)
 
-# Load the combined data
-combined_data <- targets::tar_read(combined_model_data)
+# Load the combined data from the published staged artifact (not the store)
+combined_data <- read_stage_df("stages/inputs/combined_model_data.parquet")
 
 # Overwrite name
 combined_data |>
@@ -472,7 +472,7 @@ combined_data |>
 #| include: false
 # Check waterbury
 combined_data |> filter(LEAID == "0634320") |> View()
-old_data <- targets::tar_read("model_data_y1516")
+old_data <- read_stage_df("stages/crdc/model_data_y1516.parquet")
 old_data |> filter(LEAID == "0634320") |> View()
 
 old_data |> filter(LEA_STATE == "CA") |>
