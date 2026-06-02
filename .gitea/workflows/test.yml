@@ -30,7 +30,7 @@ jobs:
       - name: Install deps
         run: |
           apt-get update && apt-get install -y --no-install-recommends \
-            libcurl4-openssl-dev libssl-dev libz-dev
+            libcurl4-openssl-dev libssl-dev libz-dev libuv1
           install2.r --error testthat DBI duckdb plumber jsonlite httr2 callr dplyr
       - name: Data-layer tests
         run: Rscript -e 'q(status = sum(as.data.frame(testthat::test_dir("tests/testthat"))$failed))'
@@ -60,7 +60,7 @@ jobs:
       - name: Install source-time deps (NO model packages)
         run: |
           apt-get update && apt-get install -y --no-install-recommends \
-            libcurl4-openssl-dev libssl-dev libz-dev
+            libcurl4-openssl-dev libssl-dev libz-dev libuv1
           install2.r --error targets tarchetypes tibble dplyr tidyr \
             future future.callr crew DBI duckdb tidybayes
       - name: Validate pipeline graph (parses, loads, NO fitting)
