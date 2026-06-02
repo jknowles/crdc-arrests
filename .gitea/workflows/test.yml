@@ -27,11 +27,10 @@ jobs:
           git clone --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
             "https://oauth2:${REPO_TOKEN}@${host}/${GITHUB_REPOSITORY:-jared/crdc-arrests}.git" "$tmpd"
           cp -a "$tmpd/." . && rm -rf "$tmpd"
-      - name: Install deps
+      - name: Install deps (pak auto-installs system requirements)
         run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            libcurl4-openssl-dev libssl-dev libz-dev libuv1
-          install2.r --error testthat DBI duckdb plumber jsonlite httr2 callr dplyr
+          Rscript -e 'install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.version$os, R.version$arch))'
+          Rscript -e 'pak::pak(c("testthat","DBI","duckdb","plumber","jsonlite","httr2","callr","dplyr"))'
       - name: Data-layer tests
         run: Rscript -e 'q(status = sum(as.data.frame(testthat::test_dir("tests/testthat"))$failed))'
       - name: API tests
@@ -57,11 +56,9 @@ jobs:
           git clone --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
             "https://oauth2:${REPO_TOKEN}@${host}/${GITHUB_REPOSITORY:-jared/crdc-arrests}.git" "$tmpd"
           cp -a "$tmpd/." . && rm -rf "$tmpd"
-      - name: Install source-time deps (NO model packages)
+      - name: Install source-time deps (pak auto-installs system requirements; NO model packages)
         run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            libcurl4-openssl-dev libssl-dev libz-dev libuv1 libglpk40 libxml2
-          install2.r --error targets tarchetypes tibble dplyr tidyr \
-            future future.callr crew DBI duckdb tidybayes
+          Rscript -e 'install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.version$os, R.version$arch))'
+          Rscript -e 'pak::pak(c("targets","tarchetypes","tibble","dplyr","tidyr","future","future.callr","crew","DBI","duckdb","tidybayes"))'
       - name: Validate pipeline graph (parses, loads, NO fitting)
         run: Rscript -e 'library(tarchetypes); targets::tar_validate()'
