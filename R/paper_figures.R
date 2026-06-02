@@ -27,6 +27,17 @@ close_draws_view <- function(h) {
   duckdb::duckdb_shutdown(h$drv)
 }
 
+#' Resolve `rel` to a local path ONLY if it is already available — a local base,
+#' or already cached for a remote base. NEVER downloads (unlike crdc_path() for
+#' big objects). Returns NA_character_ if not present. Use for optional inputs
+#' (e.g. the ~2.9 GB pooled fits) so a render degrades gracefully to a table.
+crdc_cached_path <- function(rel) {
+  base <- crdc_artifacts_base()
+  p <- if (!grepl("^(hf://|https://|s3://)", base)) file.path(base, rel)
+       else file.path(crdc_cache_dir(), rel)
+  if (file.exists(p) || dir.exists(p)) p else NA_character_
+}
+
 #' Read a tabular stage artifact into a data.frame via DuckDB.
 read_stage_df <- function(rel) {
   drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)

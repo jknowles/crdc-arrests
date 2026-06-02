@@ -31,6 +31,21 @@ test_that("read_stage_df reads a tabular stage artifact via crdc_path", {
   })
 })
 
+test_that("crdc_cached_path returns local path if present, NA otherwise, never downloads", {
+  d <- tempfile(); dir.create(d)
+  withr::with_envvar(c(CRDC_ARTIFACTS = d), {
+    expect_true(is.na(crdc_cached_path("stages/models/pooled_m2.qs2")))   # absent
+    p <- file.path(d, "stages/models/pooled_m2.qs2"); dir.create(dirname(p), recursive = TRUE)
+    writeLines("x", p)
+    expect_equal(crdc_cached_path("stages/models/pooled_m2.qs2"), p)      # present
+  })
+  # remote base, nothing cached -> NA (and no network touched)
+  withr::with_envvar(c(CRDC_ARTIFACTS = "hf://datasets/x/y@z",
+                       CRDC_CACHE = tempfile()), {
+    expect_true(is.na(crdc_cached_path("stages/models/pooled_m2.qs2")))
+  })
+})
+
 test_that("with_model_labels adds a model_label column from the registry", {
   df  <- data.frame(model_id = c("nat_m2_mod", "sg_m1_mod"), stringsAsFactors = FALSE)
   out <- with_model_labels(df)

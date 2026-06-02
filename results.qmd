@@ -53,16 +53,18 @@ if (!dir.exists("export/figures")) {
 #| message: false
 #| warning: false
 
-# Connect to database
-con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb",
-                      config = list("memory_limit" = "8GB", "threads" = "4"))
-
-# Load target data
-tydata <- targets::tar_read(three_year_data)$data
-rdata <- targets::tar_read(recent_data)$data
-
-# Source custom functions
+# Source the artifact-reproduction helpers + project functions
 source("R/funs.R")
+source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
+
+# Connect to a `predicted_draws` VIEW over the PUBLISHED draws parquet.
+# CRDC_ARTIFACTS selects the source: local "export" (owner) or hf:// (stranger).
+# get_prediction_summary()/get_state_prediction_summary() work unchanged on `con`.
+h <- open_draws_view(); con <- h$con
+
+# Load model-input data from the published staged artifacts (not the targets store)
+tydata <- read_stage_df("stages/inputs/three_year_data.parquet")
+rdata  <- read_stage_df("stages/inputs/recent_data.parquet")
 ```
 
 # Descriptive Statistics from Most Recent CRDC Wave
@@ -76,7 +78,7 @@ Total students arrested:
 ```{r}
 #| label: display-total-arrests
 
-y2122 <- targets::tar_read("full_crdc_data_y2122")
+y2122 <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
 
 # Total students arrested
 sum(y2122$ARRESTS[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"])
@@ -191,8 +193,8 @@ out of the data when we add successive waves of the data.
 ```{r}
 #| label: load-historical-data
 
-y1718 <- targets::tar_read("full_crdc_data_y1718")
-y1516 <- targets::tar_read("full_crdc_data_y1516")
+y1718 <- read_stage_df("stages/crdc/full_crdc_data_y1718.parquet")
+y1516 <- read_stage_df("stages/crdc/full_crdc_data_y1516.parquet")
 ```
 
 ```{r}
@@ -337,7 +339,7 @@ Here we tabulate the figures about sample restrictions in the paper.
 ```{r}
 #| label: compute-504-data
 
-sch_ref <- targets::tar_read("lerefs_y2122")
+sch_ref <- read_stage_df("stages/crdc/lerefs_y2122.parquet")
 
 section_504_summary <- sch_ref %>%
   select(!matches("TOT_")) %>%
@@ -401,7 +403,7 @@ rm(sch_ref)
 ```{r}
 #| label: compute-504-enrollment
 
-enrollment <- targets::tar_read("popcounts_y2122")
+enrollment <- read_stage_df("stages/crdc/popcounts_y2122.parquet")
 
 enrollment_504_summary <- enrollment %>%
   select(!matches("TOT_")) %>%
@@ -430,7 +432,7 @@ a grade 7 or above.
 ```{r}
 #| label: compute-grade-restrictions
 
-combined_data <- targets::tar_read("combined_model_data") |> filter(YEAR == "21-22")
+combined_data <- read_stage_df("stages/inputs/combined_model_data.parquet") |> filter(YEAR == "21-22")
 combined_data2 <- combined_data |> filter(highest_grade_offered >= 7)
 
 grade_restriction_summary <- combined_data |>
@@ -458,8 +460,8 @@ shows the impact of that.
 ```{r}
 #| label: compute-ccd-matching
 
-ccd <- targets::tar_read("ccd_sch_geo_y2122")
-crdc <- targets::tar_read("full_crdc_data_y2122")
+ccd <- read_stage_df("stages/crdc/ccd_sch_geo_y2122.parquet")
+crdc <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
 
 ccd$COMBOKEY <- stringr::str_pad(ccd$ncessch_num, width = 12,
                                 side = "left", pad = "0")
@@ -507,7 +509,7 @@ restriction.
 ```{r}
 #| label: compute-enrollment-thresholds
 
-combined_data <- targets::tar_read("combined_model_data") |> filter(YEAR == "21-22")
+combined_data <- read_stage_df("stages/inputs/combined_model_data.parquet") |> filter(YEAR == "21-22")
 combined_data <- crdc_lea_collapse(combined_data)
 
 enrollment_threshold_summary <- combined_data |>
@@ -534,9 +536,9 @@ Here we report the impact of suppressed records on enrollment.
 ```{r}
 #| label: compute-incomplete-enrollments
 
-enrollment <- targets::tar_read("popcounts_y2122")
+enrollment <- read_stage_df("stages/crdc/popcounts_y2122.parquet")
 zz <- incomplete_enrollments(enrollment, year = "21-22")
-zb <- targets::tar_read("schenrollraw_y2122")
+zb <- read_stage_df("stages/crdc/schenrollraw_y2122.parquet")
 
 incomplete_proportion <- nrow(zz) / sum(nrow(zz), nrow(zb))
 incomplete_proportion
@@ -973,13 +975,15 @@ Here we compute the model statistics.
 ```{r}
 #| label: compute-nat-model-stats
 
-bind_rows(
-  calculate_model_stats(targets::tar_read("nat_m1_mod"), model_prefix = "fullmodel_m1"),
-  calculate_model_stats(targets::tar_read("nat_m2_mod"), model_prefix = "fullmodel_m2"),
-  calculate_model_stats(targets::tar_read("nat_m3_mod"), model_prefix = "fullmodel_m3"),
-  calculate_model_stats(targets::tar_read("nat_m4_mod"), model_prefix = "fullmodel_m4"),
-  calculate_model_stats(targets::tar_read("nat_m5_mod"), model_prefix = "fullmodel_m5")) |>
-    select(-model_id) |>  knitr::kable()
+# Pooled-model stats from the published diagnostics artifact (precomputed
+# calculate_model_stats(); labels via the model registry).
+read_stage_df("stages/diagnostics/model_stats.parquet") |>
+  filter(model_id %in% crdc_pooled_ids()) |>
+  with_model_labels() |>
+  transmute(Model = model_label, ndraws, chains, threads, thin, leas,
+            parameters, worst_rhat, min_bulk_ess, mean_bulk_ess,
+            runtime_minutes, data_rows) |>
+  knitr::kable()
 
 ```
 
@@ -989,87 +993,45 @@ bind_rows(
 ```{r}
 #| label: compute-sg-stats
 
-sg_m1_stats <- calculate_model_stats(targets::tar_read("sg_m1_mod")) |>
+# Student-group model stats from the published diagnostics artifact: each
+# sg_m#_mod stored its per-group rows; sum them per model (matches the original
+# disaggregated_*_avg aggregation), labelled via the registry.
+read_stage_df("stages/diagnostics/model_stats.parquet") |>
+  filter(grepl("^sg_", model_id)) |>
+  with_model_labels() |>
+  group_by(model_label) |>
   summarize(
-    model_name = "disaggregated_m1_avg",
-    runtime = sum(runtime_minutes),
+    runtime    = sum(runtime_minutes),
     parameters = sum(parameters),
-    data_rows = sum(data_rows),
-    ndraws = sum(ndraws)
+    data_rows  = sum(data_rows),
+    ndraws     = sum(ndraws),
+    .groups = "drop"
   )
-
-
-sg_m2_stats <- calculate_model_stats(targets::tar_read("sg_m2_mod")) |>
-  summarize(
-    model_name = "disaggregated_m2_avg",
-    runtime = sum(runtime_minutes),
-    parameters = sum(parameters),
-    data_rows = sum(data_rows),
-    ndraws = sum(ndraws)
-  )
-
-sg_m3_stats <- calculate_model_stats(targets::tar_read("sg_m3_mod")) |>
-  summarize(
-    model_name = "disaggregated_m3_avg",
-    runtime = sum(runtime_minutes),
-    parameters = sum(parameters),
-    data_rows = sum(data_rows),
-    ndraws = sum(ndraws)
-  )
-
-
-sg_m4_stats <- calculate_model_stats(targets::tar_read("sg_m4_mod")) |>
-  summarize(
-    model_name = "disaggregated_m4_avg",
-    runtime = sum(runtime_minutes),
-    parameters = sum(parameters),
-    data_rows = sum(data_rows),
-    ndraws = sum(ndraws)
-  )
-
-sg_m5_stats <- calculate_model_stats(targets::tar_read("sg_m5_mod")) |>
-  summarize(
-    model_name = "disaggregated_m5_avg",
-    runtime = sum(runtime_minutes),
-    parameters = sum(parameters),
-    data_rows = sum(data_rows),
-    ndraws = sum(ndraws)
-  )
-
-  bind_rows(sg_m1_stats,
-  sg_m2_stats, sg_m3_stats, sg_m4_stats, sg_m5_stats)
 ```
 
 ## HMC Diagnostics
 
 ```{r}
-#| label: hmc-diag-nat-m1
+#| label: hmc-diagnostics
 
-rstan::check_hmc_diagnostics(targets::tar_read("nat_m1_mod")$fit)
-```
-
-```{r}
-#| label: hmc-diag-nat-m2
-
-rstan::check_hmc_diagnostics(targets::tar_read("nat_m2_mod")$fit)
-```
-
-```{r}
-#| label: hmc-diag-nat-m3
-
-rstan::check_hmc_diagnostics(targets::tar_read("nat_m3_mod")$fit)
-```
-
-```{r}
-#| label: hmc-diag-nat-m4
-
-rstan::check_hmc_diagnostics(targets::tar_read("nat_m4_mod")$fit)
-```
-
-```{r}
-#| label: hmc-diag-nat-m5
-
-rstan::check_hmc_diagnostics(targets::tar_read("nat_m5_mod")$fit)
+# Live pooled-model HMC diagnostics when the fits are available locally/cached
+# (stages/models/pooled_m#.qs2); otherwise show the published diagnostics table.
+# crdc_cached_path() never downloads, so this won't force a ~2.9 GB pull.
+reg <- crdc_model_registry()
+any_live <- FALSE
+for (id in crdc_pooled_ids()) {
+  spec <- reg$spec[match(id, reg$id)]
+  f <- crdc_cached_path(sprintf("stages/models/pooled_%s.qs2", spec))
+  if (!is.na(f)) {
+    any_live <- TRUE
+    cat("\n###", crdc_model_label(id), "\n")
+    rstan::check_hmc_diagnostics(qs2::qs_read(f)$fit)
+  }
+}
+if (!any_live) {
+  cat("Pooled fits not present locally; showing the published diagnostics table.\n")
+  knitr::kable(read_stage_df("stages/diagnostics/hmc_diagnostics.parquet"))
+}
 ```
 
 # State-Level Analysis
@@ -1172,4 +1134,11 @@ state_performance <- state_plotdf |>
 #| label: display-state-performance
 
 state_performance |> knitr::kable()
+```
+
+```{r}
+#| label: cleanup
+#| include: false
+
+close_draws_view(h)
 ```
