@@ -60,7 +60,7 @@ jobs:
       - name: Install source-time deps (NO model packages)
         run: |
           apt-get update && apt-get install -y --no-install-recommends \
-            libcurl4-openssl-dev libssl-dev libz-dev libuv1
+            libcurl4-openssl-dev libssl-dev libz-dev libuv1 libglpk40 libxml2
           install2.r --error targets tarchetypes tibble dplyr tidyr \
             future future.callr crew DBI duckdb tidybayes
       - name: Validate pipeline graph (parses, loads, NO fitting)
