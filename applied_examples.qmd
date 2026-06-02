@@ -43,11 +43,16 @@ library(ggridges)
 library(duckdb)
 library(patchwork)
 
-con <- DBI::dbConnect(duckdb::duckdb(), "export/db/crdc_arrests.duckdb", read_only = TRUE)
-
-tydata <- targets::tar_read(three_year_data)$data
-rdata <- targets::tar_read(recent_data)$data
 source("R/funs.R")
+source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
+
+# predicted_draws VIEW over the PUBLISHED draws parquet (CRDC_ARTIFACTS selects
+# the source: local "export" for the owner, hf:// for a stranger). The existing
+# get_prediction_summary(con, ...) calls below work unchanged.
+h <- open_draws_view(); con <- h$con
+
+tydata <- read_stage_df("stages/inputs/three_year_data.parquet")
+rdata  <- read_stage_df("stages/inputs/recent_data.parquet")
 
 
 ```
@@ -1588,4 +1593,11 @@ p3 <- ggplot(diff_b, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x)
 
 p1 / (p2 + p3)
 
+```
+
+```{r}
+#| label: cleanup
+#| include: false
+
+close_draws_view(h)
 ```
