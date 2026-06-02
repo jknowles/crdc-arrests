@@ -9,7 +9,7 @@ knitr:
     warning: false
     error: false
     echo: false
-    fig.path: export/figures/appliedexample-
+    fig.path: export/figures/modeldescriptives-
 execute:
   echo: false
   warning: false
@@ -64,11 +64,14 @@ color_fill_values2 <- c("White" = "#c92d0e", "Black" = "#020684",
 
 
 
-suffix <- params$target_name
-# Load the targets with the correct suffix
-sch_ref_arr <- targets::tar_read_raw(paste0("model_data_", suffix))
-#schuniverse <- targets::tar_read_raw(paste0("schuniverse_", suffix))
-ccd_dist_geo <- targets::tar_read_raw(paste0("ccd_dist_geo_", suffix))
+# Source artifact-reproduction helpers
+source("R/crdc_path.R"); source("R/paper_figures.R")
+
+# Year suffix: from tar_render_rep params when present, else the default wave.
+suffix <- if (exists("params") && !is.null(params$target_name)) params$target_name else "y2122"
+# Load the model-input + district-geo stages for this wave (published artifacts)
+sch_ref_arr  <- read_stage_df(sprintf("stages/crdc/model_data_%s.parquet", suffix))
+ccd_dist_geo <- read_stage_df(sprintf("stages/crdc/ccd_dist_geo_%s.parquet", suffix))
 
 # TODO: Join CRDC and CCD data here
 # sch_ref_arr <- left_join(ccd_dist_geo, sch_ref_arr, by = join_by(COMBOKEY))

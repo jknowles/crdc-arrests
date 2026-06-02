@@ -57,16 +57,14 @@ color_fill_values2 <- c("White" = "#c92d0e", "Black" = "#020684",
                         "Amer. Ind." = "#ff8f43")
 
 
-# model_data <- targets::tar_load(model_data)
-# schuniverse <- targets::tar_load(schuniverse)
-# ccd_dist_geo <- targets::tar_load(ccd_dist_geo)
+# Source artifact-reproduction helpers
+source("R/crdc_path.R"); source("R/paper_figures.R")
 
-#suffix <- params$target_name
-suffix <- "y2122"
-# Load the targets with the correct suffix
-sch_ref_arr <- targets::tar_read_raw(paste0("model_data_", suffix))
-#schuniverse <- targets::tar_read_raw(paste0("schuniverse_", suffix))
-ccd_dist_geo <- targets::tar_read_raw(paste0("ccd_dist_geo_", suffix))
+# Year suffix: from tar_render_rep params when present, else the default wave.
+suffix <- if (exists("params") && !is.null(params$target_name)) params$target_name else "y2122"
+# Load the model-input + district-geo stages for this wave (published artifacts)
+sch_ref_arr  <- read_stage_df(sprintf("stages/crdc/model_data_%s.parquet", suffix))
+ccd_dist_geo <- read_stage_df(sprintf("stages/crdc/ccd_dist_geo_%s.parquet", suffix))
 
 #sch_referrals_long <- model_data
 #sch_universe <- schuniverse
