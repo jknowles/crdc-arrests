@@ -161,10 +161,30 @@ are described below.
 | `three_year_data` | Modeling dataset with enrollment caps and restrictions | List with `$data` (tidy) |
 | `nat_m*_mod` | National Bayesian models (baseline, demographic, referral‑adjusted, full) | `brmsfit` objects saved as RDS |
 | `sg_m*_mod` | Subgroup (race/sex) models – one per demographic group | List of `brmsfit` objects |
+| `white_paper` | The full report (ported from the Word source), rebuilt from artifacts | `white_paper.html` |
+| `results_report` | Paper results engine (stats, tables, figures) | `results.html` |
+| `applied_examples` | Applied prediction-interval case studies | `applied_examples.html` |
+| `social_media_posts` | Branded social-media figures/tables | `social_media_posts.html` + `export/figures/socialmedia-*` |
 | `combined_eda` | Quarto HTML report with descriptive statistics and plots | `crdc_combined_three_year_eda_report.html` |
-| `annual_descriptives_*` | Year‑specific Quarto reports (template provided) | `annual_descriptives_<year>.html` |
+| `annual_report` / `model_descriptives` | Year‑specific Quarto reports (templates, one per CRDC wave) | `annual_descriptives_<year>.html` / `model_descriptives_<year>.html` |
 
 All model objects are stored in the `main` storage format (`rds`) and can be loaded with `readRDS()`.
+
+### Reproduce the published artifacts (no 7‑day run)
+
+The render targets above are `cue = "never"`: a normal `tar_make()` never triggers
+them. They read **published artifacts**, not the model store, so anyone can
+rebuild the paper/figures from a ~1.7 GB download instead of the full pipeline:
+
+```bash
+# Owner (local artifacts already in export/):
+CRDC_ARTIFACTS=export scripts/render-artifacts.sh
+# Stranger (pull from Hugging Face; big objects cache on first use):
+scripts/cache-artifacts.sh && scripts/render-artifacts.sh
+```
+
+See [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) (artifact reproduction) and
+[`docs/data-stages.md`](docs/data-stages.md) (what each stage artifact is).
 
 ---
 

@@ -96,3 +96,62 @@ resumes where it stopped: re-run `tar_make()` and only stale/incomplete targets
 rebuild. `tar_progress()` / `tar_meta()` report status; logs are under
 `_targets/meta/`. The published data release tag is
 `civilytics-crdc-arrests-2025.1` (written into the API DB `meta` table).
+
+---
+
+## Artifact reproduction (Subsystem 3)
+
+The published documents — the white paper, results, applied examples, social
+posts, EDA, and descriptive reports — can be rebuilt **without** the ~7-day model
+run, the 18 GB `_targets/` store, or the 69 GB draws DB. They read a small set of
+**published artifacts** instead.
+
+### Where the docs read from — `crdc_path()` + `CRDC_ARTIFACTS`
+
+Every in-scope `.qmd` resolves data through `crdc_path()` (`R/crdc_path.R`), which
+returns a URI for a logical artifact path. The base is the `CRDC_ARTIFACTS` env
+var:
+
+- **Owner / local:** `export CRDC_ARTIFACTS=export` → reads `export/stages/…` and
+  `export/parquet/…` directly (no network, no cache).
+- **Stranger (default):** `hf://datasets/civilytics/crdc-school-arrest-rates@civilytics-crdc-arrests-2025.1`
+  → small artifacts read directly; **big** ones (the draws parquet tree, the
+  `stages/models/pooled_m*.qs2` fits) cache once into `CRDC_CACHE`
+  (default `tools::R_user_dir("crdc-arrests","cache")`) so later renders don't
+  re-download.
+
+Reads are native (DuckDB `read_parquet`, `qs2::qs_read`); `crdc_path()` only
+resolves a path and lazily caches — it does not wrap the read. The docs are
+therefore **standalone-renderable**: `quarto render results.qmd` works on a clean
+clone with no targets store. They are also wrapped as `cue = "never"` render
+targets for pipeline integration.
+
+### One-command render
+
+```bash
+scripts/cache-artifacts.sh      # (stranger) mirror the big artifacts locally, once
+scripts/render-artifacts.sh     # render all in-scope docs (or pass specific .qmd)
+```
+
+### Branding on figures
+
+`cv_apply_branding()` (`R/paper_figures.R`) sets the Civilytics ggplot theme
+globally and, when **`magick`** is installed (system `libmagick++-dev`), stamps
+the Civilytics logo onto every output figure via a knitr `fig.process` hook.
+Without `magick` it degrades to theme-only.
+
+### Determinism
+
+Figures inherit the pipeline's global seed (`11213`) and are **statistically
+reproducible, not bit-for-bit** (threaded Stan): estimates/intervals match to
+floating-point, figure pixels may differ trivially. Figure dimensions/DPI are
+pinned in each doc's YAML.
+
+### Download sizes
+
+| What | Size |
+|---|---|
+| Core (all docs; diagnostics from the table) | **~1.7 GB** (`stages/` <300 MB + `parquet/` 1.4 GB) |
+| + live pooled-model diagnostics | **~4.6 GB** (adds `stages/models/` ~2.9 GB) |
+
+See [`docs/data-stages.md`](docs/data-stages.md) for the per-artifact provenance map.
