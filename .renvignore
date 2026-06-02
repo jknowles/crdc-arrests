@@ -1,0 +1,17 @@
+# renv dependency-discovery ignores — keep renv.lock scoped to the modeling
+# pipeline source (_targets.R, R/, _packages.R, setup.R, api/).
+#
+# Scratch / generated / data directories (not pipeline source). Scanning these
+# both slows renv (1000s of files) and produces false "used" hits from one-off
+# scripts (e.g. binom in a tmp/ helper):
+tmp/
+export/
+_targets/
+cache/
+inst/
+#
+# Quarto report documents belong to Subsystem 3 (artifact reproduction —
+# deferred). They pull render-only packages (magick, shiny, tigris, flextable,
+# officer, ...) that are NOT part of the modeling pipeline. Re-enable the
+# relevant ones and re-snapshot when Subsystem 3 is built.
+*.qmd
