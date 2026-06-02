@@ -1,0 +1,33 @@
+test_that("stage_write_parquet writes a readable parquet round-trip", {
+  d <- tempfile(); dir.create(d)
+  df <- data.frame(a = 1:3, b = letters[1:3], stringsAsFactors = FALSE)
+  p  <- stage_write_parquet(df, file.path(d, "sub/x.parquet"))
+  expect_true(file.exists(p))
+  drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
+  on.exit({DBI::dbDisconnect(con, shutdown = TRUE); duckdb::duckdb_shutdown(drv)})
+  back <- DBI::dbGetQuery(con, sprintf("SELECT * FROM read_parquet('%s') ORDER BY a", p))
+  expect_equal(back$a, 1:3); expect_equal(back$b, letters[1:3])
+})
+
+test_that("stage_inputs_artifacts writes the 4 input parquets and returns paths", {
+  d <- tempfile()
+  ty  <- list(data = data.frame(LEAID = "1", ARRESTS = 2))
+  rd  <- list(data = data.frame(LEAID = "1", ARRESTS = 1))
+  cmd <- data.frame(LEAID = "1", YEAR = "21-22")
+  csd <- data.frame(LEAID = "1", name = "x")
+  out <- stage_inputs_artifacts(ty, rd, cmd, csd, dir = d)
+  expect_setequal(basename(out),
+    c("three_year_data.parquet", "recent_data.parquet",
+      "combined_model_data.parquet", "combined_sch_data.parquet"))
+  expect_true(all(file.exists(out)))
+})
+
+test_that("stage_crdc_artifacts writes one parquet per named element", {
+  d <- tempfile()
+  named <- list(full_crdc_data_y2122 = data.frame(x = 1),
+                model_data_y2122     = data.frame(y = 2))
+  out <- stage_crdc_artifacts(named, dir = d)
+  expect_setequal(basename(out),
+                  c("full_crdc_data_y2122.parquet", "model_data_y2122.parquet"))
+  expect_true(all(file.exists(out)))
+})
