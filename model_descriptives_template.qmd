@@ -481,7 +481,7 @@ tab_df |> filter(RACE == "TOTAL" & SEX == "TOTAL") |>
 #| warning: false
 #| message: false
 
-library(DT)
+library(flextable)
 
 arrests_by_group <- tab_df |>
   filter(RACE %in% c("WH", "BL", "AM", "HI")) |>  # Keep TOTAL in SEX but not RACE
@@ -490,22 +490,12 @@ arrests_by_group <- tab_df |>
   ungroup() |>
   select(RACE, SEX, lea_name, LEA_STATE, ARRESTS, arrest_rate, ccd_enroll, crdc_enroll)
 
-# Create interactive table
-datatable(arrests_by_group,
-  filter = list(
-    position = "top",
-    clear = FALSE,
-    list(
-      position = "top",
-      columns = c(0, 1) # Only RACE and SEX columns filterable
-    )
-  ),
-  options = list(
-    pageLength = 20,
-    autoWidth = TRUE,
-    order = list(list(4, 'desc')) # Sort by ARRESTS column
-  )
-)
+# Static table (top arrests per group), sorted by arrest count
+arrests_by_group |>
+  arrange(desc(ARRESTS)) |>
+  flextable() |>
+  set_table_properties(layout = "autofit") |>
+  theme_zebra()
 ```
 
 
@@ -539,22 +529,12 @@ arrestrates_by_group <- tab_df |>
   ungroup() |>
   select(RACE, SEX, lea_name, LEA_STATE, arrest_rate, ARRESTS, ccd_enroll, crdc_enroll)
 
-# Create interactive table
-datatable(arrestrates_by_group,
-  filter = list(
-    position = "top",
-    clear = FALSE,
-    list(
-      position = "top",
-      columns = c(0, 1) # Only RACE and SEX columns filterable
-    )
-  ),
-  options = list(
-    pageLength = 20,
-    autoWidth = TRUE,
-    order = list(list(4, 'desc')) # Sort by ARRESTS column
-  )
-)
+# Static table (top arrest rates per group), sorted by rate
+arrestrates_by_group |>
+  arrange(desc(arrest_rate)) |>
+  flextable() |>
+  set_table_properties(layout = "autofit") |>
+  theme_zebra()
 ```
 
 
