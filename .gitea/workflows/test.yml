@@ -59,7 +59,7 @@ jobs:
       - name: Install source-time deps (pak auto-installs system requirements; NO model packages)
         run: |
           Rscript -e 'install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.version$os, R.version$arch))'
-          Rscript -e 'pak::pak(c("targets","tarchetypes","tibble","dplyr","tidyr","future","future.callr","crew","DBI","duckdb","tidybayes","knitr"))'
+          Rscript -e 'pak::pak(c("targets","tarchetypes","tibble","dplyr","tidyr","future","future.callr","crew","DBI","duckdb","tidybayes","knitr","rmarkdown"))'
       - name: Validate pipeline graph (parses, loads, NO fitting)
         run: Rscript -e 'library(tarchetypes); targets::tar_validate()'
       - name: Validate render read-contract (docs read published artifacts, not the store)
