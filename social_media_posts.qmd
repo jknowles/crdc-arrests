@@ -64,7 +64,7 @@ ccd_ty <- read_stage_df("stages/inputs/combined_sch_data.parquet")
 crdc   <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
 
 # Logo overlay helper
-logo_file <- system.file("img", "civilytics_wordmark.png", package = "civilytics")
+logo_file <- system.file("img", "civilytics-wordmark.png", package = "civilytics")
 
 # Output dimensions (must match ragg_png/knitr fig.width & fig.height)
 fig_w <- 11  # inches
@@ -380,9 +380,7 @@ year_summary <- combined_data |>
     .groups = "drop"
   )
 
-p1 <-
-
-  (ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
+p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
   geom_point() +
   geom_line(group = 1) +
   geom_text(aes(label = pretty_count(total_arrests)), nudge_x = 0.15) +
@@ -392,13 +390,9 @@ p1 <-
   title = "Arrest trends across CRDC waves",
   subtitle = "Total arrests nationally.",
   caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22, 2017-18, and 2015-16") +
-  civilytics::theme_civilytics_dark_map()) |>
-  civilytics_logo(variant = "dark") |> grid::grid.draw()
+  civilytics::theme_civilytics_dark_map()
 
-civilytics_logo(p1)
-
-
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+grid::grid.draw(civilytics::civilytics_logo(p1, variant = "dark", position = "bottom-right"))
 
 
 ```
@@ -420,7 +414,7 @@ p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/100
   civilytics::theme_civilytics(font_size =14)
 
 
-add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 #plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
@@ -463,7 +457,7 @@ caption = "Source: U.S. Department of Education Civil Rights Data Collection, 20
   civilytics::theme_civilytics(font_size =14)
 
 
-add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 #plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
@@ -803,7 +797,7 @@ p1 <- ggplot(plotdf[plotdf$RACE== "TOTAL",],
        title = "CV for Arrest Rates by Total Enrollment",
        y = "CV (% scale)")
 
-add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 
 ```
 
@@ -865,7 +859,7 @@ p1 <- ggplot(plotdf[plotdf$RACE == "TOTAL",],
        caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22",
        y = "CV (% scale)")
 
-add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 
 
 ```
@@ -938,7 +932,7 @@ pw <- pw + plot_annotation(title = "Coefficient of Variation by District Total E
   theme(legend.position = "bottom", axis.text.x = element_text(angle = -20),
         panel.grid.major.y = element_line(color = "gray80"))
 
-add_logo_overlay(pw, fig_w = 11, fig_h = 7)
+grid::grid.draw(civilytics::civilytics_logo(pw, position = "bottom-right"))
 
 ```
 
@@ -988,7 +982,7 @@ pw <- ggplot(nat_sg_totals |> mutate(SEX = ifelse(SEX == "M", "Male students", "
                     labels = scales::comma) +
   theme(legend.position = "bottom", axis.ticks.x = element_blank())
 
-add_logo_overlay(pw, fig_w = 11, fig_h = 7)
+grid::grid.draw(civilytics::civilytics_logo(pw, position = "bottom-right"))
 
 
 
@@ -1033,7 +1027,7 @@ p1 <- dist_ref_arr %>%
   theme(legend.position = "inside",
     legend.position.inside = c(0.8, 0.2))
 
-add_logo_overlay(p1, fig_w = 11, fig_h = 7)
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 ```
 
 
@@ -1442,7 +1436,7 @@ p1 <- ggplot(result, aes(x = pred, y = model_label, group = model_label)) +
     panel.grid.major.y = element_line(color = "gray50"),
     axis.text.y = element_text(angle = 90, hjust = -0.5))
 
-add_logo_overlay(p1, fig_w = 12, fig_h = 8, side = "left")
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
 
 ```
 
@@ -1825,7 +1819,7 @@ pfull <- p2+ p1 + p4 + p3  + plot_annotation(
   subtitle = 'Frequency of predicted arrests from 500 draws of posterior for each model'
 )
 
-add_logo_overlay(pfull, fig_w = 12, fig_h = 10, side = "left")
+grid::grid.draw(civilytics::civilytics_logo(pfull, position = "bottom-left"))
 
 ```
 
