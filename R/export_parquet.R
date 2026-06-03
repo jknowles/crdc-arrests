@@ -8,8 +8,16 @@ library(DBI)
 #' a 63 GB box; this does not. Partition scheme (model_id, YEAR, LEA_STATE) and
 #' within-shard sort (LEAID, RACE, SEX) are unchanged, so output shape is identical.
 #'
+#' Idempotent + verified: `out_dir` is cleared before writing so re-running
+#' cannot leave orphan shard files from a prior run (the cause of the 2026-06
+#' within-YEAR duplicate-rows bug — `OVERWRITE_OR_IGNORE` overwrites same-named
+#' shards but never deletes ones the new run doesn't recreate, and the
+#' per-partition shard count is nondeterministic). After writing, per-model row
+#' counts are checked against the source DB and the function errors on mismatch.
+#'
 #' @param draws_con open DBI connection holding `predicted_draws`.
-#' @param out_dir output directory (created if missing).
+#' @param out_dir output directory. WARNING: cleared (recursive unlink) at the
+#'   start of each call to guarantee an idempotent, orphan-free export.
 #' @param memory_limit optional DuckDB memory_limit, e.g. "24GB" (NULL = leave default).
 #' @param threads optional DuckDB thread cap (NULL = leave default).
 #' @param temp_dir optional spill directory for temp_directory (NULL = leave default).
@@ -17,6 +25,14 @@ export_draws_parquet <- function(draws_con, out_dir,
                                  memory_limit = NULL, threads = NULL,
                                  temp_dir = NULL) {
   stopifnot(!grepl("'", out_dir))
+  # Idempotency guard: a re-run MUST start from an empty target. The per-model
+  # COPY below uses OVERWRITE_OR_IGNORE, which overwrites same-named shard files
+  # (data_0.parquet, ...) but never deletes shards a prior run wrote that this
+  # run does not reproduce. Because the per-partition shard count is
+  # nondeterministic (thread scheduling), re-running in place silently leaves
+  # orphan shards -> exact duplicate rows. Clearing first makes export idempotent.
+  stopifnot(nzchar(out_dir), !out_dir %in% c(".", "./", "/", ".."))
+  unlink(out_dir, recursive = TRUE, force = TRUE)
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
   if (!is.null(temp_dir)) {
@@ -50,5 +66,27 @@ export_draws_parquet <- function(draws_con, out_dir,
       m, out_dir)
     DBI::dbExecute(draws_con, sql)
   }
+
+  # Defense in depth: assert the exported parquet has EXACTLY the source DB's
+  # per-model row counts. A silent orphan/duplicate-shard regression (or a
+  # partial write) would inflate or shrink these; fail loudly rather than
+  # publish corrupt data. Counts come from parquet metadata, so this is cheap.
+  db_counts <- DBI::dbGetQuery(
+    draws_con,
+    "SELECT model_id, COUNT(*) AS n FROM predicted_draws GROUP BY model_id")
+  pq_counts <- DBI::dbGetQuery(
+    draws_con,
+    sprintf("SELECT model_id, COUNT(*) AS n
+               FROM read_parquet('%s/**/*.parquet', hive_partitioning = true)
+              GROUP BY model_id", out_dir))
+  cmp <- merge(db_counts, pq_counts, by = "model_id",
+               all = TRUE, suffixes = c("_db", "_parquet"))
+  mismatch <- cmp[is.na(cmp$n_db) | is.na(cmp$n_parquet) | cmp$n_db != cmp$n_parquet, ]
+  if (nrow(mismatch) > 0L) {
+    stop("export_draws_parquet: exported parquet row counts != source DB ",
+         "(possible orphan/duplicate shards or partial write):\n",
+         paste(utils::capture.output(print(mismatch)), collapse = "\n"))
+  }
+
   invisible(out_dir)
 }
