@@ -52,3 +52,17 @@ test_that("stage_pooled_fits writes one qs2 per pooled model, round-trips", {
   expect_setequal(basename(out), c("pooled_m1.qs2", "pooled_m2.qs2"))
   expect_equal(qs2::qs_read(out[grepl("pooled_m1", out)])$tag, "A")
 })
+
+test_that("stage_write_parquet sanitizes non-UTF8 (Windows-1252) strings", {
+  d <- tempfile(); dir.create(d)
+  df <- data.frame(
+    name = c("Opportunities for Learning \x96 Duarte", "plain ascii"),
+    stringsAsFactors = FALSE)
+  expect_false(all(validUTF8(df$name)))             # input has invalid UTF8
+  p <- stage_write_parquet(df, file.path(d, "u.parquet"))
+  drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
+  on.exit({DBI::dbDisconnect(con, shutdown = TRUE); duckdb::duckdb_shutdown(drv)})
+  back <- DBI::dbGetQuery(con, sprintf("SELECT * FROM read_parquet('%s') ORDER BY name", p))
+  expect_true(all(validUTF8(back$name)))            # round-trips as valid UTF8
+  expect_true(any(grepl("Duarte", back$name)))      # content preserved
+})

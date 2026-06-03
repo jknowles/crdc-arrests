@@ -5,9 +5,22 @@
 #' a stranger can render the docs without the 7-day run. Reads stay native;
 #' these are write-side helpers.
 
+#' Coerce a vector's strings to valid UTF-8. Parquet requires UTF-8; some CRDC
+#' source strings (e.g. school names) carry Windows-1252 bytes such as 0x96
+#' (en-dash) that DuckDB rejects on read. Only invalid-UTF-8 entries are
+#' re-encoded (from Windows-1252, the common source); valid UTF-8 passes through.
+.stage_to_utf8 <- function(x) {
+  if (is.factor(x)) { levels(x) <- .stage_to_utf8(levels(x)); return(x) }
+  if (!is.character(x)) return(x)
+  bad <- !validUTF8(x)
+  if (any(bad)) x[bad] <- iconv(x[bad], from = "windows-1252", to = "UTF-8", sub = "?")
+  enc2utf8(x)
+}
+
 #' Write a data.frame to a parquet file via DuckDB (no arrow dependency).
 stage_write_parquet <- function(df, path) {
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  df[] <- lapply(df, .stage_to_utf8)                # parquet requires valid UTF-8
   drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
   on.exit({DBI::dbDisconnect(con, shutdown = TRUE); duckdb::duckdb_shutdown(drv)})
   duckdb::duckdb_register(con, "df_tmp", df)
