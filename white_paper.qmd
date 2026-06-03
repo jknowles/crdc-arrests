@@ -23,7 +23,26 @@ knitr:
 ---
 
 <!-- PORTED from inst/AERA Final Report Knowles Miller_preprint.docx (Word source).
-     Task 18 replaces the static figures/tables below with artifact-backed chunks. -->
+     Figures/tables are artifact-backed (Task 18): builders live in R/paper_figures.R
+     and read the published draws view + staged parquet via crdc_path(). -->
+
+```{r}
+#| label: setup
+#| include: false
+library(ggplot2); library(ggridges); library(patchwork)
+library(dplyr); library(tidyr); library(stringr); library(knitr)
+library(duckdb)                           # attaches DBI (dbGetQuery) for get_prediction_*()
+source("R/funs.R")
+source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
+cv_apply_branding()                       # civilytics theme + logo on every figure
+h <- open_draws_view(); con <- h$con      # predicted_draws view over published parquet
+rdata       <- read_stage_df("stages/inputs/recent_data.parquet")
+tydata      <- read_stage_df("stages/inputs/three_year_data.parquet")
+crdc_2122   <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
+model_stats <- with_model_labels(read_stage_df("stages/diagnostics/model_stats.parquet"))
+options(scipen = 9)
+```
+
 Jared Knowles, Civilytics Consulting
 
 Hannah Miller, Civilytics Consulting
@@ -76,10 +95,13 @@ For arrest records with a reserve code, we treat the value as 0 and retain them.
 
 The result is a dataset with 48.5 million students enrolled in the schools included in the CRDC in 2021-22 and a national school-related arrest rate of 0.72 out of every 1,000 students. White students had 0.51 arrests per 1,000 students, Hispanic students 0.65, American Indian students 1.16, and Black students 1.62 arrests per 1,000 students. Male students had an arrest rate of 0.92 arrests per 1,000 while female students were at 0.50. The difference in the arrest rates of male and female students (0.42 difference) is smaller than the difference in arrests rates of White students and Black or American Indian students (differences of 1.11 and 0.65, respectively). Disaggregating by race and sex reveals even greater disparities: rates by student group vary from a high of 2 out of 1,000 Black male students to a low of 0.34 out of 1,000 White female students. These are shown in Figure 1 below.
 
-<figure>
-<img src="inst/paper_media/media/image1.png" style="width:4.64861in;height:3.50556in" alt="A graph of different colored columns AI-generated content may be incorrect." />
-<figcaption><p>Figure 1: 2021-22 National arrest rates by select student groups</p></figcaption>
-</figure>
+```{r}
+#| label: fig-national-rates
+#| fig-cap: "2021-22 National arrest rates by select student groups"
+#| fig-width: 10
+#| fig-height: 7
+wp_fig_national_rates(crdc_2122)
+```
 
 We include "referrals to law enforcement" as a predictor. Referrals to law enforcement are defined as "an action by which a student is reported by a school official or that official's designee to any law enforcement agency or official, such as a school police unit, for an incident that occurs on school grounds, during school-related events (in-person or remote), or while taking school transportation, regardless of whether official action is taken." Data on referrals is reported at the same level (school) and in the same manner (by race/ethnicity, sex, and disability status) as arrest data and we treat reserve codes in these variables the same. Like arrests, the number of referrals also declined across the three waves of the CRDC we use, although much less dramatically.
 
@@ -420,10 +442,15 @@ The first example examines how Bayesian prediction models differ from frequentis
 
 In the case of no arrests, the observed interval is constant -- from 0 to 3 -- and shown in gray alongside the Bayesian prediction interval in blue for each of our 10 models. The models are sorted into one-year specifications on the left and three-year specifications on the right. We see that the one-year models, except for stratified model 1, have much narrower intervals than the frequentist interval, confirming the advantage of the modeling methodology for increasing precision in cases without an arrest.
 
-<figure>
-<img src="inst/paper_media/media/image2.png" style="width:5.57014in;height:5.57014in" alt="A screenshot of a graph AI-generated content may be incorrect." />
-<figcaption><p>Figure 2: Model predictions for Paterson NJ arrests compared to frequentist interval with 0 reported arrests</p></figcaption>
-</figure>
+```{r}
+#| label: fig-paterson-intervals
+#| fig-cap: "Model predictions for Paterson NJ arrests compared to frequentist interval with 0 reported arrests"
+#| fig-width: 10
+#| fig-height: 10
+wp_fig_district_intervals(con, rdata, "3412690",
+  "Observed arrests are 0, frequentist interval given by the rule of 3.",
+  title_wrap = 90, grid = TRUE)
+```
 
 However, these models still suggest that 0 arrests is the median estimate (the point). Here the three-year models disagree. Intervals for the three-year models are all wider than the frequentist interval and the median estimated arrests is greater than 0. Models without covariates (model 3) suggest that more than 10 arrests are most likely. The reason becomes clear when we look at the underlying data and see Paterson reported 47 arrests in 2015-16 and 11 arrests in 2017-18. The three-year models are incorporating this information, which expands their intervals. But, with Bayesian models, we can go beyond simple point intervals, as we show in the next figure.
 
@@ -433,10 +460,13 @@ The one-year models agree that 0 is the most likely arrest number for Paterson, 
 
 Things are more interesting with the three-year models. Without covariates, these models are very confident that there are more than 0 arrests in Paterson, but uncertain about exactly how many, with a relatively flat distribution of likely arrest counts ranging from 8 to 15, and a substantial tail at 16 or more arrests (top right panel; note change in x-axis -- arrest counts are truncated at 16 for visual clarity). These models confidently rule out 0 arrests and cannot confidently rule out as many as 16 missing arrests.
 
-<figure>
-<img src="inst/paper_media/media/image3.png" style="width:5.59722in;height:5.59722in" alt="A graph of different models AI-generated content may be incorrect." />
-<figcaption><p>Figure 3: Distribution of predicted arrests for Paterson NJ across all models</p></figcaption>
-</figure>
+```{r}
+#| label: fig-paterson-distribution
+#| fig-cap: "Distribution of predicted arrests for Paterson NJ across all models"
+#| fig-width: 10
+#| fig-height: 10
+wp_fig_zero_distribution(con, rdata, "3412690")
+```
 
 Adding covariates greatly changes the picture, shifting the distribution of expected arrests downward, with 3 to 4 arrests now being the most likely. These models still rule out 0 arrests with 95% probability but cannot rule out only 1 arrest. The three-year models all differ greatly from the one-year models, which we expect when incorporating the prior information about Paterson into the model. However, we also see that the impact of the covariates is substantial because in 2021-22 Paterson reported 0 referrals to law enforcement; this absence of referrals provides additional information to the model that the prediction should be pushed toward 0.
 
@@ -446,17 +476,24 @@ Taken together, these models give us three ways to think about the likelihood of
 
 Now we turn our attention to the other end of the scale: how the models perform when there are many observed arrests. Consider the case of Mobile County, Alabama, a district with 25,745 students which reported 139 arrests (5.4 arrests per 1,000 students). In the figure below, in all models except unified models 4 and 5, the observed interval in gray is narrower than the modeled intervals in blue. Again, the biggest distinctions among models are between one-year models (left side), which closely track the frequentist interval but are wider; the three-year models without covariates (top right), which tend toward *more* arrests than the frequentist interval; and the three-year models with covariates (bottom right), which tend toward *fewer* arrests than the frequentist interval.
 
-<figure>
-<img src="inst/paper_media/media/image4.png" style="width:5.32708in;height:5.32708in" alt="A screenshot of a graph AI-generated content may be incorrect." />
-<figcaption><p>Figure 4: Model predictions for Mobile County, AL arrests compared to frequentist interval</p></figcaption>
-</figure>
+```{r}
+#| label: fig-mobile-intervals
+#| fig-cap: "Model predictions for Mobile County, AL arrests compared to frequentist interval"
+#| fig-width: 10
+#| fig-height: 10
+wp_fig_district_intervals(con, rdata, "0102370",
+  "Frequentist interval shown in gray.", title_wrap = 120, grid = FALSE)
+```
 
 As we saw above, we can go beyond intervals and look at the distribution of likely arrests from the models. In the next figure, we plot the distribution of the draws from each model as density ridges with the 95% Bayesian highest posterior density (HPD) distribution represented in color and the full posterior distribution shown behind it in gray. The frequentist interval is represented as the black point interval. We see the one-year models on the left are all very similar, with the baseline models nearly perfectly recreating the frequentist interval and the stratified models having a wider tail. None of the three-year models align with the one-year models. The baseline models (top right) are shifted to the right (higher expected arrests), and the covariate models (bottom right) are shifted to the left (fewer expected arrests). In all cases, the HPD from the Bayesian models does still intersect with the frequentist interval.
 
-<figure>
-<img src="inst/paper_media/media/image5.png" style="width:4.93889in;height:4.93889in" alt="A screenshot of a graph AI-generated content may be incorrect." />
-<figcaption><p>Figure 5: Distribution of predicted arrests for Mobile County, AL across all models compared to frequentist interval</p></figcaption>
-</figure>
+```{r}
+#| label: fig-mobile-distribution
+#| fig-cap: "Distribution of predicted arrests for Mobile County, AL across all models compared to frequentist interval"
+#| fig-width: 10
+#| fig-height: 10
+wp_fig_hpd_ridges(con, rdata, "0102370")
+```
 
 ### A case study comparing differences
 
@@ -464,17 +501,23 @@ One of the major motivations for modeling arrest rates is to improve our ability
 
 In all cases, the Bayesian models agree that Black male students have a meaningfully different arrest rate than the other groups, though without covariates, unified models 1 and 3 predict the rate should be much lower than the frequentist estimate. In all cases, we observe substantial overlap in the distributions of Hispanic and White male students, though, in some cases like the covariate three-year models (bottom right panel), there is more distinction between the two distributions.
 
-<figure>
-<img src="inst/paper_media/media/image6.png" style="width:5.09931in;height:5.09931in" alt="A screenshot of a graph AI-generated content may be incorrect." />
-<figcaption><p>Figure 6: Distribution of model arrest rate estimates for male students by race in Clark County, NV</p></figcaption>
-</figure>
+```{r}
+#| label: fig-clark-density
+#| fig-cap: "Distribution of model arrest rate estimates for male students by race in Clark County, NV"
+#| fig-width: 10
+#| fig-height: 10
+wp_fig_group_density(con, rdata, "3200060")
+```
 
 However, the difference in these intervals is not the same as the interval of the difference. With our Bayesian posterior samples, we can directly compute the distribution of the difference between White and Hispanic male students and plot that just like we have plotted the predicted values above. In the next figure we repeat the predicted arrest rates for White and Hispanic students in the top half of the figure, and, in the bottom half, plot the distribution of the model calculated difference between them. Even though the distributions have some overlap, particularly in the one-year models, when we calculate the difference directly, we see that all models predict a higher arrest rate for Hispanic students at least 84% of the time (Unified Model 1) and as much as 100% of the time (Stratified Model 4).
 
-<figure>
-<img src="inst/paper_media/media/image7.png" style="width:5.76389in;height:4.80347in" alt="A screenshot of a graph AI-generated content may be incorrect." />
-<figcaption><p>Figure 7: Estimates of the Hispanic - White arrest rate disparity for male students in Clark County, NV</p></figcaption>
-</figure>
+```{r}
+#| label: fig-clark-disparity
+#| fig-cap: "Estimates of the Hispanic - White arrest rate disparity for male students in Clark County, NV"
+#| fig-width: 12
+#| fig-height: 10
+wp_fig_group_difference(con, rdata, "3200060")
+```
 
 This example shows us the applied power of the Bayesian approach, which allows us to use draws from the posterior to calculate quantities of interest instantly as well as compute their probability in a straightforward way that allows us to answer questions using plain probability statements.
 
@@ -482,10 +525,13 @@ This example shows us the applied power of the Bayesian approach, which allows u
 
 Finally, we return to Table 1, where we compared state arrest rates for selected demographic groups. We can now use the modeling approach to assess if there are differences for the selected demographic groups. As we discussed above, the frequentist intervals, shown in the top half of the figure as point ranges, are all overlapping due to the small sample sizes involved. For clarity we present two model specifications (one unified model, one stratified model). In the bottom panel, we present the distribution of the model predicted differences for two of the comparisons. In none of these cases do our models allow us to rule out the groups having the same rate -- the sample size remains too small and the distributions too similar-- but, depending on our use case, the information we do get can be useful. In the bottom left, there is up to an 80% probability that Colorado American Indian and Alaska Native students have a higher arrest rate than their Alaskan counterparts. In the bottom right, the two models do not agree whether Black or American Indian and Alaska Native students have higher arrest rates within Alaska -- the stratified model predicts that Black students most likely have a higher arrest rate while the unified model predicts the opposite. In both cases, using statistical models allows us to examine these comparisons in more depth than either using the raw reported arrest counts or the frequentist arrest rate intervals.
 
-<figure>
-<img src="inst/paper_media/media/image8.png" style="width:5.84375in;height:4.86944in" alt="A screenshot of a graph AI-generated content may be incorrect." />
-<figcaption><p>Figure 8: Reevaluating estimates of state level arrest rate differences by student group from Table 1</p></figcaption>
-</figure>
+```{r}
+#| label: fig-state-differences
+#| fig-cap: "Reevaluating estimates of state level arrest rate differences by student group from Table 1"
+#| fig-width: 10
+#| fig-height: 10
+wp_fig_state_differences(con, rdata)
+```
 
 These examples are provided to illustrate how the investment in modeling sparse and rare events like arrest rates can make it easier to analyze and compare differences across geography, time, and demographic groups. By leveraging more information, we can increase the precision of our estimates, unlocking more potential comparisons, and by leveraging posterior-based inference to directly compute quantities of interest like group differences, we can construct a distribution of those differences and express them as probabilities. Using this approach can make it easier for more users of these data to confidently make probability assessments about differences between and changes in arrest rates.
 
