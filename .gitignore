@@ -1,5 +1,6 @@
 *.knit.md
 *.html
+*_files/
 /export
 /cache
 /.crdc-cache
