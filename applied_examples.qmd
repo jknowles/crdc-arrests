@@ -1231,7 +1231,10 @@ obsv_focal <- rdata |> filter(LEAID == focal_dist) |>
   filter(RACE %in% c("WH", "HI"))
 
 dist_draws <- get_prediction_draws(con,  LEAID = focal_dist, YEAR = "21-22",
-                            SEX = "F", RACE = c("WH", "HI"))
+                            SEX = "F", RACE = c("WH", "HI")) |>
+  dplyr::distinct()   # published draws contain exact-duplicate rows for some
+                      # district-subgroups (e.g. Broward WH_F); drop them so the
+                      # per-group difference (pred[RACE=="WH"]) is unambiguous
 
 plot_draws <- inner_join(dist_draws, obsv_focal |> select(YEAR:RACE, stu_enroll, ARRESTS)) |>
   filter(!grepl("_m5", model_id))
