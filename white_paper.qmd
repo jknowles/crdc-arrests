@@ -121,19 +121,11 @@ The classical approach to handling these challenges is to apply two statistical 
 
 Unfortunately, this classical approach has limitations in cases of extremely rare events. To show this, let's look at how this approach works in four cases of state student-group arrest rates from the 2021-22 CRDC. Table 1 shows the arrest rate and the Agresti-Coull approximate 95% confidence interval for the rate for four student groups. The rate and interval are adjusted to be per 1,000 students.
 
-  ----------------------------------------------------------------------------------------------------------------------------
-  **Observation**                           **Arrests**   **Enrollment**   **Rate per 1,000**   **95% interval (per 1,000)**
-  ----------------------------------------- ------------- ---------------- -------------------- ------------------------------
-  AK Black Female                           0             922              0                    0 -- 3.13
-
-  AK Black Male                             2             960              2.08                 0 -- 6.14
-
-  AK American Indian / Alaska Native Male   4             11,052           0.36                 0 -- 0.79
-
-  CO American Indian / Alaska NativeMale    2             1,816            1.10                 0 -- 3.25
-  ----------------------------------------------------------------------------------------------------------------------------
-
-  : Table 1: Illustrating four sample state arrest rates
+```{r}
+#| label: tbl-state-rates
+#| tbl-cap: "Illustrating four sample state arrest rates"
+knitr::kable(wp_table_state_rates(con, rdata))
+```
 
 In comparing the first two rows of the table, we see that, after we apply the "Rule of Three" for the case with 0 arrests, the 95% interval for Black male students completely overlaps the interval for Black female students, despite the large difference in their observed arrest rates. Based on these confidence intervals, we cannot rule out that there is no difference between these student groups. Moving to rows 3 and 4, we compare across states and across two populations with very different enrollment sizes but with a difference of only two observed arrests. Colorado American Indian / Alaska Native male students have a much higher observed rate of arrest than their Alaskan counterparts. However, the Colorado arrest rate is based on a much smaller population and so has a much wider 95% interval, which completely encompasses the Alaskan student interval. In fact, while we may be tempted to interpret this table by saying that the Alaskan American Indian male students in row 3 are different because of their much narrower interval than all other student groups in the table, this would be incorrect. We cannot interpret "most likely values" within these intervals, so, although the Alaskan American Indian male interval only ranges from 0 to 0.79, we cannot determine the probability that this arrest rate truly differs from the other groups in a meaningful way since all the other intervals still encompass it.
 
@@ -271,6 +263,13 @@ Results from the full sample evaluate models across the range of arrest rates (f
 Our expectation is that the unified models will have worse coverage but greater precision than their stratified counterparts. We also hypothesize that models 1 and 2 fit to one year of data will have higher coverage, but wider intervals than model 3 through 5 fit to multiple years of data. We expect our limited covariates (Models 2, 4, and 5) to provide some improvement in terms of more precise intervals, but to not be as significant as additional years of data (Models 3 through 5).
 
 In addition to our expectation that the Bayesian intervals will have good coverage and improved precision, they have two other distinct advantages. First, the Bayesian approach has a more satisfying interpretation: the Bayesian prediction intervals we construct represent the intuitive interpretation of prediction intervals---that there is a 95% probability that the true arrest rate lies between the boundaries of the interval. The confidence interval does not have this straightforward interpretation, though it is often treated as such (Gelman & Hill, 2006). Second, by using models, we can construct prediction intervals for any comparisons we wish to make, such as comparing arrest rates between student groups in a district, across districts, or within a district over time. We can use the draws of the posterior distribution to instantly calculate the average difference, its most likely interval, and visualize the results. We close the paper with some applied examples illustrating how these properties of model prediction intervals aid our interpretation of arrest rates for specific districts.
+
+<!-- TODO(artifact-repro): Tables 3-6 below are the model coverage/precision
+     results, still the ported-static values. Wiring them to artifacts means
+     factoring results.qmd's coverage/precision computation (covered / shrinkage /
+     improved-precision over the draws view) into a shared builder, applied to the
+     four sample definitions (full / with-arrest / 100-most-arrests /
+     100-no-arrests). Deferred per Task 18 scope. -->
 
 ## Results
 
@@ -528,7 +527,7 @@ Finally, we return to Table 1, where we compared state arrest rates for selected
 ```{r}
 #| label: fig-state-differences
 #| fig-cap: "Reevaluating estimates of state level arrest rate differences by student group from Table 1"
-#| fig-width: 10
+#| fig-width: 12
 #| fig-height: 10
 wp_fig_state_differences(con, rdata)
 ```
@@ -557,31 +556,11 @@ The frequentist approach has one significant advantage over Bayesian modeling: i
 
 To help guide future research applying models to sparse and rare events, we report the computation time, dataset size, and number of estimated parameters for our unified and stratified models below. We show how the time to fit models scales with the complexity of the model and the size of the dataset. For unified models we report the runtime to complete all four sampler chains; for the stratified models we report the sum of the runtime for the model fit to each of the eight subsets. We also report the number of parameters each model estimated. For unified models this includes the random intercepts and fixed effects. For the stratified models, it includes the sum of those parameters for each of the eight model subsets. Finally, some models required a longer sampling run -- in terms of the number of iterations --to converge and provide stable results. In general, more complex models require a greater number of iterations to achieve convergence among the sampler chains and produce reliable estimates. We report the number of iterations per chain as it has a significant impact on runtime. Where necessary, more iterations were used to ensure that the sampling chains converged and that enough effective samples were obtained for analysis of the posterior.
 
-  -----------------------------------------------------------------------------------
-  Models         Runtime in minutes   Data rows   Parameters   Iterations per chain
-  -------------- -------------------- ----------- ------------ ----------------------
-  Unified 1      51.3                 106,703     16,279       3,500
-
-  Unified 2      50.4                 106,703     16,340       3,500
-
-  Unified 3      285                  307,468     17,101       3,500
-
-  Unified 4      287                  307,468     17,102       4,000
-
-  Unified 5      288                  307,468     17,103       4,000
-
-  Stratified 1   22                   106,703     107,127      2,000 (x 8 models)
-
-  Stratified 2   31.2                 106,703     107,135      3,500 (x 8 models)
-
-  Stratified 3   98.8                 307,468     120,971      3,500 (x 8 models)
-
-  Stratified 4   167                  307,468     121,512      4,300 (x 8 models)
-
-  Stratified 5   149.2                307,468     121,528      4,000 (x 8 models)
-  -----------------------------------------------------------------------------------
-
-  : Table A1: Model computation times
+```{r}
+#| label: tbl-computation
+#| tbl-cap: "Model computation times"
+knitr::kable(wp_table_computation(model_stats))
+```
 
 All models computed in R using the brms package to fit STAN models via the CMDSTANR interface. All models converged and showed no diagnostic issues with all parameter Rhat values being less than 1.01. Models were computed on a MacStudio M3 Ultra with 4 parallel chains with multithreading enabled at 4 threads per chain, requiring a total of 16 computer cores. Computing the multiyear models required a minimum of 64GB of RAM.[^19] Enabling within-chain threading improved performance for most models, though a full analysis of the best performing settings for the computational environment is outside of the scope of this work.
 

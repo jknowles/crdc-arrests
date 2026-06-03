@@ -423,50 +423,153 @@ wp_fig_group_difference <- function(con, rdata, focal_dist) {
   p2 / p1
 }
 
-#' Fig 8: state-level arrest-rate estimates (2021-22) for two specs
-#' (unified m3, stratified m2) vs the frequentist point interval, faceted.
-wp_fig_state_differences <- function(con, rdata) {
-  state_draws <- get_state_prediction_draws(con, LEA_STATE = "ALL", YEAR = "21-22",
+# Shared 4-group state data for Fig 8 + Table 1 (AK/CO, Black/Amer.Ind, M/F).
+# keep_ids = the four groups the paper highlights from Table 1.
+.wp_state_group_data <- function(con, rdata) {
+  draws <- get_state_prediction_draws(con, LEA_STATE = c("AK", "CO"), YEAR = "21-22",
     model = c("nat_m1_mod", "nat_m2_mod", "nat_m3_mod", "nat_m4_mod",
               "sg_m1_mod", "sg_m2_mod", "sg_m3_mod", "sg_m4_mod"),
-    RACE = "ALL", SEX = "ALL")
-  state_obsv <- rdata |> dplyr::group_by(LEA_STATE, YEAR) |>
+    RACE = c("BL", "AM"), SEX = c("M", "F"))
+  obsv <- rdata |> dplyr::filter(LEA_STATE %in% c("AK", "CO")) |>
+    dplyr::group_by(LEA_STATE, YEAR, RACE, SEX) |>
     dplyr::summarize(arrests = sum(ARRESTS), enroll = sum(stu_enroll), .groups = "drop") |>
     dplyr::rowwise() |>
     dplyr::mutate(ci_upper = agresti_coull(arrests, enroll, 0.95)[1],
                   ci_lower = agresti_coull(arrests, enroll, 0.95)[2], type = "observed") |>
     dplyr::ungroup()
-  facet_state <- function(x) {
-    y <- rep(1, length(x))
-    y[x %in% state.abb[13:25]] <- 3; y[x %in% state.abb[26:37]] <- 2
-    y[x %in% state.abb[38:50]] <- 4
-    y[x == "DC"] <- 1; y[x == "PR"] <- 3; y[x == "VI"] <- 4
-    y
-  }
-  plot_draws <- dplyr::inner_join(state_draws,
-      dplyr::select(state_obsv, LEA_STATE, YEAR, arrests, enroll),
-      by = c("LEA_STATE", "YEAR")) |>
+  plot_draws <- dplyr::inner_join(draws,
+      dplyr::select(obsv, LEA_STATE, RACE, SEX, YEAR, arrests, enroll),
+      by = c("LEA_STATE", "RACE", "SEX", "YEAR")) |>
     dplyr::mutate(arr_rate = 1000 * fitted_value / enroll)
-  state_obsv <- dplyr::mutate(state_obsv, arr_rate = 1000 * arrests / enroll)
-  ggplot2::ggplot(dplyr::filter(plot_draws, model_id %in% c("nat_m3_mod", "sg_m2_mod")),
-      ggplot2::aes(x = arr_rate, y = LEA_STATE, fill = model_id)) +
-    ggridges::geom_density_ridges(scale = 1.5, rel_min_height = 0.01, alpha = 3/5,
-                                  bandwidth = 0.1) +
-    ggplot2::geom_pointrange(data = state_obsv,
-      ggplot2::aes(y = LEA_STATE, x = arr_rate, fill = NULL,
-        xmin = ci_lower / (enroll / 1000), xmax = ci_upper / (enroll / 1000)),
+  obsv <- obsv |> dplyr::filter(RACE %in% c("BL", "AM")) |>
+    dplyr::mutate(arr_rate = 1000 * arrests / enroll,
+                  rowid = paste(LEA_STATE, RACE, SEX, sep = "-"))
+  plot_draws$rowid <- paste(plot_draws$LEA_STATE, plot_draws$RACE, plot_draws$SEX, sep = "-")
+  list(plot_draws = plot_draws, obsv = obsv,
+       keep_ids = c("AK-BL-M", "AK-BL-F", "AK-AM-M", "CO-AM-M"))
+}
+
+.wp_parse_state_row <- function(x) {
+  y <- x
+  y[x == "AK-BL-M"] <- "AK Black \nMale"
+  y[x == "AK-BL-F"] <- "AK Black \nFemale"
+  y[x == "AK-AM-M"] <- "AK Amer. Indian \nAlaska Native Male"
+  y[x == "CO-AM-M"] <- "CO Amer. Indian \nAlaska Native Male"
+  y
+}
+
+#' Fig 8: reevaluating Table 1's four state demographic groups with the models.
+#' Top: modeled density + frequentist interval for each group (unified m3,
+#' stratified m2). Bottom: model-estimated differences (CO vs AK Amer.Ind;
+#' Black vs Amer.Ind within AK).
+wp_fig_state_differences <- function(con, rdata) {
+  d <- .wp_state_group_data(con, rdata)
+  pd <- d$plot_draws; obsv <- d$obsv; keep_ids <- d$keep_ids
+  two <- c("nat_m3_mod", "sg_m2_mod")
+  p1 <- ggplot2::ggplot(pd |> dplyr::filter(rowid %in% keep_ids, model_id %in% two),
+      ggplot2::aes(x = fitted_value / (enroll / 1000), y = rowid, fill = model_id)) +
+    ggridges::geom_density_ridges(scale = 1, from = 0, to = 9, rel_min_height = 0.01,
+                                  alpha = 3/5, bandwidth = 0.4) +
+    ggplot2::geom_pointrange(data = dplyr::filter(obsv, rowid %in% keep_ids),
+      ggplot2::aes(y = rowid, x = arr_rate, fill = NULL,
+        xmin = 1000 * ci_lower / enroll, xmax = 1000 * ci_upper / enroll),
       show.legend = FALSE, position = ggplot2::position_nudge(y = 0.35)) +
-    ggplot2::facet_wrap(~facet_state(LEA_STATE), scales = "free_y") +
-    ggplot2::scale_x_continuous(expand = ggplot2::expansion(0, 0)) +
-    ggplot2::scale_y_discrete(limits = rev) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(0, 0),
+      labels = function(x) .wp_parse_state_row(x)) +
     ggplot2::scale_fill_manual(values = c("#d55c00a9", "#0071b2c5"),
       labels = function(x) print_model_name(x, lbreak = FALSE)) +
-    ggplot2::labs(title = "State arrest rate estimates, 2021-22",
-      x = "Arrest rate per 1,000", y = "", fill = "Model:") +
     ggplot2::coord_cartesian(clip = "off") +
-    ggridges::theme_ridges(grid = FALSE, font_size = 14) +
-    ggplot2::theme(strip.background = ggplot2::element_blank(),
-      strip.text.x = ggplot2::element_blank(), legend.position = "bottom")
+    ggridges::theme_ridges(grid = FALSE, font_size = 12) +
+    ggplot2::labs(x = "Arrests per 1,000", y = "", fill = "Model",
+      title = "Bayesian modeled arrest rate predictions for selected state demographic groups") +
+    ggplot2::theme(legend.position = "bottom",
+      axis.text.y = ggplot2::element_text(angle = 90, hjust = 0.5))
+  diff_panel <- function(ids, label_a, label_b, ann_x, ann_label, ttl, sub = NULL,
+                         from = -1.25, to = NULL) {
+    da <- pd |> dplyr::filter(rowid %in% ids, model_id %in% two) |>
+      dplyr::ungroup() |>
+      dplyr::select(model_id, draw_id, rowid, fitted_value, enroll) |>
+      dplyr::group_by(model_id, draw_id) |>
+      dplyr::summarize(ga = fitted_value[rowid == label_a] / enroll[rowid == label_a],
+                       gb = fitted_value[rowid == label_b] / enroll[rowid == label_b],
+                       .groups = "drop") |>
+      dplyr::mutate(diffv = ga - gb)
+    ann <- da |> dplyr::group_by(model_id) |>
+      dplyr::summarize(total = dplyr::n(), diffcount = sum(diffv > 0), diffv = ann_x,
+                       .groups = "drop") |>
+      dplyr::mutate(diff_per = diffcount / total)
+    g <- ggplot2::ggplot(da, ggplot2::aes(x = (diffv * 1000), y = model_id,
+        fill = ggplot2::after_stat(x))) +
+      (if (is.null(to))
+         ggridges::geom_density_ridges_gradient(from = from, alpha = 4/5,
+           rel_min_height = 0.02, bandwidth = 0.2) else
+         ggridges::geom_density_ridges_gradient(from = from, to = to, alpha = 4/5,
+           rel_min_height = 0.02, bandwidth = 0.2)) +
+      ggplot2::scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
+        guide = ggplot2::guide_none()) +
+      ggplot2::geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
+      ggplot2::geom_text(data = ann, size = 4.5,
+        position = ggplot2::position_nudge(y = 0.5, x = 0),
+        ggplot2::aes(y = model_id, x = diffv,
+          label = paste0(ann_label, "\n", pretty_per(diff_per)))) +
+      ggplot2::coord_cartesian(clip = "off") +
+      ggridges::theme_ridges(grid = FALSE, font_size = 12) +
+      ggplot2::labs(x = "Arrest rate per 1,000", y = "",
+        title = stringr::str_wrap(ttl, 55), subtitle = sub) +
+      ggplot2::scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
+        expand = ggplot2::expansion(c(0, 0))) +
+      ggplot2::theme(legend.position = "bottom",
+        axis.text.y = ggplot2::element_text(angle = 90, hjust = -0.5))
+    g
+  }
+  p2 <- diff_panel(c("AK-AM-M", "CO-AM-M"), "CO-AM-M", "AK-AM-M", 2, "Pr(CO > AK):",
+    "Difference between Colorado and Alaska American Indian / Alaska Native Male Arrest Rates",
+    sub = "No difference shown as red vertical line.", to = 4)
+  p3 <- diff_panel(c("AK-AM-M", "AK-BL-M"), "AK-AM-M", "AK-BL-M", 1.25,
+    "Pr( Amer. Ind > Black):",
+    "Difference between Black and American Indian / Alaska Native male students within Alaska")
+  p1 / (p2 + p3)
+}
+
+#' Table 1: frequentist Agresti-Coull arrest rates per 1,000 for the four
+#' highlighted state demographic groups (the rare-event illustration).
+wp_table_state_rates <- function(con, rdata) {
+  d <- .wp_state_group_data(con, rdata)
+  d$obsv |> dplyr::filter(rowid %in% d$keep_ids) |>
+    dplyr::transmute(
+      Observation = gsub("\n", "", .wp_parse_state_row(rowid)),
+      Arrests = round(arrests),
+      Enrollment = round(enroll),
+      `Rate per 1,000` = round(1000 * arrests / enroll, 2),
+      `95% interval (per 1,000)` = paste0(
+        round(1000 * ci_lower / enroll, 2), " -- ", round(1000 * ci_upper / enroll, 2))) |>
+    dplyr::arrange(`Rate per 1,000`)
+}
+
+#' Table A1: model computation times. Runtime / Data rows / Parameters are
+#' aggregated from the model_stats artifact (summed across the 8 stratified
+#' subsets); "Iterations per chain" is a fitting-time input not recorded in the
+#' artifact, so the original reported values are kept.
+wp_table_computation <- function(model_stats) {
+  iters <- c("Unified 1" = "3,500", "Unified 2" = "3,500", "Unified 3" = "3,500",
+             "Unified 4" = "4,000", "Unified 5" = "4,000",
+             "Stratified 1" = "2,000 (x 8 models)", "Stratified 2" = "3,500 (x 8 models)",
+             "Stratified 3" = "3,500 (x 8 models)", "Stratified 4" = "4,300 (x 8 models)",
+             "Stratified 5" = "4,000 (x 8 models)")
+  ms <- model_stats |>
+    dplyr::mutate(
+      form = add_model_form(model_id),
+      spec = as.integer(sub("^(nat|sg)_m([0-9]+)_mod$", "\\2", model_id)),
+      Models = paste(form, spec)) |>
+    dplyr::group_by(Models, form, spec) |>
+    dplyr::summarize(`Runtime in minutes` = round(sum(runtime_minutes), 1),
+                     `Data rows` = sum(data_rows),
+                     `Parameters` = sum(parameters), .groups = "drop") |>
+    dplyr::arrange(dplyr::desc(form == "Unified"), spec) |>
+    dplyr::mutate(`Iterations per chain` = unname(iters[Models])) |>
+    dplyr::select(Models, `Runtime in minutes`, `Data rows`, `Parameters`,
+                  `Iterations per chain`)
+  ms
 }
 
 #' Fig 1: 2021-22 national arrest rates per 1,000 by race x sex student group,
