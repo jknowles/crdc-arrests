@@ -334,33 +334,30 @@ Our fourth metric should illustrate the differences between the models in more d
 
 Overall, looking at the full sample, we can conclude that the modeling "worked" to improve precision without sacrificing coverage of the true value: nearly all prediction intervals are narrower than their frequentist counterparts. However, simply looking at the averages masks some important differences in how each of the models addresses patterns in the data, so we now turn our attention to comparing these metrics for specific subsamples of interest.
 
-  -------------------------------------------------------------------------------------------------------------
-  Models         Coverage   Arrest rate precision (median)   \% equal or better intervals   Median % narrowed
-  -------------- ---------- -------------------------------- ------------------------------ -------------------
-  Unified 1      99.7%      8.32                             98.4%                          100%
+```{r}
+#| label: tbl-coverage-full
+#| tbl-cap: "Table 3: Model results for full sample"
+cov_obs |>
+  dplyr::group_by(model_id) |>
+  dplyr::summarize(
+    Coverage = 100 * mean(covered),
+    precision = mean(fit_precision),
+    equal_better = 100 * mean(equal_better),
+    narrowed = 100 * median(pct_narrowed), .groups = "drop") |>
+  dplyr::mutate(
+    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+  dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
+  dplyr::transmute(
+    Models = paste(form, num),
+    Coverage = sprintf("%.1f%%", Coverage),
+    `Arrest rate precision (median)` = sprintf("%.2f", precision),
+    `% equal or better intervals` = sprintf("%.1f%%", equal_better),
+    `Median % narrowed` = sprintf("%.1f%%", narrowed)) |>
+  knitr::kable()
+```
 
-  Unified 2      99.9%      6.85                             98.7%                          100%
-
-  Unified 3      98.3%      6.13                             96.6%                          100%
-
-  Unified 4      99.2%      5.00                             97.7%                          100%
-
-  Unified 5      99.2%      5.13                             97.7%                          100%
-
-  Stratified 1   100%       2.53                             98.6%                          100%
-
-  Stratified 2   100%       4.37                             97.6%                          100%
-
-  Stratified 3   98.8%      2.44                             96.5%                          100%
-
-  Stratified 4   99.4%      4.08                             97.5%                          100%
-
-  Stratified 5   99.4%      4.3                              97.5%                          100%
-  -------------------------------------------------------------------------------------------------------------
-
-  : Table 3: Model results for full sample
-
-Number of rows of data = 106,703. Observed precision = 0.384 calculated from the Agresti-Coull approximate interval with the rule of three applied.
+Number of rows of data = `r format(n_full, big.mark=",")`. Observed precision = 0.384 calculated from the Agresti-Coull approximate interval with the rule of three applied.
 
 ### District-student groups with an observed arrest
 
@@ -370,33 +367,31 @@ The two most important distinctions in these results in Table 4 are that moving 
 
 In other words, in this sample, we can trade some coverage for much greater precision in the intervals of our arrest rates by choosing a multiyear model. Depending on the use case, this tradeoff may be desirable. Adding covariates to the multiyear models can strike a middle ground, returning some of the coverage lost by adding multiple years, but also providing narrower intervals than one-year models.
 
-  ---------------------------------------------------------------------------------------------------------------
-  Models         Coverage     Arrest rate precision (median)   \% equal or better intervals   Median % narrowed
-  -------------- ------------ -------------------------------- ------------------------------ -------------------
-  Unified 1      94.2%        4.26                             82.8%                          37.3%
+```{r}
+#| label: tbl-coverage-arrest
+#| tbl-cap: "Table 4: Model results for sample of district-student groups with an observed arrest"
+cov_obs |>
+  dplyr::filter(ARRESTS > 0) |>
+  dplyr::group_by(model_id) |>
+  dplyr::summarize(
+    Coverage = 100 * mean(covered),
+    precision = mean(fit_precision),
+    equal_better = 100 * mean(equal_better),
+    narrowed = 100 * median(pct_narrowed), .groups = "drop") |>
+  dplyr::mutate(
+    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+  dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
+  dplyr::transmute(
+    Models = paste(form, num),
+    Coverage = sprintf("%.1f%%", Coverage),
+    `Arrest rate precision (median)` = sprintf("%.2f", precision),
+    `% equal or better intervals` = sprintf("%.1f%%", equal_better),
+    `Median % narrowed` = sprintf("%.1f%%", narrowed)) |>
+  knitr::kable()
+```
 
-  Unified 2      97.6%        3.99                             82.7%                          36.1%
-
-  Unified 3      72.2%        4.59                             89.4%                          54.3%
-
-  Unified 4      85.3%        4.75                             89.6%                          48.6%
-
-  Unified 5      85.4%        4.68                             89.6%                          48.6%
-
-  Stratified 1   100%         2.24                             65.0%                          23.4%
-
-  Stratified 2   99.5%        2.40                             65.3%                          23.1%
-
-  Stratified 3   80.3%        3.69                             86.9%                          52.9%
-
-  Stratified 4   89.3%        4.64                             83.5%                          42.9%
-
-  Stratified 5   89.4%        4.80                             83.6%                          42.9%
-  ---------------------------------------------------------------------------------------------------------------
-
-  : Table 4: Model results for sample of district-student groups with an observed arrest
-
-Number of rows of data = 4,729. Observed precision = 1.89 calculated from the Agresti-Coull approximate interval.
+Number of rows of data = `r format(sum(cov_obs$ARRESTS[cov_obs$model_id == cov_obs$model_id[1]] > 0), big.mark=",")`. Observed precision = 1.89 calculated from the Agresti-Coull approximate interval.
 
 ### 100 districts with most total arrests in 2021-22
 
@@ -406,33 +401,31 @@ Again, some interesting patterns emerge. First, our stratified one-year models c
 
 Among the multiyear models 3-5, the pattern of coverage is similar with adding a covariate providing a substantial increase in coverage from 59.2% to 75.3% in the unified models and 62.8% to 82.1% in the stratified models. This suggests that the data on law enforcement referrals strongly reinforces the data on arrests and pushes estimates closer to the reported data. However, in multiyear models the addition of this covariate -- as we saw in the previous section -- inflates intervals making the improvements in precision more modest for models 4 and 5 compared to model 3.
 
-  --------------------------------------------------------------------------------------------------------------
-  Models         Coverage    Arrest rate precision (median)   \% equal or better intervals   Median % narrowed
-  -------------- ----------- -------------------------------- ------------------------------ -------------------
-  Unified 1      86.1%       1.73                             58.7%                          8.5%
+```{r}
+#| label: tbl-coverage-most
+#| tbl-cap: "Table 5: Model results for 100 districts with most total arrests"
+cov_obs |>
+  dplyr::filter(LEAID %in% bigarr_ids) |>
+  dplyr::group_by(model_id) |>
+  dplyr::summarize(
+    Coverage = 100 * mean(covered),
+    precision = mean(fit_precision),
+    equal_better = 100 * mean(equal_better),
+    narrowed = 100 * median(pct_narrowed), .groups = "drop") |>
+  dplyr::mutate(
+    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+  dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
+  dplyr::transmute(
+    Models = paste(form, num),
+    Coverage = sprintf("%.1f%%", Coverage),
+    `Arrest rate precision (median)` = sprintf("%.2f", precision),
+    `% equal or better intervals` = sprintf("%.1f%%", equal_better),
+    `Median % narrowed` = sprintf("%.1f%%", narrowed)) |>
+  knitr::kable()
+```
 
-  Unified 2      95.7%       2.03                             61.6%                          9.9%
-
-  Unified 3      59.2%       2.74                             84.9%                          37.4%
-
-  Unified 4      75.3%       2.33                             82.4%                          26.7%
-
-  Unified 5      75.3%       2.31                             82.7%                          27.5%
-
-  Stratified 1   100%        2.16                             41.2%                          -16.0%
-
-  Stratified 2   100%        2.50                             40.4%                          -14.8%
-
-  Stratified 3   62.8%       3.21                             85.2%                          37.1%
-
-  Stratified 4   82.1%       2.81                             71.9%                          21.9%
-
-  Stratified 5   81.9%       2.83                             71.9%                          21.4%
-  --------------------------------------------------------------------------------------------------------------
-
-  : Table 5: Model results for 100 districts with most total arrests
-
-Number of rows of data = 784. Observed precision = 2.74 calculated from the Agresti-Coull approximate interval with the rule of three applied.
+Number of rows of data = `r format(sum(cov_obs$LEAID[cov_obs$model_id == cov_obs$model_id[1]] %in% bigarr_ids), big.mark=",")`. Observed precision = 2.74 calculated from the Agresti-Coull approximate interval with the rule of three applied.
 
 ### 100 districts with largest student enrollments but no arrests 
 
