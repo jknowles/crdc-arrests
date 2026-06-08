@@ -629,7 +629,7 @@ plotdf <- plotdf |>
   ) |>
   mutate(
     improved_precision = ifelse(obsv_precision > fit_precision, 0, 1),
-    narrower_interval = ifelse((ci_upper - ci_lower) < (obs_upper - obs_lower), 1, 0)
+    narrower_interval = ifelse((ci_upper - ci_lower) <= (obs_upper - obs_lower), 1, 0)  # "equal or better" (matches white_paper)
   )
 ```
 
