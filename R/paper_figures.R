@@ -76,13 +76,26 @@ cv_apply_branding <- function(logo = TRUE,
                  `top-right` = "northeast", `top-left` = "northwest")
   knitr::opts_chunk$set(fig.process = function(path, options = NULL) {
     if (!grepl("\\.png$", path, ignore.case = TRUE) || !nzchar(logo_file)) return(path)
-    img <- magick::image_read(path)
-    h   <- magick::image_info(img)$height
-    lg  <- magick::image_resize(
-      magick::image_read(logo_file),
-      magick::geometry_size_pixels(height = max(1L, round(h * height_frac))))
-    magick::image_write(
-      magick::image_composite(img, lg, gravity = grav, offset = "+18+14"), path)
+    img    <- magick::image_read(path)
+    info   <- magick::image_info(img)
+    logo_h <- max(1L, round(info$height * height_frac))
+    lg     <- magick::image_resize(magick::image_read(logo_file),
+                magick::geometry_size_pixels(height = logo_h))
+    if (grepl("^bottom", position)) {
+      # Place the logo in a footer band BELOW the plot so it never overlaps the
+      # axis text. Match the band to the figure background (sampled top-left pixel).
+      band <- round(logo_h * 1.7)
+      px   <- magick::image_data(magick::image_crop(img, "1x1+0+0"), channels = "rgb")
+      bg   <- sprintf("#%02X%02X%02X", as.integer(px[1, 1, 1]),
+                      as.integer(px[2, 1, 1]), as.integer(px[3, 1, 1]))
+      canvas <- magick::image_extent(img, magick::geometry_size_pixels(
+        width = info$width, height = info$height + band), gravity = "north", color = bg)
+      out  <- magick::image_composite(canvas, lg, gravity = grav,
+                offset = sprintf("+18+%d", max(1L, round((band - logo_h) / 2))))
+    } else {
+      out  <- magick::image_composite(img, lg, gravity = grav, offset = "+18+14")
+    }
+    magick::image_write(out, path)
     path
   })
   invisible(TRUE)
@@ -193,7 +206,7 @@ wp_fig_district_intervals <- function(con, rdata, focal_dist, subtitle,
     ggplot2::labs(title = stringr::str_wrap(
       paste0("Predicted arrests 95% interval for ", dist_name), title_wrap),
       y = "Predicted arrests", x = "Model type", color = "", subtitle = subtitle) +
-    ggridges::theme_ridges(grid = grid, font_size = 14) +
+    ggridges::theme_ridges(grid = grid, font_size = 24) +
     ggplot2::theme(legend.position = "bottom",
       axis.text.y = ggplot2::element_text(angle = 90, hjust = 0.25))
 }
@@ -218,11 +231,11 @@ wp_fig_district_intervals <- function(con, rdata, focal_dist, subtitle,
         y = group + (0.9 * ggplot2::after_stat(count / max(count))),
         label = ifelse(ggplot2::after_stat(count) > 25,
                        pretty_per(ggplot2::after_stat(count / ndraws)), "")),
-      nudge_y = 0, vjust = -0.25, size = 3.5, color = "black", binwidth = 1) +
+      nudge_y = 0, vjust = -0.25, size = 6, color = "black", binwidth = 1) +
     ysc +
     ggplot2::scale_x_continuous(breaks = xbreaks, limits = xlimits,
       expand = ggplot2::expansion(add = c(0.25, 1), mult = c(0, 0.2))) +
-    ggridges::theme_ridges(grid = FALSE, font_size = 14) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 24) +
     ggplot2::labs(title = title, subtitle = subtitle, x = xlab, y = ylab) +
     ggplot2::theme(axis.text.y = ggplot2::element_text(angle = 90, hjust = -0.5))
 }
@@ -308,7 +321,7 @@ wp_fig_hpd_ridges <- function(con, rdata, focal_dist) {
       subtitle = stringr::str_wrap(paste0("Frequentist rate and interval shown in ",
         "purple. Colored fill represents the 95% highest posterior density for ",
         "each model, shaded to emphasize number of arrests."), 70)) +
-    ggridges::theme_ridges(grid = FALSE, font_size = 14) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 24) +
     ggplot2::theme(legend.position = "bottom",
       panel.grid.major.y = ggplot2::element_line(color = "gray50"),
       axis.text.y = ggplot2::element_text(angle = 90, hjust = -0.5))
@@ -339,7 +352,7 @@ wp_fig_hpd_ridges <- function(con, rdata, focal_dist) {
 # One race-density-ridge panel (used by Figs 6 & 7).
 .wp_group_density_plot <- function(plot_draws, obsv_plot, dist_name, subtitle,
                                    races = c("BL", "WH", "HI"), title_wrap = 120,
-                                   font_size = 14) {
+                                   font_size = 24) {
   g <- ggplot2::ggplot(dplyr::filter(plot_draws, RACE %in% races),
       ggplot2::aes(x = (pred / (enroll / 1000)), color = RACE, fill = RACE, y = model_id)) +
     ggridges::geom_density_ridges(scale = 0.9, rel_min_height = 0.01, alpha = 1/5,
@@ -401,12 +414,12 @@ wp_fig_group_difference <- function(con, rdata, focal_dist) {
     ggplot2::scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
       guide = ggplot2::guide_none()) +
     ggplot2::geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
-    ggplot2::geom_text(data = annotate_df, size = 2.5,
+    ggplot2::geom_text(data = annotate_df, size = 4.5,
       position = ggplot2::position_nudge(y = 0.4, x = 0),
       ggplot2::aes(y = model_id, x = diffv,
         label = paste0("Pr(", "Δ", "> 0): ", pretty_per(diff_per)))) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggridges::theme_ridges(grid = FALSE, font_size = 12) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 20) +
     ggplot2::labs(x = "Arrest rate per 1,000", title = stringr::str_wrap(
       paste0("Model estimated difference (", "Δ",
         ") between Hispanic and White student arrest rates in ", d$dist_name), 90),
@@ -419,7 +432,7 @@ wp_fig_group_difference <- function(con, rdata, focal_dist) {
       axis.text.y = ggplot2::element_text(angle = 90, hjust = 0.25))
   p2 <- .wp_group_density_plot(plot_draws, d$obsv_plot, d$dist_name,
     subtitle = "Male students only. Frequentist interval shown by point interval.",
-    races = c("WH", "HI"), title_wrap = 90, font_size = 12)
+    races = c("WH", "HI"), title_wrap = 90, font_size = 20)
   p2 / p1
 }
 
@@ -479,7 +492,7 @@ wp_fig_state_differences <- function(con, rdata) {
     ggplot2::scale_fill_manual(values = c("#d55c00a9", "#0071b2c5"),
       labels = function(x) print_model_name(x, lbreak = FALSE)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggridges::theme_ridges(grid = FALSE, font_size = 12) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 20) +
     ggplot2::labs(x = "Arrests per 1,000", y = "", fill = "Model",
       title = "Bayesian modeled arrest rate predictions for selected state demographic groups") +
     ggplot2::theme(legend.position = "bottom",
@@ -508,12 +521,12 @@ wp_fig_state_differences <- function(con, rdata) {
       ggplot2::scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
         guide = ggplot2::guide_none()) +
       ggplot2::geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
-      ggplot2::geom_text(data = ann, size = 4.5,
+      ggplot2::geom_text(data = ann, size = 7.5,
         position = ggplot2::position_nudge(y = 0.5, x = 0),
         ggplot2::aes(y = model_id, x = diffv,
           label = paste0(ann_label, "\n", pretty_per(diff_per)))) +
       ggplot2::coord_cartesian(clip = "off") +
-      ggridges::theme_ridges(grid = FALSE, font_size = 12) +
+      ggridges::theme_ridges(grid = FALSE, font_size = 20) +
       ggplot2::labs(x = "Arrest rate per 1,000", y = "",
         title = stringr::str_wrap(ttl, 55), subtitle = sub) +
       ggplot2::scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
@@ -592,6 +605,6 @@ wp_fig_national_rates <- function(crdc_y2122) {
       labels = c("M" = "Male", "F" = "Female")) +
     ggplot2::labs(title = "National arrest rates by select student groups, 2021-22",
       x = "", y = "Arrests per 1,000 students", fill = "Sex") +
-    ggridges::theme_ridges(grid = TRUE, font_size = 13) +
+    ggridges::theme_ridges(grid = TRUE, font_size = 22) +
     ggplot2::theme(legend.position = "bottom")
 }
