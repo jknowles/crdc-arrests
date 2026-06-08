@@ -300,7 +300,7 @@ concentration_plot <- concentration_plot_data %>%
   scale_x_continuous("% of national student population",
                      labels = scales::percent, limits = c(0, 0.7)) +
   scale_y_continuous("% of all arrests", labels = scales::percent) +
-  civilytics::theme_civilytics(font_size = 12) +
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE) +
   labs(title = "Share of total arrests by cumulative district enrollment",
        subtitle = "Horizontal line at 50% of all arrests, vertical line at 50% of all students") +
   theme(axis.ticks.x = element_blank(),

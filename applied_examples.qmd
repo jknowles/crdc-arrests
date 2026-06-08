@@ -1209,7 +1209,7 @@ p3 <- ggplot(obsv_plot, aes(x = YEAR, y = enroll, group = LEA_NAME, color = LEA_
   scale_y_continuous("Enrollment", labels = scales::comma, limits = c(0,NA)) +
   guides(color = guide_legend(nrow = 2, override.aes = list(linetype = c(0, 0)))) +
 
-  civilytics::theme_civilytics(font_size = 12) +
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE) +
   labs(color = "", x = "CRDC Year", title = "Reported enrollment") +
   theme(legend.position = "bottom")
 

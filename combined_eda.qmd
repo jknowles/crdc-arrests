@@ -128,14 +128,14 @@ ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
   geom_line(group = 1) +
   scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
   labs(x = "School Year", y = "CRDC Arrests", title = "Arrest Trends Across CRDC Collections") +
-  civilytics::theme_civilytics(font_size =12)
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE)
 
 ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/1000))) +
   geom_point() +
   geom_line(group = 1) +
   scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
   labs(x = "School Year", y = "CRDC Arrests per 1,000", title = "Arrest Rate Trends Across CRDC Collections") +
-  civilytics::theme_civilytics(font_size =12)
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE)
 
 
 
@@ -232,7 +232,7 @@ ggplot(race_sex_summary |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
   geom_text(aes(label = civilytics::pretty_count(round(1000/arrest_rate,0))),
               vjust = -0.25) +
   facet_wrap(~SEX) +
-  civilytics::theme_civilytics(font_size = 14) +
+  civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
   labs(x = "", y = "NNH (Arrests)", fill = "Race:") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
                     labels = scales::comma) +
@@ -270,7 +270,7 @@ ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
                 color = NULL),
               vjust = -0.25, show.legend = FALSE) +
   facet_wrap(~SEX) +
-  civilytics::theme_civilytics(font_size = 14) +
+  civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
   labs(x = "", y = "NNH (Arrests)", color = "Race:") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
                     limits = c(0, 4000),
@@ -289,7 +289,7 @@ ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
                 color = NULL),
               vjust = -0.25, show.legend = FALSE) +
   facet_wrap(~SEX) +
-  civilytics::theme_civilytics(font_size = 14) +
+  civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
   labs(x = "", y = "Arrests per 1,000", color = "Race:") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
                     limits = c(0, 4),
@@ -331,7 +331,7 @@ ggplot(state_trend_summary, aes(x = YEAR, y = total_arrests, group = LEA_STATE))
                     limits = c(0, 4000),
                     labels = scales::comma) +
     labs(x = "CRDC Wave", y = "Total arrests", title = "State-level total arrest trend comparison") +
-    civilytics::theme_civilytics(font_size = 14)
+    civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE)
 
 
 
