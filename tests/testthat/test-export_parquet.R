@@ -32,6 +32,42 @@ test_that("export_draws_parquet writes Hive-partitioned parquet by model/year/st
   expect_equal(ord, ord[order(ord$LEAID, ord$RACE, ord$SEX), ], ignore_attr = TRUE)
 })
 
+test_that("export_draws_parquet clears orphan shards on re-export (no duplicate rows)", {
+  # Regression guard for the orphan-shard parquet-duplication bug: re-running the
+  # export over a non-emptied out_dir used to leave higher-indexed shard files
+  # behind (OVERWRITE_OR_IGNORE overwrites same-named files but never deletes
+  # files the new run does not recreate). Those orphans were an exact-duplicate
+  # subset of the data, which double-counted whole districts downstream and broke
+  # the applied_examples `browardsmallgroups` per-group difference
+  # (pred[RACE=="WH"] became length 2 -> summarize() "must be size 1, not 2").
+  con <- fixture_draws_con(); on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
+  out <- file.path(tempfile(), "parquet")
+  export_draws_parquet(con, out_dir = out)
+
+  count_rows <- function(dir) {
+    rcon <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+    on.exit(DBI::dbDisconnect(rcon, shutdown = TRUE))
+    DBI::dbGetQuery(rcon, sprintf(
+      "SELECT COUNT(*) n FROM read_parquet('%s/**/*.parquet', hive_partitioning=true)",
+      dir))$n
+  }
+  expect_equal(count_rows(out), 20)  # fixture has 20 rows
+
+  # Plant an orphan: a copy of a real shard under an index the next run will not
+  # overwrite -- exactly what a prior, larger export leaves behind.
+  shard  <- list.files(out, recursive = TRUE, pattern = "\\.parquet$",
+                       full.names = TRUE)[1]
+  orphan <- file.path(dirname(shard), "data_99.parquet")
+  file.copy(shard, orphan)
+  expect_true(file.exists(orphan))
+  expect_equal(count_rows(out), 40)  # the bug mechanism: orphan inflates the count
+
+  # Re-export: the clear-dir step must remove the orphan so counts match source.
+  export_draws_parquet(con, out_dir = out)
+  expect_false(file.exists(orphan))  # out_dir was cleared
+  expect_equal(count_rows(out), 20)  # no duplication
+})
+
 test_that("export_draws_parquet rejects out_dir containing a single quote", {
   con <- fixture_draws_con(); on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   expect_error(export_draws_parquet(con, out_dir = "/tmp/bad'path"), class = "simpleError")
