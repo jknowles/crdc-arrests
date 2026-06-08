@@ -41,6 +41,46 @@ tydata      <- read_stage_df("stages/inputs/three_year_data.parquet")
 crdc_2122   <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
 model_stats <- with_model_labels(read_stage_df("stages/diagnostics/model_stats.parquet"))
 options(scipen = 9)
+
+# --- Reproducible 2021-22 national descriptives ------------------------------
+# Every arrest count / rate reported in the Data section below is regenerated
+# here from the same full CRDC wave (crdc_2122) the rest of the paper uses, so
+# the inline prose numbers stay in sync with the source data instead of being
+# hand-entered. (Ported from results.qmd's descriptive-totals sections.)
+.tot <- crdc_2122 |> dplyr::filter(RACE == "TOTAL", SEX == "TOTAL") |>
+  dplyr::summarize(arrests = sum(ARRESTS), enroll = sum(stu_enroll),
+                   leas = dplyr::n_distinct(LEAID),
+                   leas_arr = dplyr::n_distinct(LEAID[ARRESTS > 0]))
+nat_arrests <- .tot$arrests; nat_enroll <- .tot$enroll
+nat_rate <- nat_arrests / (nat_enroll / 1000)
+n_leas <- .tot$leas; n_leas_arr <- .tot$leas_arr
+pct_leas_arr <- 100 * n_leas_arr / n_leas
+
+.byrace <- crdc_2122 |> dplyr::filter(RACE != "TOTAL", SEX != "TOTAL") |>
+  dplyr::group_by(RACE) |>
+  dplyr::summarize(enroll = sum(stu_enroll), arrests = sum(ARRESTS), .groups = "drop") |>
+  dplyr::mutate(rate = arrests / (enroll / 1000))
+race_arr  <- stats::setNames(.byrace$arrests, .byrace$RACE)
+race_enr  <- stats::setNames(.byrace$enroll,  .byrace$RACE)
+race_rate <- stats::setNames(.byrace$rate,    .byrace$RACE)
+
+.bysex <- crdc_2122 |> dplyr::filter(RACE != "TOTAL", SEX != "TOTAL") |>
+  dplyr::group_by(SEX) |>
+  dplyr::summarize(enroll = sum(stu_enroll), arrests = sum(ARRESTS), .groups = "drop") |>
+  dplyr::mutate(rate = arrests / (enroll / 1000))
+sex_arr  <- stats::setNames(.bysex$arrests, .bysex$SEX)
+sex_rate <- stats::setNames(.bysex$rate,    .bysex$SEX)
+
+.byrs <- crdc_2122 |> dplyr::filter(RACE != "TOTAL", SEX != "TOTAL") |>
+  dplyr::group_by(RACE, SEX) |>
+  dplyr::summarize(enroll = sum(stu_enroll), arrests = sum(ARRESTS), .groups = "drop") |>
+  dplyr::mutate(rate = arrests / (enroll / 1000))
+blm_rate <- .byrs$rate[.byrs$RACE == "BL" & .byrs$SEX == "M"]
+whf_rate <- .byrs$rate[.byrs$RACE == "WH" & .byrs$SEX == "F"]
+
+# inline formatters for the Data-section prose
+.cnt <- function(x) format(round(x), big.mark = ",")
+.rt  <- function(x) sprintf("%.2f", x)
 ```
 
 Jared Knowles, Civilytics Consulting
@@ -83,11 +123,11 @@ Of course, both arrest rates and disparities vary across place. Studies have exa
 
 ## Data
 
-The CRDC is generally a biennial data collection. The most recent available data, released in January 2025, are for the 2021-22 school year. To this, we add data from two prior collections: 2017-18 and 2015-16.[^2] The CRDC includes 17,704 school districts in 2021-22; 89% of these districts have three years of data available. In models that incorporate multiple waves of data, we include all available observations, which is three years for most districts but one or two years in some cases.[^3] The number of school-related arrests declined over these three waves from over 62,000 school-related arrests in 2015-16 to 52,300 in 2017-18 to 34,846 in 2021-22.
+The CRDC is generally a biennial data collection. The most recent available data, released in January 2025, are for the 2021-22 school year. To this, we add data from two prior collections: 2017-18 and 2015-16.[^2] The CRDC includes `r .cnt(n_leas)` school districts in 2021-22; 89% of these districts have three years of data available. In models that incorporate multiple waves of data, we include all available observations, which is three years for most districts but one or two years in some cases.[^3] The number of school-related arrests declined over these three waves from over 62,000 school-related arrests in 2015-16 to 52,300 in 2017-18 to `r .cnt(nat_arrests)` in 2021-22.
 
-Student arrests are rare. In 2021-22, 34,846 students were arrested at school, including 11,259 White students; 11,666 Black students; 9,146 Hispanic students; and 529 American Indian/Alaskan Native students.[^4] More Black students were arrested than White students despite there being three times as many White students as Black students enrolled in U.S. public schools. 22,919 male students were arrested along with 11,927 female students.
+Student arrests are rare. In 2021-22, `r .cnt(nat_arrests)` students were arrested at school, including `r .cnt(race_arr[["WH"]])` White students; `r .cnt(race_arr[["BL"]])` Black students; `r .cnt(race_arr[["HI"]])` Hispanic students; and `r .cnt(race_arr[["AM"]])` American Indian/Alaskan Native students.[^4] More Black students were arrested than White students despite there being three times as many White students as Black students enrolled in U.S. public schools. `r .cnt(sex_arr[["M"]])` male students were arrested along with `r .cnt(sex_arr[["F"]])` female students.
 
-In addition to being rare, student arrests are also sparse. In 2021-22, 2,060 districts reported an arrest. This is only 11.6% of the districts in the data, which means the most common value for arrests, by far, is 0. However, this small proportion of districts enrolled 45% of all students -- meaning that nearly half of all students attended a school district where a school-based arrest occurred.
+In addition to being rare, student arrests are also sparse. In 2021-22, `r .cnt(n_leas_arr)` districts reported an arrest. This is only `r sprintf("%.1f", pct_leas_arr)`% of the districts in the data, which means the most common value for arrests, by far, is 0. However, this small proportion of districts enrolled 45% of all students -- meaning that nearly half of all students attended a school district where a school-based arrest occurred.
 
 Because of this rarity and sparsity, we provide a detailed description of how we construct arrest rates from two sets of variables in the CRDC: arrest counts and numbers of students enrolled. For the denominator in our rate calculation, we use enrollment counts for each school by race and sex. When we encounter reserve codes indicating data suppression or an issue with the data collection itself, we treat these as missing values since the enrollment number cannot be recovered from the public use files. These records are discarded from the analysis, and we have a dataset with one row per year-school-race-sex with a non-missing enrollment count. [^5]
 
@@ -95,7 +135,7 @@ Arrest counts are reported for 28 student groups based on students' race/ethnici
 
 For arrest records with a reserve code, we treat the value as 0 and retain them.[^9] Districts that reported enrollment data but did not report law enforcement data are thus preserved in our analysis. We hypothesize that, among districts with missing law enforcement data, many are likely to have had 0 arrests. By retaining them in the data we can analyze how the model treats these 0 values and better generalize to the population.
 
-The result is a dataset with 48.5 million students enrolled in the schools included in the CRDC in 2021-22 and a national school-related arrest rate of 0.72 out of every 1,000 students. White students had 0.51 arrests per 1,000 students, Hispanic students 0.65, American Indian students 1.16, and Black students 1.62 arrests per 1,000 students. Male students had an arrest rate of 0.92 arrests per 1,000 while female students were at 0.50. The difference in the arrest rates of male and female students (0.42 difference) is smaller than the difference in arrests rates of White students and Black or American Indian students (differences of 1.11 and 0.65, respectively). Disaggregating by race and sex reveals even greater disparities: rates by student group vary from a high of 2 out of 1,000 Black male students to a low of 0.34 out of 1,000 White female students. These are shown in Figure 1 below.
+The result is a dataset with `r sprintf("%.1f", nat_enroll/1e6)` million students enrolled in the schools included in the CRDC in 2021-22 and a national school-related arrest rate of `r .rt(nat_rate)` out of every 1,000 students. White students had `r .rt(race_rate[["WH"]])` arrests per 1,000 students, Hispanic students `r .rt(race_rate[["HI"]])`, American Indian students `r .rt(race_rate[["AM"]])`, and Black students `r .rt(race_rate[["BL"]])` arrests per 1,000 students. Male students had an arrest rate of `r .rt(sex_rate[["M"]])` arrests per 1,000 while female students were at `r .rt(sex_rate[["F"]])`. The difference in the arrest rates of male and female students (`r .rt(sex_rate[["M"]] - sex_rate[["F"]])` difference) is smaller than the difference in arrests rates of White students and Black or American Indian students (differences of `r .rt(race_rate[["BL"]] - race_rate[["WH"]])` and `r .rt(race_rate[["AM"]] - race_rate[["WH"]])`, respectively). Disaggregating by race and sex reveals even greater disparities: rates by student group vary from a high of `r .rt(blm_rate)` out of 1,000 Black male students to a low of `r .rt(whf_rate)` out of 1,000 White female students. These are shown in Figure 1 below.
 
 ```{r}
 #| label: fig-national-rates

@@ -66,125 +66,32 @@ h <- open_draws_view(); con <- h$con
 # Load model-input data from the published staged artifacts (not the targets store)
 tydata <- read_stage_df("stages/inputs/three_year_data.parquet")
 rdata  <- read_stage_df("stages/inputs/recent_data.parquet")
+
+# Most-recent full CRDC wave, used by the District Concentration and Sample
+# Restriction analyses below. The national descriptive totals/rates by race and
+# sex that used to be tabulated here now live (reproducibly) in white_paper.qmd;
+# we retain only the national arrest rate that downstream sections depend on.
+y2122 <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
+nat_totals <- y2122 |>
+  ungroup() |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  summarize(
+    all_lea_count = n_distinct(LEAID),
+    lea_any_arr   = n_distinct(LEAID[ARRESTS > 0]),
+    enrollment    = sum(stu_enroll),
+    arrests       = sum(ARRESTS),
+    referrals     = sum(REFERRALS))
+nat_arrest_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
 ```
 
 # Descriptive Statistics from Most Recent CRDC Wave
 
-These are the statistics for the most recent wave of data in the analysis.
-
-## Overall Totals
-
-Total students arrested:
-
-```{r}
-#| label: display-total-arrests
-
-y2122 <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
-
-# Total students arrested
-sum(y2122$ARRESTS[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"])
-```
-
-Total student enrollment:
-```{r}
-#| label: display-total-enrollment
-
-# Enrollment
-sum(y2122$stu_enroll[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"])
-```
-
-Student arrest rate:
-
-```{r}
-#| label: display-arrest-rate
-
-sum(y2122$ARRESTS[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"]) /
-  (sum(y2122$stu_enroll[y2122$RACE == "TOTAL" & y2122$SEX=="TOTAL"]) / 1000)
-```
-
-## Disaggregation By Race
-
-Calculate and produce disaggregated arrest data by student race.
-
-```{r}
-#| label: compute-race-totals
-
-nat_sg_totals_race <- y2122 |>
-    ungroup() |>
-    filter(RACE != "TOTAL" & SEX != "TOTAL") |>
-    group_by(RACE) |>
-    summarize(
-        lea_count = n_distinct(LEAID),
-        enrollment = sum(stu_enroll),
-        arrests = sum(ARRESTS),
-        referrals = sum(REFERRALS)) |>
-    mutate(arrest_rate = arrests / (enrollment / 1000),
-            referral_rate = referrals / (enrollment/1000))
-```
-
-```{r}
-#| label: display-race-totals
-
-nat_sg_totals_race |>
-    filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
-    knitr::kable()
-```
-
-## Disaggregation By Sex
-
-```{r}
-#| label: compute-sex-totals
-
-nat_sg_totals_sex <- y2122 |>
-    ungroup() |>
-    filter(RACE != "TOTAL" & SEX != "TOTAL") |>
-    group_by(SEX) |>
-    summarize(
-        lea_count = n_distinct(LEAID),
-        enrollment = sum(stu_enroll),
-        arrests = sum(ARRESTS),
-        referrals = sum(REFERRALS)) |>
-    mutate(arrest_rate = arrests / (enrollment / 1000),
-            referral_rate = referrals / (enrollment/1000))
-```
-
-```{r}
-#| label: display-sex-totals
-
-nat_sg_totals_sex |> knitr::kable()
-```
-
-## National summary statistics
-
-```{r}
-#| label: compute-district-totals
-
-nat_totals <- y2122 |>
-    ungroup() |>
-    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
-    summarize(
-        all_lea_count = n_distinct(LEAID),
-        lea_any_arr = n_distinct(LEAID[ARRESTS >0]),
-        enrollment = sum(stu_enroll),
-        arrests = sum(ARRESTS),
-        referrals = sum(REFERRALS))
-
-nat_referral_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
-nat_arrest_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
-```
-
-```{r}
-#| label: display-district-totals
-
-nat_totals |> knitr::kable()
-```
-
-Arrest rates
-
-```{r}
-nat_referral_rate
-nat_arrest_rate
-```
+The national descriptive totals and arrest rates by race and sex for the most
+recent CRDC wave (2021-22) are now reported reproducibly in `white_paper.qmd`
+(its Data section computes them inline from the same `full_crdc_data_y2122`
+artifact), so they are not duplicated here. The national arrest rate used by the
+District Concentration analysis below (`nat_arrest_rate`) is computed in the
+data-loading chunk above.
 
 # Sample Continuity Analysis for CRDC Waves
 
@@ -633,43 +540,12 @@ plotdf <- plotdf |>
   )
 ```
 
-## Overall Model Summary
+## Full-sample model performance
 
-The paper reviews how the models do compared to a counterfactual of applying
-non-model based uncertainty intervals to rate statistics.
-
-```{r}
-#| label: compute-overall-summary
-
-overall_model_summary <- plotdf |>
-  group_by(model_id, YEAR) |>
-  summarize(
-    count = n(),
-    meanCVP = mean(obsv_CVP[is.finite(obsv_CVP)], na.rm = TRUE),
-    meanfitCVP = mean(CVp[is.finite(CVp)], na.rm = TRUE),
-    obsv_precision = mean(obsv_precision),
-    fit_precision = mean(fit_precision),
-    obsv_interval_med = median((obs_upper - obs_lower)),
-    fit_interval_med = median((ci_upper - ci_lower)),
-    improved_cv = sum(improved_cv),
-    improved_precision = sum(improved_precision),
-    improved_interval = sum(narrower_interval),
-    covered = sum(covered)
-  ) |>
-  mutate(
-    per_covered = covered/count,
-    per_improved_cv = improved_cv / count,
-    per_narrower = improved_interval / count,
-    per_improved_pre = improved_precision / count
-  ) |>
-  select(-improved_interval, -improved_precision, -covered)
-```
-
-```{r}
-#| label: display-overall-summary
-
-overall_model_summary |> knitr::kable()
-```
+The full-sample summary of coverage, precision, "% equal or better" intervals,
+and median % narrowed across all ten models is **Table 3** in `white_paper.qmd`,
+computed there from this same observed-vs-modeled join. It is not duplicated
+here. The diagnostic cross-tabulations that are unique to this document follow.
 
 # Model Performance Diagnostics
 
@@ -751,46 +627,10 @@ nonconstant_summary <- plotdf |>
 nonconstant_summary |> knitr::kable()
 ```
 
-## Non-Zero Arrests
+## Non-zero-arrest model performance
 
-Now we look at results for the subset of records for which at least one
-arrest is observed.
-
-```{r}
-#| label: compute-nonzero-summary
-
-nonzero_summary <- plotdf |>
-  filter(ARRESTS > 0) |>
-  group_by(model_id, YEAR) |>
-  summarize(
-    count = n(),
-    meanCVP = mean(obsv_CVP[is.finite(obsv_CVP)], na.rm = TRUE),
-    meanfitCVP = mean(CVp[is.finite(CVp)], na.rm = TRUE),
-    obsv_precision = mean(obsv_precision),
-    fit_precision = mean(fit_precision),
-    obsv_interval_med = median((obs_upper - obs_lower)),
-    fit_interval_med = median((ci_upper - ci_lower)),
-    interval_delta = median((((obs_upper - obs_lower) - (ci_upper - ci_lower))) /
-                            (obs_upper - obs_lower)),
-    improved_cv = sum(improved_cv),
-    improved_precision = sum(improved_precision),
-    improved_interval = sum(narrower_interval),
-    covered = sum(covered)
-  ) |>
-  mutate(
-    per_covered = covered/count,
-    per_improved_cv = improved_cv / count,
-    per_narrower = improved_interval / count,
-    per_improved_pre = improved_precision / count
-  ) |>
-  select(-meanCVP, -meanfitCVP, -improved_cv, -improved_precision, -improved_interval)
-```
-
-```{r}
-#| label: display-nonzero-summary
-
-nonzero_summary |> knitr::kable()
-```
+Model performance restricted to district-student groups with at least one
+observed arrest is **Table 4** in `white_paper.qmd`. It is not duplicated here.
 
 # Subgroup Analysis
 
@@ -812,38 +652,9 @@ big100 <- rdata |>
   slice_head(n = 100)
 ```
 
-Create largest 100 districts with 0 arrests
-
-```{r}
-#| label: define-big0
-
-big0 <- rdata |>
-  group_by(LEA_STATE, LEAID, LEA_NAME) |>
-  summarize(
-    total_enroll = sum(stu_enroll),
-    total_arrests = sum(ARRESTS)
-  ) |>
-  filter(total_arrests == 0) |>
-  arrange(desc(total_enroll)) |>
-  ungroup() |>
-  slice_head(n = 100)
-```
-
-Create districts with most arrests
-
-```{r}
-#| label: define-bigarresters
-
-bigarresters <- rdata |>
-  group_by(LEA_STATE, LEAID, LEA_NAME) |>
-  summarize(
-    total_enroll = sum(stu_enroll),
-    total_arrests = sum(ARRESTS)
-  ) |>
-  arrange(desc(total_arrests)) |>
-  ungroup() |>
-  slice_head(n = 100)
-```
+The "most total arrests" and "largest-enrollment with zero arrests" district
+subsets are analysed canonically in `white_paper.qmd` (Tables 5 and 6), so only
+the largest-enrollment-by-any-arrest subset (`big100`) is built here.
 
 ## Large Districts Performance
 
@@ -880,92 +691,12 @@ big100_summary <- plotdf |>
 big100_summary |> knitr::kable()
 ```
 
-## High-Arrest Districts
+## High-arrest and zero-arrest district performance
 
-```{r}
-#| label: compute-bigarresters-summary
-
-bigarresters_summary <- plotdf |>
-  filter(LEAID %in% bigarresters$LEAID) |>
-  group_by(model_id, YEAR) |>
-  summarize(
-    count = n(),
-    obsv_precision = mean(obsv_precision),
-    fit_precision = mean(fit_precision),
-    obsv_interval_med = median((obs_upper - obs_lower)),
-    fit_interval_med = median((ci_upper - ci_lower)),
-    interval_delta = median((((obs_upper - obs_lower) - (ci_upper - ci_lower))) /
-                            (obs_upper - obs_lower)),
-    improved_precision = sum(improved_precision),
-    improved_interval = sum(narrower_interval),
-    covered = sum(covered)
-  ) |>
-  mutate(
-    per_covered = covered/count,
-    per_narrower = improved_interval / count,
-    per_improved_pre = improved_precision / count
-  )
-```
-
-```{r}
-#| label: display-bigarresters-summary
-
-bigarresters_summary |> knitr::kable()
-```
-
-## Zero-Arrest Districts
-
-```{r}
-#| label: compute-big0-expected
-
-expected_rate <- mean(big100$total_arrests / big100$total_enroll)
-
-big0_summary <- plotdf |>
-  filter(LEAID %in% big0$LEAID) |>
-  ungroup() |>
-  group_by(LEAID, LEA_STATE, YEAR, model_id, RACE, SEX) |>
-  mutate(expected_value = expected_rate * stu_enroll) |>
-  group_by(model_id, YEAR) |>
-  summarize(
-    count = n(),
-    model_fitted = sum(fitted_value),
-    model_min = sum(ci_lower),
-    model_max = sum(ci_upper),
-    expected = sum(expected_value)
-  )
-```
-
-```{r}
-#| label: display-big0-summary
-
-big0_summary |> knitr::kable()
-```
-
-```{r}
-#| label: get-big0-draws
-
-big0_draws <- get_prediction_draws(con, LEAID = unique(big0$LEAID), YEAR = "21-22")
-```
-
-```{r}
-#| label: compute-big0-draws-summary
-
-big0_draws_summary <- big0_draws |>
-  group_by(YEAR, model_id, draw_id) |>
-  summarize(fit = sum(pred)) |>
-  group_by(YEAR, model_id) |>
-  summarize(
-    med = median(fit),
-    low = quantile(fit, 0.025),
-    hi = quantile(fit, 0.975)
-  )
-```
-
-```{r}
-#| label: display-big0-draws-summary
-
-big0_draws_summary |> knitr::kable()
-```
+Model performance for the 100 districts with the most total arrests is **Table
+5**, and the expected-vs-observed arrests for the 100 largest-enrollment
+districts that reported zero arrests is **Table 6** — both computed reproducibly
+in `white_paper.qmd`. They are not duplicated here.
 
 # Model Computation Statistics
 
@@ -1040,7 +771,7 @@ if (!any_live) {
 ## State Predictions
 
 ```{r}
-rm(big0_draws, dist_ref_arr, dist_test, enrollment,
+rm(dist_ref_arr, dist_test, enrollment,
       obsv_data, combined_data, combined_data2, plotdf); gc()
 ```
 

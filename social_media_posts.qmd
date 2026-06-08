@@ -1845,8 +1845,6 @@ reason becomes clear when we look at the multiple years of data and see that
 in 15-16 Paterson had 47 arrests reported and in 17-18 it had 11 arrests reported.
 
 
-## Arrest Rate Corrections
-
 ```{r}
 #| label: cleanup
 #| include: false

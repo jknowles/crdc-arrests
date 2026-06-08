@@ -200,6 +200,12 @@ ggplot(data = state_map2, aes( fill = arrest_nnh)) +
 
 ## Race and Sex Distribution
 
+These counts and rates are **pooled across all three CRDC waves (2015-16,
+2017-18, 2021-22)** and are shown here as number-needed-to-harm (NNH, students
+per arrested student). They therefore differ from the single-wave 2021-22
+totals and per-1,000 rates reported in `white_paper.qmd`; they are not the same
+figures and should not be read as such.
+
 ```{r}
 #| label: race-sex-distribution
 # Distribution across race and sex categories
