@@ -93,10 +93,13 @@ cv_apply_branding <- function(logo = TRUE,
       band <- round(logo_h * 1.7)
       canvas <- magick::image_extent(img, magick::geometry_size_pixels(
         width = info$width, height = info$height + band), gravity = "north", color = "none")
-      out  <- magick::image_composite(canvas, lg, gravity = grav,
+      # operator = "over" (not magick's default "atop") so the logo draws onto the
+      # TRANSPARENT band -- "atop" would clip it to the band's (empty) alpha.
+      out  <- magick::image_composite(canvas, lg, operator = "over", gravity = grav,
                 offset = sprintf("+18+%d", max(1L, round((band - logo_h) / 2))))
     } else {
-      out  <- magick::image_composite(img, lg, gravity = grav, offset = "+18+14")
+      out  <- magick::image_composite(img, lg, operator = "over", gravity = grav,
+                offset = "+18+14")
     }
     magick::image_write(out, path)
     path
@@ -268,7 +271,8 @@ wp_fig_zero_distribution <- function(con, rdata, focal_dist) {
       "Arrests are top-coded at 16 or more for visual clarity.\n",
       "Values with fewer than 5% predicted likelihood are not labeled."),
     subtitle = "Frequency of predicted arrests from 500 draws of posterior for each model",
-    theme = ggplot2::theme(plot.caption = ggplot2::element_text(size = 18, hjust = 0)))
+    theme = ggplot2::theme(plot.caption = ggplot2::element_text(size = 18, hjust = 0,
+                                                                lineheight = 0.9)))
 }
 
 #' Fig 5: predicted-arrest probability-density intervals with the 95% highest
