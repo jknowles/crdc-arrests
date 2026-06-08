@@ -63,7 +63,13 @@ cv_apply_branding <- function(logo = TRUE,
                               type = c("wordmark", "mark"),
                               height_frac = 0.06) {
   position <- match.arg(position); type <- match.arg(type)
-  ggplot2::theme_set(civilytics::theme_civilytics())          # theme on every figure
+  # Transparent backgrounds for every figure (paper_bg = FALSE drops the theme's
+  # cream paper fill); font_size = 20 enlarges the patchwork plot_annotation text
+  # (overall title / subtitle / caption) which the per-builder theme_ridges() does
+  # NOT control. The transparent device canvas makes the theme_ridges panels (blank
+  # background) render transparent rather than white.
+  ggplot2::theme_set(civilytics::theme_civilytics(font_size = 20, paper_bg = FALSE))
+  knitr::opts_chunk$set(dev = "ragg_png", dev.args = list(background = "transparent"))
   if (!isTRUE(logo)) return(invisible(FALSE))
   if (!requireNamespace("magick", quietly = TRUE)) {
     message("cv_apply_branding(): theme set; magick not installed, logo overlay skipped.")
@@ -82,14 +88,11 @@ cv_apply_branding <- function(logo = TRUE,
     lg     <- magick::image_resize(magick::image_read(logo_file),
                 magick::geometry_size_pixels(height = logo_h))
     if (grepl("^bottom", position)) {
-      # Place the logo in a footer band BELOW the plot so it never overlaps the
-      # axis text. Match the band to the figure background (sampled top-left pixel).
+      # Place the logo in a TRANSPARENT footer band BELOW the plot so it never
+      # overlaps the axis text and the figure background stays transparent.
       band <- round(logo_h * 1.7)
-      px   <- magick::image_data(magick::image_crop(img, "1x1+0+0"), channels = "rgb")
-      bg   <- sprintf("#%02X%02X%02X", as.integer(px[1, 1, 1]),
-                      as.integer(px[2, 1, 1]), as.integer(px[3, 1, 1]))
       canvas <- magick::image_extent(img, magick::geometry_size_pixels(
-        width = info$width, height = info$height + band), gravity = "north", color = bg)
+        width = info$width, height = info$height + band), gravity = "north", color = "none")
       out  <- magick::image_composite(canvas, lg, gravity = grav,
                 offset = sprintf("+18+%d", max(1L, round((band - logo_h) / 2))))
     } else {
@@ -264,7 +267,8 @@ wp_fig_zero_distribution <- function(con, rdata, focal_dist) {
     caption = paste0("Observed arrests in 2021-22 are 0.\n",
       "Arrests are top-coded at 16 or more for visual clarity.\n",
       "Values with fewer than 5% predicted likelihood are not labeled."),
-    subtitle = "Frequency of predicted arrests from 500 draws of posterior for each model")
+    subtitle = "Frequency of predicted arrests from 500 draws of posterior for each model",
+    theme = ggplot2::theme(plot.caption = ggplot2::element_text(size = 18, hjust = 0)))
 }
 
 #' Fig 5: predicted-arrest probability-density intervals with the 95% highest
