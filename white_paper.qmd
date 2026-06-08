@@ -57,6 +57,8 @@ School-based punishment and discipline can be enormously consequential for stude
 
 *This research was supported by a grant from the American Educational Research Association which receives funds for its \"AERA Grants Program\" from the National Science Foundation under NSF award NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or NSF.*
 
+## Intro
+
 School-based punishment and discipline can be enormously consequential for students' lives (Bacher-Hicks et al., 2019; Gottfredson & DiPietro, 2011; Skiba et al., 2014). Punishment and discipline exist along a continuum from in-class warnings to detentions to suspensions and expulsions, with the most serious discipline being referrals to law enforcement and arrests. There is a strong link between experiencing school discipline and a range of key outcomes for early adults, from pursuing higher education to being charged with or convicted of a crime, and the link between school discipline and many outcomes (particularly criminal justice contact) is strongest for Black students (Davison et al., 2022).
 
 Over the past several decades, researchers have studied patterns in school discipline and both theorized about and empirically examined the consequences of the "school-to-prison pipeline" (for examples, see Bacher-Hicks et al., 2019; Homer & Fisher, 2020; Skiba et al., 2014; Welch et al., 2022). Researchers have documented racial disparities in every outcome along the school punishment continuum with Black students overrepresented among those experiencing every form of school punishment (Darling-Hammond & Ho, 2024; Ward et al., 2021). However, the magnitude of race-based disciplinary gaps varies substantially across districts (Gopalan & Nelson, 2019) and school characteristics, including student racial composition and the diversity of teachers and school leaders, are associated with differences in disciplinary outcomes for Black and Latinx students (Welsh et al., 2025).
@@ -69,7 +71,7 @@ Fortunately, improving estimation of events in fixed population units has a long
 
 We explore the use of similar strategies to better measure rare event arrest rates in the CRDC, showing that these strategies increase the utility of arrest rate estimates by increasing their precision. More precise arrest rates allow for more useful comparisons among districts, between student populations, and over time. Demonstrating the value of CRDC data and the findings it makes possible is particularly important at this time given concerns that the data collection may not continue under the Trump administration.[^1]
 
-# Prior Research on School-Based Arrests
+## Prior Research on School-Based Arrests
 
 Some actions necessitate excluding students from the school environment at least temporarily, and perhaps even arresting them for the safety of other students and staff. However, relatively few school-based arrests are for these serious actions. Several studies have found that over three-quarters of school-based arrests are for fighting or disorderly conduct and that serious crimes, such as robbery with a weapon or sexual assault, are quite rare in schools (Na & Gottfredson, 2013; Whitaker et al., 2019; Wolf, 2013).
 
@@ -79,7 +81,7 @@ Racial disparities in school-based arrest rates have been repeatedly demonstrate
 
 Of course, both arrest rates and disparities vary across place. Studies have examined how arrest rates vary by state, district, county-level racial bias, and whether schools have police (Riddle & Sinclair, 2019; Weisburst, 2019; Whitaker et al., 2019). Anticipating that the federal government will move backwards on issues of school discipline (Williams & Wiley, 2025), and recognizing that a narrative of a "youth crime wave" (outstripping actual available data on youth offenses) has taken hold (Knight et al., 2024; Stephens, 2024), it is potentially more important than ever to accurately identify patterns of school-based arrests and inequalities at the local and state level. Systematic data collection and academic research have much to contribute to limiting the number of arrests in schools and reducing racial disparities, but the impact of this work on local activism is impeded by uncertainty in how to use existing measures of school-based arrests comparatively to understand disparities, geographic patterns, and trends beyond the descriptive counts reported.
 
-# Data
+## Data
 
 The CRDC is generally a biennial data collection. The most recent available data, released in January 2025, are for the 2021-22 school year. To this, we add data from two prior collections: 2017-18 and 2015-16.[^2] The CRDC includes 17,704 school districts in 2021-22; 89% of these districts have three years of data available. In models that incorporate multiple waves of data, we include all available observations, which is three years for most districts but one or two years in some cases.[^3] The number of school-related arrests declined over these three waves from over 62,000 school-related arrests in 2015-16 to 52,300 in 2017-18 to 34,846 in 2021-22.
 
@@ -140,9 +142,9 @@ We divide our investigation into two parts: 1) fitting unified models to the ent
   -----------------------------------------------------------------------------------------------------------------
   Specification    State and district random effects   Level 1 covariate   Level 2 covariate   Prior years of data
   --------------- ----------------------------------- ------------------- ------------------- ---------------------
-  1                                X                                                          
+  1                                X
 
-  2                                X                           X                              
+  2                                X                           X
 
   3                                X                                                                    X
 
@@ -234,7 +236,7 @@ As a compromise, we fit stratified versions of models 1 through 5. Our descripti
 
 While the specifications are similar for the unified and stratified models, we expect the results to be very different. The unified models assume that districts as a whole vary in their overall arrest rates, but that variation among student groups within the district is constant across the country---that is, the effect is fixed. This is a useful assumption that both allows us to fit models and allows us to compare observed values to a counterfactual that student group disparities within districts do not vary greatly. The stratified models allow us to test that assumption by fitting separate district intercepts for each student group, allowing student group variation to vary by district. The drawback is that working with eight models jointly instead of a single unified model is more complex, and the number of observations for each district-student group intercept is greatly reduced, which should result in less precise estimation. We explore the implications of these differences below.
 
-## Model Comparison
+### Model Comparison
 
 Following Rohrer & Arel-Bundock we are evaluating our models as "prediction machines"---that is, we are focused on how well these models generate predicted values that assist us in understanding differences in rare event rates (2025). These are not causal models. Therefore, we want to assess how well models allow us to draw policy-relevant conclusions. To do this, we assess models on two criteria: coverage of the reported arrest rates and precision of the arrest rate estimate interval.
 
@@ -427,7 +429,7 @@ cov_obs |>
 
 Number of rows of data = `r format(sum(cov_obs$LEAID[cov_obs$model_id == cov_obs$model_id[1]] %in% bigarr_ids), big.mark=",")`. Observed precision = 2.74 calculated from the Agresti-Coull approximate interval with the rule of three applied.
 
-### 100 districts with largest student enrollments but no arrests 
+### 100 districts with largest student enrollments but no arrests
 
 On the other extreme of the data, we have very large districts with 0 reported arrests, which we call "suspicious 0s." We selected the 100 largest districts with 0 total arrests. For these districts we calculate a "naïve" expected number of arrests based on the arrest rate per 1,000 students of the 100 districts with the largest student enrollments. The arrest rate for these districts is 1.15 per 1,000.[^18] Using this rate, and the assumption that all of the 0s are misreported, we would "naïvely" expect 2,645 arrests. We know it is unlikely that the true number of arrests in these districts was 0, and it is also unlikely that all of the districts simultaneously failed to report their arrests.
 
@@ -586,7 +588,7 @@ These examples are provided to illustrate how the investment in modeling sparse 
 
 We set out to understand if Bayesian hierarchical models could improve how researchers describe and measure a sparse and rare event like school-based arrests. Specifically, we sought to demonstrate the utility of applying these tools to demographic, geographic, and temporal comparisons among arrest rates. We found that in almost all cases Bayesian models improved upon a frequentist approach to describing arrest rates in three fundamental ways. First, Bayesian models almost always narrowed the arrest rate interval, and did so dramatically in the most common case of 0 reported arrests in small populations. This is not surprising as the frequentist interval in these cases, defined by the rule of three, is quite conservative. Still, this improvement is important because it increases precision not just the individual rates themselves but also of any aggregation of rates we create (such as calculating state-level student group arrest rates). Second, Bayesian models can incorporate covariates and/or multiple years of data to provide arrest rate estimates that further increase precision and smooth out reporting issues in the data. Much more work is needed to explore the tradeoffs associated with different combinations of prior years of data, covariates, and modeling assumptions -- but the initial results show that providing options to users could improve comparison. Finally, using posterior prediction, the Bayesian approach provides data consumers with much greater flexibility in the types of comparisons they make and how they express and visualize those comparisons. By loading the posterior draws from the model into a database, users can write simple queries that correctly aggregate and combine the model predictions to construct quantities of interest and visualize them in compelling and clear ways.
 
-### Limitations 
+### Limitations
 
 This study is a starting point and there are many important directions to continue to build tools that allow descriptive comparisons of arrest rates that are improved through statistical modeling. An important limitation here was the selection of our primary covariate of interest, referrals to law enforcement. Because this value was collected on the same form in the CRDC as our outcome of interest, it is likely that errors in reporting arrests are also highly correlated with reporting errors in referrals. Using this covariate kept our sample larger by not introducing missing data from other areas of CRDC, such as missing suspension data, but the high correlation with missing arrests made the covariate function more like an additional weight on the data in the current year and less like an independent measure. This limited the ability of our models to address suspicious underreporting in the arrest totals. An important next step could be to investigate if adding covariates collected outside of the arrests collection has a similar effect on coverage and precision, or if these covariates provide different information that results in different modeling properties.
 
@@ -596,9 +598,9 @@ Second, the models selected and fit here were chosen to balance computational fe
 
 Bayesian posterior draws from a selection of model specifications should be made available to researchers to compare rare event rates like the arrest rates demonstrated here. With the release of each wave of the CRDC, these posteriors could be computed once and then made available as a dataset or web API for researchers to access within their statistical software of choice. This would eliminate the costly upfront steps of computation and allow researchers interested in describing and understanding arrest rate disparities easy access to more precise and easier to work with estimates. Meanwhile, work can continue on refining and extending the model specifications demonstrated here as well as communicating with prediction consumers about which model predictions to use to answer which questions. Collectively, this effort could extract tremendous additional value from the critically important Civil Rights Data Collection.
 
-# Appendix
+## Appendix
 
-## Computation
+### Computation
 
 The frequentist approach has one significant advantage over Bayesian modeling: it can be calculated instantaneously using standard statistical software. Calculating hundreds of thousands of approximate intervals can be achieved in less than a few seconds, even on very modest computer hardware. To access the advantages of the Bayesian models above, we must first estimate them.
 
@@ -620,7 +622,7 @@ While the Bayesian approach requires substantial investment in computation, it c
 
 Full details and access to the code used to process the data, fit the models, and generate the figures in this paper will be available at: https://www.github.com/civilytics/crdc-sae
 
-# References
+## References
 
 Agresti, A., & Coull, B. A. (1998). Approximate Is Better than "Exact" for Interval Estimation of Binomial Proportions. *The American Statistician*, *52*(2), 119--126. https://doi.org/10.2307/2685469
 
