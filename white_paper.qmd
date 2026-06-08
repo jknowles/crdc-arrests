@@ -431,35 +431,43 @@ Number of rows of data = `r format(sum(cov_obs$LEAID[cov_obs$model_id == cov_obs
 
 On the other extreme of the data, we have very large districts with 0 reported arrests, which we call "suspicious 0s." We selected the 100 largest districts with 0 total arrests. For these districts we calculate a "naïve" expected number of arrests based on the arrest rate per 1,000 students of the 100 districts with the largest student enrollments. The arrest rate for these districts is 1.15 per 1,000.[^18] Using this rate, and the assumption that all of the 0s are misreported, we would "naïvely" expect 2,645 arrests. We know it is unlikely that the true number of arrests in these districts was 0, and it is also unlikely that all of the districts simultaneously failed to report their arrests.
 
-We evaluate how each of our model specifications approach this problem. In the table we compare the total arrests predicted for the districts by each model (total arrests predicted are the sum of the median fitted value for each district-student group for each model), computing the 95% expected range of the sum of the arrests in these districts across draws.
+We evaluate how each of our model specifications approach this problem. In the table we compare the total arrests predicted for the districts by each model (total arrests predicted are the median, across posterior draws, of the predicted arrests summed over all district-student groups for each model), along with the 95% expected range of that summed total across draws.
 
-  ------------------------------------------------------------------------
-  Models              Modeled arrests          95% expected range
-  ------------------- ------------------------ ---------------------------
-  Unified 1           26                       16 -- 39
+```{r}
+#| label: tbl-missing-arrests
+#| tbl-cap: "Table 6: Model results for 100 districts with largest student enrollments but no arrests"
+noarr_ids <- rdata |>
+  dplyr::filter(YEAR == "21-22") |>
+  dplyr::group_by(LEAID) |>
+  dplyr::summarize(ta = sum(ARRESTS), te = sum(stu_enroll), .groups = "drop") |>
+  dplyr::filter(ta == 0) |>
+  dplyr::arrange(dplyr::desc(te)) |>
+  dplyr::slice_head(n = 100) |>
+  dplyr::pull(LEAID)
 
-  Unified 2           41                       29 -- 56
+noarr_draws <- get_prediction_draws(con, LEAID = noarr_ids, YEAR = "21-22")
+n_noarr_groups <- dplyr::n_distinct(noarr_draws$LEAID, noarr_draws$RACE, noarr_draws$SEX)
 
-  Unified 3           1,701                    1,629 -- 1,794
+noarr_draws |>
+  dplyr::group_by(model_id, draw_id) |>
+  dplyr::summarize(tot = sum(pred), .groups = "drop") |>          # arrests summed over groups, per draw
+  dplyr::group_by(model_id) |>
+  dplyr::summarize(
+    modeled = median(tot),
+    lo = quantile(tot, 0.025), hi = quantile(tot, 0.975), .groups = "drop") |>
+  dplyr::mutate(
+    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+  dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
+  dplyr::transmute(
+    Models = paste(form, num),
+    `Modeled arrests` = format(round(modeled), big.mark = ","),
+    `95% expected range` = sprintf("%s -- %s", format(round(lo), big.mark = ","),
+                                   format(round(hi), big.mark = ","))) |>
+  knitr::kable(align = c("l", "r", "r"))
+```
 
-  Unified 4           809                      751 -- 867
-
-  Unified 5           821                      766 -- 881
-
-  Stratified 1        110                      83 -- 134
-
-  Stratified 2        139                      111 -- 172
-
-  Stratified 3        1,686                    1,592 -- 1,765
-
-  Stratified 4        832                      768 -- 832
-
-  Stratified 5        837                      767 - 905
-  ------------------------------------------------------------------------
-
-  : Table 6: Model results for 100 districts with largest student enrollments but no arrests
-
-Number of rows of data = 797.
+Number of districts = `r length(noarr_ids)` (`r format(n_noarr_groups, big.mark=",")` district-student groups).
 
 These results align with our expectations: none of the models goes as far as the naïve approach and ignores the current data in favor of an alternative rate from similar districts. Just as importantly, none of the models estimates that there were 0 arrests. We also see familiar patterns emerge: multiyear models have higher expected arrests due to drawing on prior data. Adding covariates decreases (significantly) the number of missing arrests modeled. We also see there is not much difference between the models with a level 1 covariate and model with both a level 1 and level 2 covariate -- continuing a theme that the level 2 covariate does not have a substantial impact on results. One surprise is that the stratified one-year models predict many more missing arrests than the unified models. This could be because of the wider intervals we saw in Table 5 leading to increased variability in the median arrest.
 
