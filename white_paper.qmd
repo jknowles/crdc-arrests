@@ -264,12 +264,59 @@ Our expectation is that the unified models will have worse coverage but greater 
 
 In addition to our expectation that the Bayesian intervals will have good coverage and improved precision, they have two other distinct advantages. First, the Bayesian approach has a more satisfying interpretation: the Bayesian prediction intervals we construct represent the intuitive interpretation of prediction intervals---that there is a 95% probability that the true arrest rate lies between the boundaries of the interval. The confidence interval does not have this straightforward interpretation, though it is often treated as such (Gelman & Hill, 2006). Second, by using models, we can construct prediction intervals for any comparisons we wish to make, such as comparing arrest rates between student groups in a district, across districts, or within a district over time. We can use the draws of the posterior distribution to instantly calculate the average difference, its most likely interval, and visualize the results. We close the paper with some applied examples illustrating how these properties of model prediction intervals aid our interpretation of arrest rates for specific districts.
 
-<!-- TODO(artifact-repro): Tables 3-6 below are the model coverage/precision
-     results, still the ported-static values. Wiring them to artifacts means
-     factoring results.qmd's coverage/precision computation (covered / shrinkage /
-     improved-precision over the draws view) into a shared builder, applied to the
-     four sample definitions (full / with-arrest / 100-most-arrests /
-     100-no-arrests). Deferred per Task 18 scope. -->
+```{r}
+#| label: wp-coverage-data
+#| include: false
+
+# Frequentist (Agresti-Coull) interval per district-student group, 2021-22.
+obsv_data <- rdata |>
+  dplyr::filter(YEAR == "21-22", stu_enroll > 0) |>
+  dplyr::mutate(
+    phat = (2 + ARRESTS) / (4 + stu_enroll),
+    phat_se = sqrt(phat * (1 - phat) / (4 + stu_enroll)),
+    obsv_sd = phat_se * (4 + stu_enroll),
+    obs_upper = (phat + 1.96 * phat_se) * (4 + stu_enroll),
+    obs_lower = (phat - 1.96 * phat_se) * (4 + stu_enroll),
+    obs_upper = ifelse(ARRESTS == 0, 3, obs_upper),         # rule of three
+    obs_lower = ifelse(ARRESTS == 0, 0, pmax(obs_lower, 0)))
+
+# Modeled (Bayesian) median + 95% interval per group, all 10 models, 2021-22.
+modeled <- get_prediction_summary(con, confidence_level = 0.95,
+             central_tendency = "median", YEAR = "21-22") |>
+  dplyr::select(model_id, LEAID, LEA_STATE, YEAR, RACE, SEX,
+                fitted_value, sd, ci_lower, ci_upper)
+
+# Join + per-1,000 rate scale + per-observation performance flags. These are the
+# four white-paper metrics: coverage of the observed rate, precision (1/sd^2),
+# whether the modeled interval is equal-or-narrower than the frequentist interval
+# (white_paper prose: "equal to (no larger than) or better (narrower than)"), and
+# the % the interval is narrowed.
+cov_obs <- dplyr::inner_join(modeled,
+    obsv_data |> dplyr::select(LEAID, LEA_STATE, RACE, SEX, ARRESTS, stu_enroll,
+                               obsv_sd, obs_lower, obs_upper),
+    by = dplyr::join_by(LEAID, LEA_STATE, RACE, SEX)) |>
+  dplyr::mutate(sd = ifelse(sd == 0, {                       # constant fit -> AC sd
+      phat <- (fitted_value + 2) / (stu_enroll + 4)
+      sqrt(phat * (1 - phat) / (4 + stu_enroll)) * (4 + stu_enroll)
+    }, sd)) |>
+  dplyr::mutate(
+    per1k = stu_enroll / 1000,
+    fit_w = (ci_upper - ci_lower) / per1k,
+    obs_w = (obs_upper - obs_lower) / per1k,
+    rate  = ARRESTS / per1k,
+    lo = ci_lower / per1k, hi = ci_upper / per1k,
+    fit_precision = 1 / (sd / per1k)^2,
+    covered      = as.integer(lo <= rate & hi >= rate),
+    equal_better = as.integer(fit_w <= obs_w),               # prose-faithful (<=)
+    pct_narrowed = (obs_w - fit_w) / obs_w)
+
+# Sample row-count (identical per model) for the table footnotes, and the
+# 100-most-arrests district set used by Table 5.
+n_full <- sum(cov_obs$model_id == cov_obs$model_id[1])
+bigarr_ids <- rdata |> dplyr::filter(YEAR == "21-22") |> dplyr::group_by(LEAID) |>
+  dplyr::summarize(ta = sum(ARRESTS), .groups = "drop") |>
+  dplyr::arrange(dplyr::desc(ta)) |> dplyr::slice_head(n = 100) |> dplyr::pull(LEAID)
+```
 
 ## Results
 
