@@ -589,3 +589,368 @@ old_data |> filter(LEA_STATE == "CA") |>
 # them before the heavier draws queries in Parts 3-4.
 rm(combined_data, state_map); gc()
 ```
+
+# Part 2 — Data Construction & Sample Restrictions
+
+This part documents how the analytic sample is built from the raw CRDC and the
+magnitude of each restriction the paper describes. The national descriptive
+totals and rates by race and sex are reported in the paper (`white_paper.html`).
+
+## Sample Continuity Analysis for CRDC Waves
+
+Look at how many LEAs are in multiple years of data and how many LEAs drop
+out of the data when we add successive waves of the data.
+
+```{r}
+#| label: load-historical-data
+
+y1718 <- read_stage_df("stages/crdc/full_crdc_data_y1718.parquet")
+y1516 <- read_stage_df("stages/crdc/full_crdc_data_y1516.parquet")
+```
+
+```{r}
+#| label: match-test-1718-2122
+
+match_test(y1718$LEAID, y2122$LEAID)
+```
+
+```{r}
+#| label: match-test-1516-1718
+
+match_test(y1516$LEAID, y1718$LEAID[y1718$LEAID %in% unique(y2122$LEAID)])
+```
+
+## District Concentration Analysis
+
+For this analysis we look at the most recent CRDC wave.
+
+### District Size Categories
+
+```{r}
+#| label: compute-district-categories
+
+thresh <- c(0, 1000, 10000, 20000, Inf)
+labs <- c("0-999", "1,000-9,999", "10,000-19,999","20,000+")
+
+dist_ref_arr <- y2122 %>%
+  group_by(YEAR, LEA_STATE, LEAID, RACE, SEX) %>%
+  summarize(ARRESTS = sum(ARRESTS),
+            REFERRALS = sum(REFERRALS),
+            stu_enroll = sum(stu_enroll),
+            jj_count = sum(JJ == "Yes")) |>
+  mutate(arrest_rate = ARRESTS / (stu_enroll / 1000),
+         referral_rate = REFERRALS / (stu_enroll / 1000)) %>%
+  group_by(YEAR, LEA_STATE, LEAID) |>
+  mutate(total_enroll = sum(stu_enroll[RACE != "TOTAL" &
+                                         SEX != "TOTAL"]))
+```
+
+### Expected vs Observed Arrests
+
+```{r}
+#| label: compute-expected-arrests
+
+dist_size_summary <- dist_ref_arr %>%
+   ungroup() %>%
+     filter(RACE == "TOTAL" & SEX == "TOTAL") %>%
+   mutate(popcut = cut(stu_enroll,
+                       breaks = thresh,
+                       labels = labs,
+                       include.lowest= TRUE)) %>%
+   group_by(popcut) %>%
+ mutate(expec_arrest = pbinom(1, stu_enroll, nat_arrest_rate/1000,
+                              lower.tail = FALSE)) %>%
+   summarize(dists = n(),
+             dists_w_arrests = sum(ARRESTS>0),
+             expec_distw_arrests = round(sum(expec_arrest),1)) %>%
+   mutate(dist_w_arrest_per = pretty_per(dists_w_arrests/dists),
+          expect_w_arrest_per = pretty_per(expec_distw_arrests/dists))
+```
+
+```{r}
+#| label: display-expected-arrests
+
+dist_size_summary |> knitr::kable()
+```
+
+### Concentration Visualization
+
+This visualization shows the relative concentration of arrests compared in LEAs
+compared to the concentration of population in LEAs.
+```{r}
+#| label: compute-concentration-data
+
+total_enroll_national <- sum(dist_ref_arr$total_enroll[
+  dist_ref_arr$RACE == "TOTAL" & dist_ref_arr$SEX == "TOTAL"
+])
+
+concentration_plot_data <- dist_ref_arr %>%
+  ungroup %>%
+  filter(ARRESTS > 0) %>%
+  filter(RACE == "TOTAL" & SEX == "TOTAL") %>%
+  arrange(desc(stu_enroll)) %>%
+  mutate(total_arr = sum(ARRESTS)) %>%
+  mutate(cum_sum = cumsum(ARRESTS)) %>%
+  mutate(cum_sum_per = cum_sum / total_arr) %>%
+  mutate(dist_per = stu_enroll / total_enroll_national) %>%
+  mutate(dist_per_cum = cumsum(dist_per))
+```
+
+```{r}
+#| label: plot-concentration
+#| fig-cap: "Share of total arrests by cumulative district enrollment"
+#| fig-width: 10
+#| fig-height: 6
+
+concentration_plot <- concentration_plot_data %>%
+  ggplot(aes(x = dist_per_cum, y = cum_sum_per)) +
+  geom_line() +
+  geom_hline(yintercept = 0.5) +
+  geom_vline(xintercept = 0.5, linetype = 2) +
+  scale_x_continuous("% of national student population",
+                     labels = scales::percent, limits = c(0, 0.7)) +
+  scale_y_continuous("% of all arrests", labels = scales::percent) +
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE) +
+  labs(title = "Share of total arrests by cumulative district enrollment",
+       subtitle = "Horizontal line at 50% of all arrests, vertical line at 50% of all students") +
+  theme(axis.ticks.x = element_blank(),
+        panel.grid = element_blank())
+
+print(concentration_plot)
+
+# Save high-resolution figure
+ggsave("export/figures/arrest_concentration_by_district_enrollment.png",
+       plot = concentration_plot,
+       width = 10, height = 6, dpi = 300, bg = "white")
+```
+
+### Enrollment by Arrest Status
+
+```{r}
+#| label: compute-enrollment-by-arrest
+
+enrollment_by_arrest <- dist_ref_arr %>%
+  ungroup %>%
+  filter(RACE == "TOTAL" & SEX == "TOTAL") %>%
+  mutate(has_arrest = ifelse(ARRESTS > 0, "Arrests", "No arrests")) |>
+  group_by(has_arrest) |>
+  summarize(enrollment = sum(total_enroll)) |>
+  mutate(enrollment_per = enrollment / total_enroll_national)
+
+enrollment_by_arrest |> knitr::kable()
+```
+
+
+## Sample Restriction Impact
+
+Here we tabulate the figures about sample restrictions in the paper.
+
+### Section 504 Data
+
+```{r}
+#| label: compute-504-data
+
+sch_ref <- read_stage_df("stages/crdc/lerefs_y2122.parquet")
+
+section_504_summary <- sch_ref %>%
+  select(!matches("TOT_")) %>%
+  select(matches("_504_")) |>
+  ungroup() |>
+  summarize_all(~ sum(crdc_sub(.x), na.rm = TRUE))
+```
+
+```{r}
+#| label: display-504-data
+
+section_504_summary |> knitr::kable()
+```
+
+### Missing Data Patterns
+
+Law enforcement referral missingness data.
+
+```{r}
+#| label: compute-missing-patterns
+
+# Drop non COMBOKEY identifier columns
+sch_ref <- sch_ref %>% select(COMBOKEY:last_col())
+names(sch_ref) <- gsub("_IDEA_", "_", names(sch_ref))
+
+# Check for reserve values
+missing_pattern_table <- sch_ref %>%
+  select(!matches("TOT_")) %>%
+  select(!matches("_504_")) %>%
+  select(!matches("_LEP_")) %>%
+  select(!matches("_EL_")) %>%
+  tidyr::pivot_longer(cols = matches("SCH_DIS"), names_prefix = "SCH_",
+              names_to = c("DISAB", "REF_TYPE", "RACE", "SEX"),
+              names_sep = "_") %>%
+  group_by(COMBOKEY, DISAB, REF_TYPE, RACE, SEX) |>
+  mutate(value_mod = ifelse(value < 0, TRUE, FALSE)) |>
+  pull(value_mod) |>
+  table()
+```
+
+```{r}
+#| label: display-missing-patterns
+
+missing_pattern_table
+```
+
+```{r}
+#| label: display-missing-proportions
+
+prop.table(missing_pattern_table)
+```
+
+```{r}
+#| label: cleanup-sch-ref
+
+rm(sch_ref)
+```
+
+### Section 504 Enrollment
+
+```{r}
+#| label: compute-504-enrollment
+
+enrollment <- read_stage_df("stages/crdc/popcounts_y2122.parquet")
+
+enrollment_504_summary <- enrollment %>%
+  select(!matches("TOT_")) %>%
+  select(matches("_504")) |>
+  select(1:2) |>
+  summarize_all(~ sum(crdc_sub(.x), na.rm = TRUE))
+```
+
+```{r}
+#| label: display-504-enrollment
+
+enrollment_504_summary |> knitr::kable()
+```
+
+```{r}
+#| label: cleanup-enrollment
+
+rm(enrollment)
+```
+
+### Grade Level Restrictions
+
+This reports the impact of restricting the analysis to schools that offer
+a grade 7 or above.
+
+```{r}
+#| label: compute-grade-restrictions
+
+gr_data <- read_stage_df("stages/inputs/combined_model_data.parquet") |> filter(YEAR == "21-22")
+gr_data2 <- gr_data |> filter(highest_grade_offered >= 7)
+
+grade_restriction_summary <- gr_data |>
+  filter(YEAR == "21-22") |>
+  filter(RACE == "TOTAL") |>
+  filter(SEX == "TOTAL") |>
+  mutate(hs = ifelse(highest_grade_offered >= 7, "Yes", "No")) |>
+  group_by(hs) |>
+  summarize(enrollment = sum(enrollment, na.rm = TRUE),
+            arrests = sum(ARRESTS),
+            referrals = sum(REFERRALS))
+```
+
+```{r}
+#| label: display-grade-restrictions
+
+grade_restriction_summary |> knitr::kable()
+```
+
+### CCD Matching
+
+By matching to CCD data we further restrict the CRDC universe. This analysis
+shows the impact of that.
+
+```{r}
+#| label: compute-ccd-matching
+
+ccd <- read_stage_df("stages/crdc/ccd_sch_geo_y2122.parquet")
+crdc <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
+
+ccd$COMBOKEY <- stringr::str_pad(ccd$ncessch_num, width = 12,
+                                side = "left", pad = "0")
+ccd <- ccd |> select(COMBOKEY, highest_grade_offered, lowest_grade_offered,
+                     latitude, longitude, enrollment)
+```
+
+```{r}
+#| label: display-ccd-match-test
+
+match_test(crdc$COMBOKEY, ccd$COMBOKEY)
+```
+
+```{r}
+#| label: compute-ccd-match-summary
+
+ccd_match_summary <- crdc |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  ungroup() |>
+  mutate(in_ccd = ifelse(COMBOKEY %in% unique(ccd$COMBOKEY), "Yes", "No")) |>
+  group_by(in_ccd) |>
+  summarize(enrollment = sum(stu_enroll, na.rm = TRUE),
+            arrests = sum(ARRESTS),
+            referrals = sum(REFERRALS))
+```
+
+```{r}
+#| label: display-ccd-match-summary
+
+ccd_match_summary |> knitr::kable()
+```
+
+```{r}
+#| label: cleanup-ccd-crdc
+
+rm(ccd, crdc)
+gc()
+```
+
+### Enrollment Thresholds
+
+We restrict the sample by enrollment size, and this reports the impact of that
+restriction.
+
+```{r}
+#| label: compute-enrollment-thresholds
+
+thr_data <- read_stage_df("stages/inputs/combined_model_data.parquet") |> filter(YEAR == "21-22")
+thr_data <- crdc_lea_collapse(thr_data)
+
+enrollment_threshold_summary <- thr_data |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  mutate(filtered_out = ifelse(total_enroll < 30 | stu_enroll == 0, "Yes", "No")) |>
+  group_by(filtered_out) |>
+  summarize(dists = n(),
+            enrollment = sum(stu_enroll, na.rm = TRUE),
+            arrests = sum(ARRESTS),
+            referrals = sum(REFERRALS))
+```
+
+```{r}
+#| label: display-enrollment-thresholds
+
+enrollment_threshold_summary |> knitr::kable()
+```
+
+### Censored or truncated enrollment data
+
+Here we report the impact of suppressed records on enrollment.
+
+
+```{r}
+#| label: compute-incomplete-enrollments
+
+enrollment <- read_stage_df("stages/crdc/popcounts_y2122.parquet")
+zz <- incomplete_enrollments(enrollment, year = "21-22")
+zb <- read_stage_df("stages/crdc/schenrollraw_y2122.parquet")
+
+incomplete_proportion <- nrow(zz) / sum(nrow(zz), nrow(zb))
+incomplete_proportion
+```
