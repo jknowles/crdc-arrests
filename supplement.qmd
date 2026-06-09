@@ -151,3 +151,441 @@ agresti_coull <- function(numerator, denominator, confidence_level = 0.95) {
   c(ci_upper, ci_lower, sd, phat_se, phat)
 }
 ```
+
+# Part 1 — Exploratory Data Analysis
+
+This part explores the combined three-year CRDC data (2015-16, 2017-18,
+2021-22). Counts and rates here are pooled across all three waves unless stated
+otherwise, and so differ from the single-wave 2021-22 figures in the paper.
+
+## Basic Data Structure
+
+```{r}
+#| label: data-structure
+# Basic structure and dimensions
+cat("Data dimensions:", nrow(combined_data), "rows,", ncol(combined_data), "columns\n\n")
+
+# Column names and types
+str(combined_data)
+
+# First few rows
+head(combined_data) |> kable()
+```
+
+## Summary Statistics by Year
+
+```{r}
+#| label: year-summary
+# Summary statistics by year
+year_summary <- combined_data |>
+  group_by(YEAR) |>
+  summarise(
+    n_observations = n(),
+    n_schools = n_distinct(COMBOKEY),
+    n_districts = n_distinct(LEAID),
+    mean_enrollment = mean(stu_enroll, na.rm = TRUE),
+    mean_arrests = mean(ARRESTS, na.rm = TRUE),
+    mean_referrals = mean(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+year_summary |> knitr::kable(digits = 2)
+
+
+
+```
+
+### Summary Plot of Trends
+
+```{r}
+#| label: national-arrest-trend-plots
+
+year_summary <- combined_data |>
+  group_by(YEAR) |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  summarise(
+    n_observations = n(),
+    n_schools = n_distinct(COMBOKEY),
+    n_districts = n_distinct(LEAID),
+    total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
+  geom_point() +
+  geom_line(group = 1) +
+  scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
+  labs(x = "School Year", y = "CRDC Arrests", title = "Arrest Trends Across CRDC Collections") +
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE)
+
+ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/1000))) +
+  geom_point() +
+  geom_line(group = 1) +
+  scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
+  labs(x = "School Year", y = "CRDC Arrests per 1,000", title = "Arrest Rate Trends Across CRDC Collections") +
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE)
+
+
+
+
+```
+
+## State Variation Summing over 3 years
+
+```{r}
+#| label: state_map_arrest_rate
+#| echo: false
+#| warning: false
+#| message: false
+
+state_summary <- combined_data |>
+  group_by(LEA_STATE) |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  summarise(
+    n_observations = n(),
+    n_schools = n_distinct(COMBOKEY),
+    n_districts = n_distinct(LEAID),
+    total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+    mutate(arrest_rate =  total_arrests / (total_enrollment / 1000)) |>
+    mutate(arrest_nnh = total_enrollment / total_arrests)
+
+
+
+state_map2 <- inner_join(state_map, state_summary, by = join_by(STUSPS == LEA_STATE))
+
+ggplot(data = state_map2, aes( fill = arrest_rate)) +
+  geom_sf() +
+  geom_sf_label(aes(label = round(arrest_rate, 1))) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1) +
+  labs(title = "Arrests per 1,000 for all students by state") +
+  theme_void()
+
+#rm(state_map2)
+
+```
+
+
+
+```{r}
+#| label: state_map_arrestsnnh
+#| echo: false
+#| warning: false
+#| message: false
+ggplot(data = state_map2, aes( fill = arrest_nnh)) +
+  geom_sf() +
+  geom_sf_label(aes(label = civilytics::pretty_count(round(arrest_nnh, 0)))) +
+  scale_fill_distiller(palette = "YlOrRd", direction = -1,
+  breaks = c(50000, 8000, 3000, 1000, 500),
+  trans = "log", labels = scales::comma) +
+  labs(title = "Students per arrested student by state", fill = "NNH") +
+  theme_void() +
+  theme(legend.position.inside = c(0.1, 0.8), legend.position = "inside")
+```
+
+## Race and Sex Distribution
+
+These counts and rates are **pooled across all three CRDC waves (2015-16,
+2017-18, 2021-22)** and are shown here as number-needed-to-harm (NNH, students
+per arrested student). They therefore differ from the single-wave 2021-22
+totals and per-1,000 rates reported in `white_paper.qmd`; they are not the same
+figures and should not be read as such.
+
+```{r}
+#| label: race-sex-distribution
+# Distribution across race and sex categories
+race_sex_summary <- combined_data |>
+  filter(RACE != "TOTAL", SEX != "TOTAL") |>
+  group_by(RACE, SEX) |>
+  summarise(
+    n_observations = n(),
+    total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+    mutate(arrest_rate = total_arrests / (total_enrollment / 1000)) |>
+  arrange(desc(total_arrests))
+
+race_sex_summary |> knitr::kable(digits = 3)
+```
+
+
+
+```{r}
+#| label: nnh_arrest_counts_3yr
+
+ggplot(race_sex_summary |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
+  aes(x = crdc_race_recode(RACE), y = 1000 / arrest_rate,
+  fill = crdc_race_recode(RACE)) +
+    scale_fill_manual(values = color_fill_values2) +
+  geom_col() +
+  geom_text(aes(label = civilytics::pretty_count(round(1000/arrest_rate,0))),
+              vjust = -0.25) +
+  facet_wrap(~SEX) +
+  civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
+  labs(x = "", y = "NNH (Arrests)", fill = "Race:") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
+                    labels = scales::comma) +
+  theme(legend.position = "bottom", axis.ticks.x = element_blank())
+
+```
+
+### Trends by group
+
+```{r}
+#| label: race-sex-arrestratetrends
+race_sex_trends <- combined_data |>
+  filter(RACE != "TOTAL", SEX != "TOTAL") |>
+  group_by(YEAR, RACE, SEX) |>
+  summarise(
+    n_observations = n(),
+    total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+    mutate(arrest_rate = total_arrests / (total_enrollment / 1000)) |>
+  arrange(desc(total_arrests))
+
+
+
+ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
+  mutate(group_var = paste(RACE, SEX, sep = "_"))) +
+  aes(x = YEAR, y = 1000 / arrest_rate, group = group_var,
+  color = crdc_race_recode(RACE)) +
+    scale_color_manual(values = color_fill_values2) +
+  geom_point() +
+  geom_line() +
+  geom_text(aes(label = civilytics::pretty_count(round(1000/arrest_rate,0)),
+                color = NULL),
+              vjust = -0.25, show.legend = FALSE) +
+  facet_wrap(~SEX) +
+  civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
+  labs(x = "", y = "NNH (Arrests)", color = "Race:") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
+                    limits = c(0, 4000),
+                    labels = scales::comma) +
+  theme(legend.position = "bottom", axis.ticks.x = element_blank())
+
+
+ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
+  mutate(group_var = paste(RACE, SEX, sep = "_"))) +
+  aes(x = YEAR, y = arrest_rate, group = group_var,
+  color = crdc_race_recode(RACE)) +
+    scale_color_manual(values = color_fill_values2) +
+  geom_point() +
+  geom_line() +
+  geom_text(aes(label = civilytics::pretty_count(round(arrest_rate, 2)),
+                color = NULL),
+              vjust = -0.25, show.legend = FALSE) +
+  facet_wrap(~SEX) +
+  civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
+  labs(x = "", y = "Arrests per 1,000", color = "Race:") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
+                    limits = c(0, 4),
+                    labels = scales::comma) +
+  theme(legend.position = "bottom", axis.ticks.x = element_blank())
+
+
+```
+
+
+## State Trends
+
+```{r}
+#| label: state-trend-comparison
+
+state_trend_summary <- combined_data |>
+  filter(LEA_STATE %in% c("KS", "CA")) |>
+  group_by(LEA_STATE, YEAR) |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  summarise(
+    n_observations = n(),
+    n_schools = n_distinct(COMBOKEY),
+    n_districts = n_distinct(LEAID),
+    total_enrollment = sum(stu_enroll, na.rm = TRUE),
+    total_arrests = sum(ARRESTS, na.rm = TRUE),
+    total_referrals = sum(REFERRALS, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+    mutate(arrest_rate =  total_arrests / (total_enrollment / 1000)) |>
+    mutate(arrest_nnh = total_enrollment / total_arrests)
+
+ggplot(state_trend_summary, aes(x = YEAR, y = total_arrests, group = LEA_STATE)) +
+  geom_point() +
+  geom_line() +
+  geom_text(aes(label = civilytics::pretty_count(total_arrests)), nudge_y = -200) +
+  geom_text(data = state_trend_summary |> filter(YEAR == "21-22"),
+            aes(label = LEA_STATE), nudge_x = 0.25) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)),
+                    limits = c(0, 4000),
+                    labels = scales::comma) +
+    labs(x = "CRDC Wave", y = "Total arrests", title = "State-level total arrest trend comparison") +
+    civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE)
+
+
+
+```
+## LEA Comparison
+
+If we aggregate to the LEA level, what patterns do we see?
+
+```{r}
+#| label: lea-panel-balance
+
+combined_data |>
+    filter(total_enroll > 0) |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    group_by(LEAID) |>
+    summarize(
+          nyears = n_distinct(YEAR),
+              nnames = n_distinct(LEA_NAME)
+    ) -> lea_samp_summary
+
+table(lea_samp_summary$nyears) |> prop.table()
+nrow(lea_samp_summary)
+
+
+
+combined_data |>
+    filter(total_enroll > 0) |>
+    filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+    group_by(LEAID) |>
+    mutate(
+          nyears = n_distinct(YEAR)
+    ) |>
+      group_by(nyears) |>
+      summarize(
+                obs = n_distinct(LEAID),
+                enrollment = sum(stu_enroll),
+                ARRESTS = sum(ARRESTS)) -> lea_samp_summary
+
+
+(lea_samp_summary$enrollment / lea_samp_summary$nyears) / sum(lea_samp_summary$enrollment / lea_samp_summary$nyears)
+
+
+```
+
+
+### Rankings over time
+
+```{r}
+#| label: lea-arrest-count-leaderboard
+
+combined_data |>
+#  filter(total_enroll > 0) |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  group_by(YEAR, LEAID, LEA_NAME, LEA_STATE) |>
+  summarize(enroll = sum(stu_enroll, na.rm = TRUE),
+            arrests = sum(ARRESTS, na.rm = TRUE)) |>
+  group_by(YEAR) |>
+  mutate(arrest_rank = rank(arrests)) |>
+  #arrange(desc(arrest_rank), YEAR) |>
+  tidyr::pivot_wider(
+        values_from = c(enroll, arrests, arrest_rank),
+                    names_from = YEAR) |>
+  ungroup() |>
+  filter(!is.na(`arrests_21-22`)) |>
+  arrange(desc(`arrests_21-22`)) |>
+  #mutate(LEA_NAME = stringr::str_trunc(LEA_NAME, width = 24)) |>
+  mutate(arrest_rate_2122 = round(`arrests_21-22` / (`enroll_21-22` / 1000), 2)) |>
+  select(LEA_STATE, LEA_NAME, `enroll_21-22`, `arrests_21-22`,
+          arrest_rate_2122,  `arrests_17-18`, `arrests_15-16`) -> arrest_rank_leaderboard
+
+
+  write.csv(arrest_rank_leaderboard, file = "export/arrest_rank_leader_table.csv")
+
+
+
+  arrest_rank_leaderboard |>
+    rename(State = LEA_STATE,
+           `LEA Name` = LEA_NAME,
+           `Enrollment (21-22)` = `enroll_21-22`,
+           `Arrests (21-22)` = `arrests_21-22`,
+           `Arrest Rate (21-22)` = `arrest_rate_2122`,
+           `Arrests (17-18)` = `arrests_17-18`,
+           `Arrests (15-16)` = `arrests_15-16`
+           ) |>
+     head(20) |> knitr::kable()
+
+
+```
+
+### Rankings of arrest rates
+
+```{r}
+#| label: lea-arrest-rate-leaderboard
+
+combined_data |>
+#  filter(total_enroll > 0) |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  group_by(YEAR, LEAID, LEA_NAME, LEA_STATE) |>
+  summarize(enroll = sum(stu_enroll, na.rm = TRUE),
+            arrests = sum(ARRESTS, na.rm = TRUE),
+            jj_count = sum(JJ == "Yes")) |>
+  mutate(arrest_rate = round(arrests / (enroll / 1000), 1)) |>
+  group_by(YEAR) |>
+  #arrange(desc(arrest_rank), YEAR) |>
+  tidyr::pivot_wider(
+        values_from = c(enroll, arrests, arrest_rate, jj_count),
+                    names_from = YEAR) |>
+  ungroup() |>
+  filter(!is.na(`arrests_21-22`)) |>
+  arrange(desc(`arrest_rate_21-22`)) |>
+  #mutate(LEA_NAME = stringr::str_trunc(LEA_NAME, width = 24)) |>
+  select(LEA_STATE, LEA_NAME, `jj_count_21-22`,
+        `arrest_rate_21-22`, `arrest_rate_17-18`,
+        `arrest_rate_15-16`,
+        `enroll_21-22`, `arrests_21-22`,
+        `arrests_17-18`,
+        `arrests_15-16`) -> arrest_rate_rank_leaderboard
+
+
+  arrest_rate_rank_leaderboard |>
+    select(-`jj_count_21-22`) |>
+    rename(State = LEA_STATE,
+           `LEA Name` = LEA_NAME,
+           `Enrollment (21-22)` = `enroll_21-22`,
+           `Arrests (21-22)` = `arrests_21-22`,
+           `Arrest Rate (21-22)` = `arrest_rate_21-22`,
+           `Arrest Rate (17-18)` = `arrest_rate_17-18`,
+           `Arrest Rate (15-16)` = `arrest_rate_15-16`,
+           `Arrests (17-18)` = `arrests_17-18`,
+           `Arrests (15-16)` = `arrests_15-16`
+           ) |>
+     head(20) |> knitr::kable()
+
+```
+
+
+```{r}
+#| label: badcells
+#| eval: false
+#| include: false
+# Check waterbury
+combined_data |> filter(LEAID == "0634320") |> View()
+old_data <- read_stage_df("stages/crdc/model_data_y1516.parquet")
+old_data |> filter(LEAID == "0634320") |> View()
+
+old_data |> filter(LEA_STATE == "CA") |>
+  filter(SEX == "F", RACE == "BL") |>
+  group_by(LEAID, LEA_NAME) |>
+  summarize(stu_enroll = sum(stu_enroll),
+            nschls = n(),
+            arrests = sum(ARRESTS)) |>
+  filter(stu_enroll > 2000)
+```
+
+```{r}
+#| label: eda-free-memory
+#| include: false
+# The combined three-year frame and state shapes are only used by Part 1; free
+# them before the heavier draws queries in Parts 3-4.
+rm(combined_data, state_map); gc()
+```
