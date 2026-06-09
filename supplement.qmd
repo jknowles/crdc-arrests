@@ -1,0 +1,153 @@
+---
+title: "Supplementary Materials: Equity Analysis at a Large Scale (CRDC School Arrests)"
+author:
+  - name: "Jared E. Knowles"
+    affiliation: "Civilytics Consulting"
+  - name: "Hannah Miller"
+    affiliation: "Civilytics Consulting"
+format:
+  html:
+    theme: theme/civilytics.scss
+    css: theme/extras.css
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+  message: false
+  error: false
+knitr:
+  opts_chunk:
+    fig.path: export/figures/supplement-
+---
+
+This document collects the supplementary materials for the white paper *Equity
+Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the
+CRDC School Arrest Data*. It has four parts: exploratory analysis of the combined
+three-year CRDC data, the data-construction and sample-restriction details,
+model performance and diagnostics, and additional applied prediction-interval
+examples. The headline tables and figures, and the national descriptive totals
+by race and sex, are reported in the paper itself (`white_paper.html`); this
+companion holds the supporting detail. Like the paper, every section reads the
+published artifacts via `crdc_path()` and renders standalone.
+
+```{r}
+#| label: setup
+#| include: false
+
+# Libraries (union of the three merged source documents)
+library(targets)
+library(brms)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(ggdist)
+library(marginaleffects)
+library(tidybayes)
+library(ggridges)
+library(patchwork)
+library(duckdb)
+library(knitr)
+
+options(scipen = 9)
+options(width = 120)
+if (!dir.exists("export/figures")) dir.create("export/figures", recursive = TRUE)
+
+# --- Artifact-access layer (documented reproduction interface; kept sourced) ---
+source("R/funs.R")
+source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
+cv_apply_branding()                    # civilytics theme on all figures
+h <- open_draws_view(); con <- h$con   # predicted_draws view over published parquet
+
+# --- Inputs (loaded once for all sections) ---
+tydata <- read_stage_df("stages/inputs/three_year_data.parquet")
+rdata  <- read_stage_df("stages/inputs/recent_data.parquet")
+y2122  <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
+
+# National 2021-22 arrest rate used by the District Concentration analysis (Part 2)
+nat_totals <- y2122 |>
+  ungroup() |>
+  filter(RACE == "TOTAL" & SEX == "TOTAL") |>
+  summarize(
+    all_lea_count = n_distinct(LEAID),
+    lea_any_arr   = n_distinct(LEAID[ARRESTS > 0]),
+    enrollment    = sum(stu_enroll),
+    arrests       = sum(ARRESTS),
+    referrals     = sum(REFERRALS))
+nat_arrest_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
+
+# Combined three-year frame + canonical (most-recent-wave) LEA name (Part 1 EDA)
+combined_data <- read_stage_df("stages/inputs/combined_model_data.parquet")
+combined_data |>
+  select(LEAID, LEA_NAME, YEAR) |>
+  distinct_all() |>
+  group_by(LEAID) |>
+  mutate(last_name = ifelse(any(YEAR == "21-22"), LEA_NAME[YEAR == "21-22"],
+                     ifelse(any(YEAR == "17-18"), LEA_NAME[YEAR == "17-18"],
+                            LEA_NAME[YEAR == "15-16"]))) |>
+  ungroup() |>
+  select(LEAID, last_name) |>
+  distinct_all() -> lea_names_canonical
+combined_data <- left_join(combined_data |> select(-LEA_NAME),
+                           lea_names_canonical |> rename(LEA_NAME = last_name),
+                           by = join_by(LEAID))
+rm(lea_names_canonical)
+
+# State shapes for the EDA choropleths (Part 1)
+state_map <- tigris::states(cb = TRUE, resolution = "20m") |> tigris::shift_geometry()
+
+# --- Colour palettes (inlined for transparency) ---
+color_fill_values  <- c("WH" = "#c92d0e", "BL" = "#020684", "AM" = "#ff8f43",
+                        "TOTAL" = "#909090ff", "HI" = "#0791b6")
+color_fill_values2 <- c("White" = "#c92d0e", "Black" = "#020684",
+                        "Total" = "#909090ff", "Hispanic" = "#0791b6",
+                        "Amer. Ind." = "#ff8f43")
+model_palette <- c("Modeled" = "#000a9bff", "Frequentist" = "#858585bb")
+group_palette <- c("WH" = "#09d2ecc2", "BL" = "#ab00a9f1", "HI" = "#00ab17f1")
+
+# --- Model-labelling helpers (inlined for transparency; used by Parts 3-4) ---
+add_model_time <- function(x) {
+  y <- rep("One year", length(x))
+  y[x %in% c("nat_m3_mod", "nat_m4_mod", "nat_m5_mod",
+             "sg_m3_mod", "sg_m4_mod", "sg_m5_mod")] <- "Three year"
+  y
+}
+add_model_form <- function(x) {
+  y <- rep("Stratified", length(x)); y[startsWith(x, "nat")] <- "Unified"; y
+}
+add_model_cov <- function(x) {
+  y <- rep("Baseline", length(x))
+  y[x %in% c("sg_m2_mod", "nat_m4_mod", "nat_m5_mod",
+             "nat_m2_mod", "sg_m4_mod", "sg_m5_mod")] <- "Covariate"
+  y
+}
+print_model_name <- function(x, lbreak = FALSE) {
+  y <- rep("Stratified", length(x)); y[startsWith(x, "nat")] <- "Unified"
+  x <- gsub("_mod", "", x); x <- gsub("nat_m", "", x); x <- gsub("sg_m", "", x)
+  if (lbreak) paste0(y, "\nModel:", x) else paste0(y, " Model:", x)
+}
+
+# --- Agresti-Coull frequentist interval (inlined; used by Part 4 examples) ---
+agresti_coull <- function(numerator, denominator, confidence_level = 0.95) {
+  adj_star <- qnorm(1 - (1 - confidence_level) / 2)
+  if (numerator > 0) {
+    num_star   <- numerator + adj_star
+    denom_star <- denominator + (2 * adj_star)
+    phat       <- num_star / denom_star
+    phat_se    <- sqrt((phat / denom_star) * (1 - phat))
+    ci_upper   <- (phat + (adj_star * phat_se)) * denom_star
+    ci_lower   <- (phat - (adj_star * phat_se)) * denom_star
+    sd         <- phat_se * denom_star
+  } else {
+    ci_upper <- denominator * (-log(1 - confidence_level) / denominator)
+    ci_lower <- 0
+    sd       <- mean(c(ci_upper, ci_lower)) / confidence_level
+    phat_se  <- 0
+    phat     <- mean(c(ci_upper, ci_lower))
+  }
+  c(ci_upper, ci_lower, sd, phat_se, phat)
+}
+```
