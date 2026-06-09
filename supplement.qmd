@@ -954,3 +954,421 @@ zb <- read_stage_df("stages/crdc/schenrollraw_y2122.parquet")
 incomplete_proportion <- nrow(zz) / sum(nrow(zz), nrow(zb))
 incomplete_proportion
 ```
+
+# Part 3 — Model Performance & Diagnostics
+
+## Model Predictions and Performance
+
+Now we calculate the performance results comparing the models to non-model
+methods for computing arrest rates.
+
+### Observed Data Preparation
+
+```{r}
+#| label: compute-observed-data
+
+obsv_data <- rdata |>
+  filter(YEAR == "21-22") |>
+  filter(stu_enroll > 0) |>
+  mutate(phat = (2+ARRESTS) / (4+stu_enroll)) |> # agresti-coull approximation
+  mutate(phat_se = sqrt((phat * (1-phat)/(4+stu_enroll)))) |>
+  mutate(sd = phat_se * (4 + stu_enroll)) |>
+  mutate(fitted_value = ARRESTS) |>
+  mutate(CVp = 100 * sqrt(((1-phat)/(phat*(4+stu_enroll))))) |>
+  # agresti-coull confidence interval for arrests
+  mutate(ci_upper = (phat + (1.96*phat_se)) * (4 + stu_enroll),
+        ci_lower = (phat - (1.96*phat_se)) * (4 + stu_enroll)) |>
+  # add rule of three correction
+  mutate(ci_upper = ifelse(ARRESTS == 0, 3, ci_upper),
+        ci_lower = ifelse(ARRESTS == 0, 0, ci_lower)) |>
+  mutate(ci_lower = ifelse(ci_lower < 0, 0, ci_lower)) |>
+  mutate(model_id = "observed")
+
+dist_test <- get_prediction_summary(con, confidence_level = 0.95,
+      central_tendency = "median", YEAR = "21-22")
+dist_test <- dist_test |> mutate(CVp = 100 * (sd / fitted_value))
+dist_test <- dist_test |> select(model_id, LEAID, LEA_STATE, YEAR, RACE, SEX,
+                                  fitted_value, sd, CVp, ci_lower, ci_upper)
+
+plotdf <- inner_join(
+  dist_test,
+  obsv_data |>
+    select(LEA_STATE:stu_enroll, sd, CVp, ci_upper, ci_lower) |>
+    rename(obsv_sd = sd, obsv_CVP = CVp, obs_upper = ci_upper, obs_lower = ci_lower),
+  by = join_by(LEAID, LEA_STATE, RACE, SEX)
+)
+
+plotdf <- plotdf |>
+  mutate(
+    fitted_constant = ifelse(sd == 0, 1, 0),
+    sd = ifelse(sd == 0, {
+      phat <- (fitted_value + 2) / (stu_enroll+4)
+      phat_se <- sqrt((phat * (1-phat)/(4+stu_enroll)))
+      phat_se * (4 + stu_enroll)
+    }, sd)
+  ) |>
+  mutate(CVp = 100 * (sd / fitted_value)) |>
+  mutate(CVp = ifelse(!is.finite(CVp), {
+    phat <- (fitted_value + 2) / (stu_enroll+4)
+    100 * sqrt(((1-phat)/(phat*(4+stu_enroll))))
+  }, CVp))
+```
+
+### Performance Metrics
+
+This code calculates our performance metrics on the arrest rate scale, translating
+it from the arrest scale.
+
+```{r}
+#| label: compute-performance-metrics
+
+plotdf <- plotdf |>
+  mutate(
+    fitted_value = fitted_value / (stu_enroll/1000),
+    sd = sd / (stu_enroll/1000),
+    obsv_sd = obsv_sd / (stu_enroll / 1000),
+    ci_lower = ci_lower / (stu_enroll / 1000),
+    ci_upper = ci_upper / (stu_enroll/1000),
+    arrest_rate = ARRESTS / (stu_enroll / 1000),
+    obs_upper = obs_upper / (stu_enroll / 1000),
+    obs_lower = obs_lower / (stu_enroll / 1000)
+  ) |>
+  mutate(
+    covered = if_else(ci_lower <= arrest_rate & ci_upper >= arrest_rate, 1, 0),
+    improved_cv = ifelse(CVp < obsv_CVP & is.finite(obsv_CVP), 1, 0),
+    obsv_precision = 1 / obsv_sd^2,
+    fit_precision = 1 / sd^2
+  ) |>
+  mutate(
+    improved_precision = ifelse(obsv_precision > fit_precision, 0, 1),
+    narrower_interval = ifelse((ci_upper - ci_lower) <= (obs_upper - obs_lower), 1, 0)  # "equal or better" (matches white_paper)
+  )
+```
+
+### Full-sample model performance
+
+The full-sample summary of coverage, precision, "% equal or better" intervals,
+and median % narrowed across all ten models is **Table 3** in `white_paper.qmd`,
+computed there from this same observed-vs-modeled join. It is not duplicated
+here. The diagnostic cross-tabulations that are unique to this document follow.
+
+## Model Performance Diagnostics
+
+### Comparing models to non-modeled intervals
+
+
+```{r}
+#| label: crosstab-interval-precision
+
+table(narrower_interval = plotdf$narrower_interval,
+      improved_precision =plotdf$improved_precision)
+```
+
+```{r}
+#| label: crosstab-interval-cv
+
+table(narrower_interval = plotdf$narrower_interval,
+      improved_precision = plotdf$improved_cv)
+```
+
+### Looking at constant models
+
+Some fitted values are constants with no variation. We want to look at these
+cases separately.
+
+
+```{r}
+#| label: constant-proportions
+
+table(fitted_constant = plotdf$fitted_constant) |> prop.table() |> knitr::kable()
+
+```
+
+When we exclude constant prediction results and see how models perform to
+non-modeled intervals.
+
+```{r}
+#| label: crosstab-nonconstant
+
+table(narrower = plotdf$narrower_interval[plotdf$fitted_constant == 0],
+      higher_precsion = plotdf$improved_precision[plotdf$fitted_constant == 0])
+```
+
+
+### Non-Constant Models
+
+Now we look in more depth at results from observations without constant
+predicted values.
+
+```{r}
+#| label: compute-nonconstant-summary
+
+nonconstant_summary <- plotdf |>
+  filter(fitted_constant == 0) |>
+  group_by(model_id, YEAR) |>
+  summarize(
+    count = n(),
+    meanCVP = mean(obsv_CVP[is.finite(obsv_CVP)], na.rm = TRUE),
+    meanfitCVP = mean(CVp[is.finite(CVp)], na.rm = TRUE),
+    obsv_precision = mean(obsv_precision),
+    fit_precision = mean(fit_precision),
+    improved_cv = sum(improved_cv),
+    improved_precision = sum(improved_precision),
+    improved_interval = sum(narrower_interval),
+    covered = sum(covered)
+  ) |>
+  mutate(
+    per_covered = covered/count,
+    per_improved_cv = improved_cv / count,
+    per_narrower = improved_interval / count,
+    per_improved_pre = improved_precision / count
+  ) |>
+  select(-meanCVP, -meanfitCVP, -improved_cv, -improved_precision, -improved_interval)
+```
+
+```{r}
+#| label: display-nonconstant-summary
+
+nonconstant_summary |> knitr::kable()
+```
+
+### Non-zero-arrest model performance
+
+Model performance restricted to district-student groups with at least one
+observed arrest is **Table 4** in `white_paper.qmd`. It is not duplicated here.
+
+## Subgroup Analysis
+
+### Define Subgroups
+
+Create largest 100 districts
+
+```{r}
+#| label: define-big100
+
+big100 <- rdata |>
+  group_by(LEA_STATE, LEAID, LEA_NAME) |>
+  summarize(
+    total_enroll = sum(stu_enroll),
+    total_arrests = sum(ARRESTS)
+  ) |>
+  arrange(desc(total_enroll)) |>
+  ungroup() |>
+  slice_head(n = 100)
+```
+
+The "most total arrests" and "largest-enrollment with zero arrests" district
+subsets are analysed canonically in `white_paper.qmd` (Tables 5 and 6), so only
+the largest-enrollment-by-any-arrest subset (`big100`) is built here.
+
+### Large Districts Performance
+
+Look at how models perform on the 100 largest districts by student enrollment
+
+```{r}
+#| label: compute-big100-summary
+
+big100_summary <- plotdf |>
+  filter(LEAID %in% big100$LEAID) |>
+  group_by(model_id, YEAR) |>
+  summarize(
+    count = n(),
+    obsv_precision = mean(obsv_precision),
+    fit_precision = mean(fit_precision),
+    obsv_interval_med = median((obs_upper - obs_lower)),
+    fit_interval_med = median((ci_upper - ci_lower)),
+    interval_delta = median((((obs_upper - obs_lower) - (ci_upper - ci_lower))) /
+                            (obs_upper - obs_lower)),
+    improved_precision = sum(improved_precision),
+    improved_interval = sum(narrower_interval),
+    covered = sum(covered)
+  ) |>
+  mutate(
+    per_covered = covered/count,
+    per_narrower = improved_interval / count,
+    per_improved_pre = improved_precision / count
+  )
+```
+
+```{r}
+#| label: display-big100-summary
+
+big100_summary |> knitr::kable()
+```
+
+### High-arrest and zero-arrest district performance
+
+Model performance for the 100 districts with the most total arrests is **Table
+5**, and the expected-vs-observed arrests for the 100 largest-enrollment
+districts that reported zero arrests is **Table 6** — both computed reproducibly
+in `white_paper.qmd`. They are not duplicated here.
+
+## Model Computation Statistics
+
+Here we compute the model statistics.
+
+### National Models
+
+```{r}
+#| label: compute-nat-model-stats
+
+# Pooled-model stats from the published diagnostics artifact (precomputed
+# calculate_model_stats(); labels via the model registry).
+read_stage_df("stages/diagnostics/model_stats.parquet") |>
+  filter(model_id %in% crdc_pooled_ids()) |>
+  with_model_labels() |>
+  transmute(Model = model_label, ndraws, chains, threads, thin, leas,
+            parameters, worst_rhat, min_bulk_ess, mean_bulk_ess,
+            runtime_minutes, data_rows) |>
+  knitr::kable()
+
+```
+
+
+### Subgroup Models
+
+```{r}
+#| label: compute-sg-stats
+
+# Student-group model stats from the published diagnostics artifact: each
+# sg_m#_mod stored its per-group rows; sum them per model (matches the original
+# disaggregated_*_avg aggregation), labelled via the registry.
+read_stage_df("stages/diagnostics/model_stats.parquet") |>
+  filter(grepl("^sg_", model_id)) |>
+  with_model_labels() |>
+  group_by(model_label) |>
+  summarize(
+    runtime    = sum(runtime_minutes),
+    parameters = sum(parameters),
+    data_rows  = sum(data_rows),
+    ndraws     = sum(ndraws),
+    .groups = "drop"
+  )
+```
+
+### HMC Diagnostics
+
+```{r}
+#| label: hmc-diagnostics
+
+# Live pooled-model HMC diagnostics when the fits are available locally/cached
+# (stages/models/pooled_m#.qs2); otherwise show the published diagnostics table.
+# crdc_cached_path() never downloads, so this won't force a ~2.9 GB pull.
+reg <- crdc_model_registry()
+any_live <- FALSE
+for (id in crdc_pooled_ids()) {
+  spec <- reg$spec[match(id, reg$id)]
+  f <- crdc_cached_path(sprintf("stages/models/pooled_%s.qs2", spec))
+  if (!is.na(f)) {
+    any_live <- TRUE
+    cat("\n###", crdc_model_label(id), "\n")
+    rstan::check_hmc_diagnostics(qs2::qs_read(f)$fit)
+  }
+}
+if (!any_live) {
+  cat("Pooled fits not present locally; showing the published diagnostics table.\n")
+  knitr::kable(read_stage_df("stages/diagnostics/hmc_diagnostics.parquet"))
+}
+```
+
+## State-Level Analysis
+
+### State Predictions
+
+```{r}
+rm(dist_ref_arr, dist_test, enrollment,
+      obsv_data, gr_data, gr_data2, thr_data, plotdf); gc()
+```
+
+```{r}
+#| label: get-state-predictions
+
+state_test <- get_state_prediction_summary(con)
+state_test <- state_test |> mutate(CVp = 100 * (sd / fitted_value))
+state_test <- state_test |> select(model_id, LEA_STATE, YEAR, RACE, SEX,
+                                    fitted_value, sd, CVp, ci_lower, ci_upper)
+```
+
+### State Observed Data
+
+```{r}
+#| label: compute-state-observed
+
+state_obsv_data <- rdata |>
+  filter(YEAR == "21-22") |>
+  group_by(LEA_STATE, YEAR, RACE, SEX) |>
+  summarize(
+    ARRESTS = sum(ARRESTS),
+    stu_enroll = sum(stu_enroll)
+  ) |>
+  mutate(phat = (2+ARRESTS) / (4+stu_enroll)) |>
+  mutate(phat_se = sqrt((phat * (1-phat)/(4+stu_enroll)))) |>
+  mutate(sd = phat_se * (4+stu_enroll)) |>
+  mutate(fitted_value = ARRESTS) |>
+  mutate(CVp = 100 * sqrt(((1-phat)/(phat*(4+stu_enroll))))) |>
+  mutate(
+    ci_upper = (phat + (1.96*phat_se)) * stu_enroll,
+    ci_lower = (phat - (1.96*phat_se)) * stu_enroll
+  ) |>
+  mutate(
+    ci_upper = ifelse(ARRESTS == 0, 3/stu_enroll, ci_upper),
+    ci_lower = ifelse(ARRESTS == 0, 0, ci_lower)
+  ) |>
+  mutate(model_id = "observed")
+```
+
+### State Performance
+
+```{r}
+#| label: compute-state-performance
+
+state_plotdf <- left_join(
+  state_test,
+  state_obsv_data |>
+    select(LEA_STATE:stu_enroll, sd, CVp, ci_upper, ci_lower) |>
+    rename(obsv_sd = sd, obsv_CVP = CVp, obs_upper = ci_upper, obs_lower = ci_lower),
+  by = join_by(LEA_STATE, YEAR, RACE, SEX)
+)
+
+state_performance <- state_plotdf |>
+  filter(YEAR == "21-22") |>
+  mutate(
+    fitted_value = fitted_value / (stu_enroll/1000),
+    sd = sd / (stu_enroll/1000),
+    obsv_sd = obsv_sd / (stu_enroll / 1000),
+    ci_lower = ci_lower / (stu_enroll / 1000),
+    ci_upper = ci_upper / (stu_enroll/1000),
+    arrest_rate = ARRESTS / (stu_enroll / 1000),
+    obs_upper = obs_upper / (stu_enroll / 1000),
+    obs_lower = obs_lower / (stu_enroll / 1000)
+  ) |>
+  mutate(
+    covered = if_else(ci_lower <= arrest_rate & ci_upper >= arrest_rate, 1, 0),
+    improved_cv = ifelse(CVp < obsv_CVP & is.finite(obsv_CVP), 1, 0),
+    obsv_precision = 1 / obsv_sd^2,
+    fit_precision = 1 / sd^2
+  ) |>
+  mutate(improved_precision = ifelse(obsv_precision > fit_precision, 0, 1)) |>
+  group_by(model_id, YEAR) |>
+  summarize(
+    count = n(),
+    meanCVP = mean(obsv_CVP[is.finite(obsv_CVP)], na.rm = TRUE),
+    meanfitCVP = mean(CVp[is.finite(CVp)], na.rm = TRUE),
+    obsv_precision = mean(obsv_precision),
+    fit_precision = mean(fit_precision),
+    improved_cv = sum(improved_cv),
+    improved_precision = sum(improved_precision),
+    covered = sum(covered)
+  ) |>
+  mutate(
+    per_covered = covered/count,
+    per_improved_cv = improved_cv / count,
+    per_improved_pre = improved_precision / count
+  )
+```
+
+```{r}
+#| label: display-state-performance
+
+state_performance |> knitr::kable()
+```
