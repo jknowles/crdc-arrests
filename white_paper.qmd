@@ -46,7 +46,7 @@ options(scipen = 9)
 # Every arrest count / rate reported in the Data section below is regenerated
 # here from the same full CRDC wave (crdc_2122) the rest of the paper uses, so
 # the inline prose numbers stay in sync with the source data instead of being
-# hand-entered. (Ported from results.qmd's descriptive-totals sections.)
+# hand-entered.
 .tot <- crdc_2122 |> dplyr::filter(RACE == "TOTAL", SEX == "TOTAL") |>
   dplyr::summarize(arrests = sum(ARRESTS), enroll = sum(stu_enroll),
                    leas = dplyr::n_distinct(LEAID),

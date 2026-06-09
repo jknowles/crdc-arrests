@@ -73,10 +73,9 @@ DOWNLOAD_GUIDE.md       How to obtain the CRDC source data
 
   ── Subsystem 3 · Artifact reproduction ───────────────────────────────────
 white_paper.qmd         The report (ported from the Word source), rebuilt from artifacts
-results.qmd             Results engine: stats, tables, figures for the paper
-applied_examples.qmd    Prediction-interval case studies
+supplement.qmd          Supplementary Materials: EDA, sample construction, model
+                        diagnostics, and additional applied examples
 social_media_posts.qmd  Branded social-media figures/tables
-combined_eda.qmd        Three-year combined exploratory analysis
 annual_descriptives_template.qmd / model_descriptives_template.qmd
                         Per-CRDC-wave descriptive report templates (tar_render_rep)
 _brand.yml              Civilytics Quarto brand (colors / fonts / logo)
@@ -237,10 +236,8 @@ are described below.
 | `nat_m*_mod` | National Bayesian models (baseline, demographic, referral‑adjusted, full) | `brmsfit` objects saved as RDS |
 | `sg_m*_mod` | Subgroup (race/sex) models – one per demographic group | List of `brmsfit` objects |
 | `white_paper` | The full report (ported from the Word source), rebuilt from artifacts | `white_paper.html` |
-| `results_report` | Paper results engine (stats, tables, figures) | `results.html` |
-| `applied_examples` | Applied prediction-interval case studies | `applied_examples.html` |
+| `supplement` | Supplementary Materials: EDA, sample construction, model diagnostics, applied examples | `supplement.html` |
 | `social_media_posts` | Branded social-media figures/tables | `social_media_posts.html` + `export/figures/socialmedia-*` |
-| `combined_eda` | Quarto HTML report with descriptive statistics and plots | `crdc_combined_three_year_eda_report.html` |
 | `annual_report` / `model_descriptives` | Year‑specific Quarto reports (templates, one per CRDC wave) | `annual_descriptives_<year>.html` / `model_descriptives_<year>.html` |
 
 All model objects are stored in the `main` storage format (`rds`) and can be loaded with `readRDS()`.

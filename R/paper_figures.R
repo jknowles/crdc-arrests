@@ -114,15 +114,15 @@ cv_apply_branding <- function(logo = TRUE,
 # (open_draws_view()) + the staged input table `rdata`
 # (read_stage_df("stages/inputs/recent_data.parquet")) and, where noted,
 # `tydata` (three_year_data). They are the single source for white_paper.qmd;
-# applied_examples.qmd keeps its own inline chunks (intentional — see plan
-# Task 18, "white_paper-only builders"). Each returns a ggplot/patchwork object.
+# supplement.qmd keeps its own inline chunks (intentional — the supplement
+# inlines its analysis for transparency). Each returns a ggplot/patchwork object.
 #
-# Internal helpers (model classification, palettes, Agresti-Coull) are ported
-# from applied_examples.qmd so white_paper renders standalone.
+# Internal helpers (model classification, palettes, Agresti-Coull) mirror
+# supplement.qmd's inline copies so white_paper renders standalone.
 # ---------------------------------------------------------------------------
 
 #' Agresti-Coull approximate interval for a rare-event rate. Returns
-#' c(ci_upper, ci_lower, sd, phat_se, phat) (matches applied_examples.qmd).
+#' c(ci_upper, ci_lower, sd, phat_se, phat) (matches supplement.qmd).
 agresti_coull <- function(numerator, denominator, confidence_level = 0.95) {
   adj_star <- stats::qnorm(1 - (1 - confidence_level) / 2)
   if (numerator > 0) {

@@ -51,35 +51,35 @@ downloads.
 
 | Artifact | Source target | Grain | Consumed by |
 |---|---|---|---|
-| `three_year_data.parquet` | `three_year_data$data` | LEA × YEAR × RACE × SEX (3-yr restricted) | results, applied_examples, social |
-| `recent_data.parquet` | `recent_data$data` | LEA × RACE × SEX (2021-22 restricted) | results, applied_examples, social |
-| `combined_model_data.parquet` | `combined_model_data` | school × YEAR (3-yr combined) | results, social, combined_eda |
+| `three_year_data.parquet` | `three_year_data$data` | LEA × YEAR × RACE × SEX (3-yr restricted) | supplement, social |
+| `recent_data.parquet` | `recent_data$data` | LEA × RACE × SEX (2021-22 restricted) | supplement, social |
+| `combined_model_data.parquet` | `combined_model_data` | school × YEAR (3-yr combined) | supplement, social |
 | `combined_sch_data.parquet` | `combined_sch_data` | school (CCD, 3-yr) | social |
 
 ### `stages/crdc/` — raw/intermediate CRDC (~202 MB)
 
 | Artifact (×3 years where suffixed) | Source target | Consumed by |
 |---|---|---|
-| `full_crdc_data_{y2122,y1718,y1516}.parquet` | `full_crdc_data_*` | results, social |
-| `model_data_{…}.parquet` | `model_data_*` | combined_eda, annual/model descriptives |
-| `popcounts_{…}.parquet` | `popcounts_*` | results |
-| `schenrollraw_{…}.parquet` | `schenrollraw_*` | results |
-| `lerefs_{…}.parquet` | `lerefs_*` | results |
-| `ccd_sch_geo_{…}.parquet` | `ccd_sch_geo_*` | results |
+| `full_crdc_data_{y2122,y1718,y1516}.parquet` | `full_crdc_data_*` | supplement, social |
+| `model_data_{…}.parquet` | `model_data_*` | supplement, annual/model descriptives |
+| `popcounts_{…}.parquet` | `popcounts_*` | supplement |
+| `schenrollraw_{…}.parquet` | `schenrollraw_*` | supplement |
+| `lerefs_{…}.parquet` | `lerefs_*` | supplement |
+| `ccd_sch_geo_{…}.parquet` | `ccd_sch_geo_*` | supplement |
 | `ccd_dist_geo_{…}.parquet` | `ccd_dist_geo_*` | annual/model descriptives |
 
 ### `stages/diagnostics/` — model diagnostics (small)
 
 | Artifact | Source | Notes | Consumed by |
 |---|---|---|---|
-| `model_stats.parquet` | `calculate_model_stats()` over all 10 models | per-model convergence/runtime stats; `model_id` + registry `model_label` ("Pooled (m#)" / "Student-group (m#)"); subgroup models contribute their per-group rows | results (model-stats tables) |
-| `hmc_diagnostics.parquet` | pooled fits' sampler diagnostics | divergences / max-treedepth / E-BFMI per pooled model | results (HMC fallback) |
+| `model_stats.parquet` | `calculate_model_stats()` over all 10 models | per-model convergence/runtime stats; `model_id` + registry `model_label` ("Pooled (m#)" / "Student-group (m#)"); subgroup models contribute their per-group rows | supplement (model-stats tables) |
+| `hmc_diagnostics.parquet` | pooled fits' sampler diagnostics | divergences / max-treedepth / E-BFMI per pooled model | supplement (HMC fallback) |
 
 ### `stages/models/` — pooled fits (~2.9 GB, optional)
 
 | Artifact | Source target | Notes |
 |---|---|---|
-| `pooled_m{1..5}.qs2` | `nat_m{1..5}_mod` | the 5 pooled brms fits; let `results.qmd` run **live** `check_hmc_diagnostics()`. Subgroup fits (`sg_*`, ~31 GB) are **not** shipped — their stats come from `model_stats.parquet`. |
+| `pooled_m{1..5}.qs2` | `nat_m{1..5}_mod` | the 5 pooled brms fits; let `supplement.qmd` run **live** `check_hmc_diagnostics()`. Subgroup fits (`sg_*`, ~31 GB) are **not** shipped — their stats come from `model_stats.parquet`. |
 
 ### Already public (Subsystem 1)
 

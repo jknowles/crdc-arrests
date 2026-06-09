@@ -122,7 +122,7 @@ var:
 
 Reads are native (DuckDB `read_parquet`, `qs2::qs_read`); `crdc_path()` only
 resolves a path and lazily caches — it does not wrap the read. The docs are
-therefore **standalone-renderable**: `quarto render results.qmd` works on a clean
+therefore **standalone-renderable**: `quarto render supplement.qmd` works on a clean
 clone with no targets store. They are also wrapped as `cue = "never"` render
 targets for pipeline integration.
 

@@ -218,13 +218,6 @@ list(
       ccd_sch_geo_y1516
     )
   ),
-  # Render EDA document for combined data (cue=never).
-  tarchetypes::tar_render(
-    name = combined_eda,
-    path = "combined_eda.qmd",
-    output_file = "crdc_combined_three_year_eda_report.html",
-    cue = tar_cue(mode = "never")
-  ),
   # Prep combined data for modeling
   tar_target(
     three_year_data,
@@ -710,10 +703,8 @@ list(
   # Docs read published artifacts via crdc_path(), so they render standalone too. ---
   tarchetypes::tar_render(white_paper, "white_paper.qmd",
     output_file = "white_paper.html", cue = tar_cue(mode = "never")),
-  tarchetypes::tar_render(results_report, "results.qmd",
-    output_file = "results.html", cue = tar_cue(mode = "never")),
-  tarchetypes::tar_render(applied_examples, "applied_examples.qmd",
-    output_file = "applied_examples.html", cue = tar_cue(mode = "never")),
+  tarchetypes::tar_render(supplement, "supplement.qmd",
+    output_file = "supplement.html", cue = tar_cue(mode = "never")),
   tarchetypes::tar_render(social_media_posts, "social_media_posts.qmd",
     output_file = "social_media_posts.html", cue = tar_cue(mode = "never")),
   tarchetypes::tar_render_rep(

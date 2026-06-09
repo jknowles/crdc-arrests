@@ -11,8 +11,8 @@ test_that("check_read_contract flags runtime store reads but ignores comments", 
 
 test_that("no in-scope doc reads the targets store at render time", {
   root <- file.path("..", "..")   # tests run with cwd = tests/testthat
-  docs <- c("results.qmd", "applied_examples.qmd", "social_media_posts.qmd",
-            "combined_eda.qmd", "annual_descriptives_template.qmd",
+  docs <- c("supplement.qmd", "social_media_posts.qmd",
+            "annual_descriptives_template.qmd",
             "model_descriptives_template.qmd", "white_paper.qmd")
   paths <- file.path(root, docs)
   paths <- paths[file.exists(paths)]

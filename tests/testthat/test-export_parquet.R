@@ -38,7 +38,7 @@ test_that("export_draws_parquet clears orphan shards on re-export (no duplicate 
   # behind (OVERWRITE_OR_IGNORE overwrites same-named files but never deletes
   # files the new run does not recreate). Those orphans were an exact-duplicate
   # subset of the data, which double-counted whole districts downstream and broke
-  # the applied_examples `browardsmallgroups` per-group difference
+  # the supplement `browardsmallgroups` per-group difference
   # (pred[RACE=="WH"] became length 2 -> summarize() "must be size 1, not 2").
   con <- fixture_draws_con(); on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   out <- file.path(tempfile(), "parquet")
