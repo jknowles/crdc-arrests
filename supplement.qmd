@@ -1372,3 +1372,526 @@ state_performance <- state_plotdf |>
 
 state_performance |> knitr::kable()
 ```
+
+# Part 4 — Applied Examples
+
+These are additional applied prediction-interval examples beyond the case
+studies in the paper: a cross-district comparison, a single-district temporal
+comparison, a small-groups demographic disparity, and a national overview.
+
+## Cross-district, temporal, and small-group comparisons
+
+Compare Baltimore City to Baltimore County
+Baltimore City to itself last year
+Broward White Female to Hispanic female
+
+
+
+```{r}
+
+focal_dist <- c("2400090", "2400120")
+
+obsv_focal <- tydata |> filter(LEAID == focal_dist) |>
+  group_by(YEAR, LEA_STATE, LEAID, LEA_NAME) |>
+  summarize(enroll = sum(stu_enroll),
+            enroll2 = first(total_enroll),
+            referrals = sum(REFERRALS),
+            arrests  = sum(ARRESTS)
+            )
+
+
+balt_dist_test <- get_prediction_summary(con, confidence_level = 0.95,
+      central_tendency = "median", LEAID = focal_dist)
+
+balt_dist_test <- balt_dist_test |> filter(add_model_time(model_id) == "three year")
+dist_draws <- get_prediction_draws(con,  LEAID = focal_dist)
+dist_draws <- inner_join(dist_draws, obsv_focal |> select(YEAR:LEA_NAME, enroll, arrests))
+balt_dist_test <- inner_join(balt_dist_test, obsv_focal |> select(YEAR:LEA_NAME, enroll, arrests))
+
+plot_draws <- dist_draws |> group_by(model_id, LEAID, YEAR, draw_id) |>
+              summarize(pred = sum(pred))
+
+plot_draws <- inner_join(plot_draws, obsv_focal |> select(LEA_NAME, LEAID, YEAR, enroll, arrests))
+
+dist_name_for_title <- gsub(" Public Schools", "",
+                      tools::toTitleCase(tolower(unique(obsv_focal$LEA_NAME))))
+
+
+
+```
+
+Here we apply the same approach as above but to compare arrest rates from two
+different school districts - Baltimore City Public Schools (orange) and Baltimore County
+Public Schools (blue). Here we see a curious pattern - if we look at our one
+year models, the frequentist interval and Bayesian intervals strongly agree that
+Baltimore City has a higher arrest rate than Baltimore County, with the most
+likely arrest rate in Baltimore County being 0. Covariates make little difference
+in these estimates.
+
+The three year models have a very different picture - the Bayesian models see
+Baltimore County as having not just a higher arrest rate, but a much higher
+arrest rate than Baltimore City. The Baltimore City estimates are relatively
+unchanged, though covariates seem to shift the distribution slightly closer to
+0 (unified and stratified models 4).
+
+When we turn to our direct estimate of the differences, we see this pattern play
+out - the one year models are 100% certain in all specifications that Baltimore
+City has a higher arrest rate than Baltimore County, and that difference is
+most likely narrowly between just greater than 0 and 1. In contract, the 3 year
+models are equally sure that Baltimore City has no chance of a higher arrest
+rate than Baltimore County, and in fact, that it is most likely that Baltimore
+County's arrest rate is 1-2 arrests per 1,000 greater than Baltimore City.
+When we pool all of our models together, we are left with a 50% chance one
+of the Baltimore's has a greater arrest rate than the other (inset, bottom left).
+
+```{r}
+#| label: baltimorecityandcountydifferences
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 10
+
+obsv_plot <-  obsv_focal |>
+  rowwise() |>
+    mutate(ci_upper = agresti_coull(arrests, enroll, confidence_level = 0.95)[1],
+            ci_lower = agresti_coull(arrests, enroll, confidence_level = 0.95)[2]) |>
+    mutate(type = "Observed")
+
+
+diff_a <- plot_draws |> filter(YEAR == "21-22") |>
+  filter(!grepl("_m5", model_id)) |>
+  group_by(model_id, draw_id) |>
+  summarize(group_city = pred[LEAID == "2400090"]/enroll[LEAID=="2400090"],
+            group_county = pred[LEAID == "2400120"]/enroll[LEAID=="2400120"]) |>
+    mutate(diffv = group_city - group_county)
+
+annotate_df <- diff_a |> group_by(model_id) |>
+  summarize(total = n(),
+            diffcount = sum(diffv > 0),
+            diffv = 1) |>
+  mutate(diff_per = diffcount / total)
+
+plot_draws <-
+  plot_draws |> filter(YEAR == "21-22") |>  filter(!grepl("_m5", model_id))
+
+p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x))) +
+    geom_density_ridges_gradient(from=-3, to = 1.5,  rel_min_height = 0.01, scale = 1.5, alpha = 4/5, bandwidth = 0.05) +
+    scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
+            guide = guide_none()) +
+    geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
+    geom_text(data = annotate_df |> filter(model_id %in% c("sg_m2_mod", "sg_m4_mod")),
+        size = 3,
+        position = position_nudge(y = 0.4, x = 0),
+    aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "> 0): ", pretty_per(diff_per)))) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE)) +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    labs(x = "Arrest rate per 1,000",
+    title = stringr::str_wrap(paste0("Model estimated difference (", "\u0394", ") between Baltimore City and Baltimore County student arrest rates in 21-22"), 120),
+    subtitle = "No difference shown as red vertical line.",
+    y = "",
+    ) +
+      facet_wrap(~add_model_time(model_id), scales = "free_y") +
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, size = 10, hjust = -0.5))
+
+p1 <- ggplot(plot_draws,
+    aes(x = (pred/(enroll/1000)),
+      color= LEA_NAME, fill = LEA_NAME, y = model_id)) +
+    geom_density_ridges(scale = 0.9, rel_min_height = 0.01, alpha = 2/5, bandwidth = 0.1) +
+    geom_pointrange(data = obsv_plot |> filter(YEAR == "21-22") |>
+   tidyr::crossing(model_id = unique(plot_draws$model_id)),
+   aes(y = model_id, x = (arrests/(enroll/1000)),
+      xmin = ci_lower/(enroll/1000), xmax = ci_upper/(enroll/1000),
+   color = LEA_NAME, alpha = 1),
+   show.legend = FALSE,
+   position = position_nudge(y = 0.25)) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
+    expand = expansion(0,0)) +
+    facet_wrap(~add_model_time(model_id), scales = "free_y") +
+    guides(color = guide_none()) +
+    scale_color_manual(values = c("#D55E0050", "#0072B250"), labels = function(x) stringr::str_wrap(tools::toTitleCase(tolower(x)), 80)) +
+    scale_fill_manual(values = c("#D55E0050", "#0072B250"), labels = function(x) stringr::str_wrap(tools::toTitleCase(tolower(x)), 80)) +
+    labs(title = stringr::str_wrap(paste0("Arrest rate probability density for ", dist_name_for_title[1], " and ", dist_name_for_title[2]), 120),
+    x = "Arrest rate per 1,000", y = "Model type", fill = "", color = "") +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, size = 10, hjust = -0.5))
+
+
+
+diff_b <- diff_a |> mutate(model_id = "All Models Pooled") |>  mutate(model_id == as.character(model_id))
+annotate_df <- diff_b |> group_by(model_id) |>
+  summarize(total = n(),
+            diffcount = sum(diffv > 0),
+            diffv = 1) |>
+  mutate(diff_per = diffcount / total)
+
+p3 <- ggplot(diff_b,
+    aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x))) +
+    geom_density_ridges_gradient(from=-3, to = 1.5, rel_min_height = 0.01, scale = 1.5, alpha = 4/5, bandwidth = 0.05) +
+    scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
+            guide = guide_none()) +
+    geom_text(data = annotate_df,
+        size = 2.5,
+        position = position_nudge(y = 1.2, x = -2.25),
+    aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "> 0): ", pretty_per(diff_per)))) +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 10) +
+    scale_y_discrete(expand = expansion(0, 0)) +
+    labs(x = "Arrest rate per 1,000",
+    title = "All models pooled",
+    y = "",
+    ) +
+    theme(legend.position = "bottom",
+          axis.text.y = element_blank())
+
+
+p1 / (p2 + inset_element(p3, left = 0, bottom = 0.2, top = 0.9, right = 0.24))
+
+
+
+
+
+```
+
+To better understand what is going on we can use our models to make temporal
+comparisons in Baltimore County - what does the trend look like.
+
+```{r}
+#| label: baltimorecountytrend
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 10
+
+# Temporal for Baltimore County
+
+plot_draws <- dist_draws |> group_by(model_id, LEAID, YEAR, draw_id) |>
+              summarize(pred = sum(pred))
+
+plot_draws <- inner_join(plot_draws, obsv_focal |> select(LEA_NAME, LEAID, YEAR, enroll, arrests))
+
+plot_draws <- plot_draws |> filter(add_model_time(model_id) == "Three year") |>
+  filter(LEAID == "2400120") |>
+  filter(!grepl("_m5", model_id))
+
+
+dist_name_for_title <- gsub(" Public Schools", "",
+                      tools::toTitleCase(tolower(unique(plot_draws$LEA_NAME))))
+
+
+p1 <- ggplot(plot_draws ,
+    aes(x = (pred/(enroll/1000)),
+      color= I("black"), fill = YEAR, y = YEAR)) +
+    geom_density_ridges(scale = 2.5, rel_min_height = 0.01, alpha = 9/10, bandwidth = 0.05) +
+
+    geom_point(data = obsv_plot |> filter(LEAID == "2400120") |>
+   tidyr::crossing(model_id = unique(plot_draws$model_id)),
+   aes(y = YEAR, x = (arrests/(enroll/1000)),
+   color = I("black")), size = 6, alpha = 1,
+   show.legend = FALSE,
+   position = position_nudge(y = 0.25)) +
+     geom_pointrange(data = obsv_plot |> filter(LEAID == "2400120") |>
+   tidyr::crossing(model_id = unique(plot_draws$model_id)),
+   aes(y = YEAR, x = (arrests/(enroll/1000)),
+      xmin = ci_lower/(enroll/1000), xmax = ci_upper/(enroll/1000),
+   color = YEAR), size = 1, alpha = 1,
+   show.legend = FALSE,
+   position = position_nudge(y = 0.25)) +
+    scale_y_discrete() +
+    facet_wrap(~print_model_name(model_id)) +
+    guides(color = guide_none()) +
+    guides(fill = guide_none()) +
+    scale_color_brewer(palette = "Blues", direction = 1) +
+    scale_fill_brewer(palette = "Blues", direction = 1) +
+    labs(title = stringr::str_wrap(paste0("Arrest rate probability density for ", dist_name_for_title[1], " over time"), 120),
+  subtitle = "Observed value shown by point",
+    x = "Arrest rate per 1,000", y ="", fill = "", color = "") +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    theme(legend.position = "bottom")
+
+
+diff_a <-plot_draws |> filter(add_model_time(model_id) == "Three year") |>
+  filter(LEAID == "2400120") |>
+  group_by(model_id, draw_id) |>
+  summarize(group_t = pred[YEAR == "21-22"]/enroll[YEAR=="21-22"],
+            groupprev = pred[YEAR == "17-18"]/enroll[YEAR == "17-18"]) |>
+    mutate(diffv = group_t - groupprev)
+
+annotate_df <- diff_a |> group_by(model_id) |>
+  summarize(total = n(),
+            diffcount = sum(diffv < 0),
+            diffv = -5.5) |>
+  mutate(diff_per = diffcount / total)
+
+p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x))) +
+    geom_density_ridges_gradient( rel_min_height = 0.01,
+    from = -16, to = 1,
+    scale = 1.5, alpha = 4/5, bandwidth = 0.05) +
+    scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
+            guide = guide_none()) +
+    geom_text(data = annotate_df |> filter(model_id == "sg_m4_mod"),
+        size = 3,
+        position = position_nudge(y = 0.7, x = 0),
+    aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "<0): ", pretty_per(diff_per)))) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE)) +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    labs(x = "Arrest rate per 1,000",
+    title = stringr::str_wrap(paste0("Model estimated difference (", "\u0394", ") between ", dist_name_for_title, " and 2021-22 and 2017-18"), 120),
+    subtitle = "No difference shown as red vertical line.",
+    y = "",
+    ) +
+      facet_wrap(~add_model_time(model_id), scales = "free_y") +
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+
+p3 <- ggplot(obsv_plot, aes(x = YEAR, y = enroll, group = LEA_NAME, color = LEA_NAME)) +
+  geom_point() + geom_line() +
+  scale_color_manual(values = c("#d55c00ff", "#0071b2f6"), labels = function(x) stringr::str_wrap(tools::toTitleCase(tolower(x)), 50)) +
+  scale_y_continuous("Enrollment", labels = scales::comma, limits = c(0,NA)) +
+  guides(color = guide_legend(nrow = 2, override.aes = list(linetype = c(0, 0)))) +
+
+  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE) +
+  labs(color = "", x = "CRDC Year", title = "Reported enrollment") +
+  theme(legend.position = "bottom")
+
+
+p1 / (p2 + inset_element(p3, left = 0.67, bottom = 0.2, top = 0.8, right = 1))
+
+
+
+```
+
+
+
+
+```{r}
+# Small groups
+focal_dist <- "1200180"
+obsv_focal <- rdata |> filter(LEAID == focal_dist) |>
+  filter(SEX == "F") |>
+  filter(RACE %in% c("WH", "HI"))
+
+dist_draws <- get_prediction_draws(con,  LEAID = focal_dist, YEAR = "21-22",
+                            SEX = "F", RACE = c("WH", "HI"))
+
+plot_draws <- inner_join(dist_draws, obsv_focal |> select(YEAR:RACE, stu_enroll, ARRESTS)) |>
+  filter(!grepl("_m5", model_id))
+
+dist_name_for_title <- gsub(" Public Schools", "",
+                      tools::toTitleCase(tolower(unique(obsv_focal$LEA_NAME))))
+
+obsv_plot <- obsv_focal |>
+  rowwise() |>
+    mutate(ci_upper = agresti_coull(ARRESTS, stu_enroll, confidence_level = 0.95)[1],
+            ci_lower = agresti_coull(ARRESTS, stu_enroll, confidence_level = 0.95)[2]) |>
+    mutate(type = "Observed")
+
+
+```
+
+
+
+```{r}
+#| label: browardsmallgroups
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 10
+
+p1 <- ggplot(plot_draws, aes(x = (pred/(stu_enroll/1000)),
+      color= RACE, fill = RACE, y = model_id)) +
+    geom_density_ridges(scale = 0.9, rel_min_height = 0.01, alpha = 1/5, bandwidth = 0.1) +
+    geom_pointrange(data = obsv_plot %>%
+    filter(RACE == "HI") |>
+   tidyr::crossing(model_id = unique(plot_draws$model_id)),
+   aes(y = model_id, x = (ARRESTS/(stu_enroll/1000)), xmin = ci_lower/(stu_enroll/1000), xmax = ci_upper/(stu_enroll/1000),
+   color = RACE),
+   show.legend = FALSE,
+   position = position_nudge(y = 0.35)) +
+   geom_pointrange(data = obsv_plot %>%
+    filter(RACE == "WH")|>
+   tidyr::crossing(model_id = unique(plot_draws$model_id)),
+   aes(y = model_id, x = (ARRESTS/(stu_enroll/1000)), xmin = ci_lower/(stu_enroll/1000), xmax = ci_upper/(stu_enroll/1000),
+   color = RACE),
+   show.legend = FALSE,
+   position = position_nudge(y = 0.2)) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak=TRUE), expand = expansion(c(0,0))) +
+      facet_wrap(add_model_cov(model_id) ~ add_model_time(model_id),
+    strip.position = "top", scales = "free_y") +
+    guides(color = guide_none()) +
+    scale_color_manual(values = group_palette, labels = function(x) crdc_race_recode(x)) +
+    scale_fill_manual(values = group_palette, labels = function(x) crdc_race_recode(x)) +
+    labs(title = stringr::str_wrap(paste0("Arrest rate probability density for ", dist_name_for_title), 60),
+    x = "Arrest rate per 1,000", y = "",
+    fill = "Student race:",
+    subtitle = "Female students only.") +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+diff_a <- plot_draws |>
+  group_by(model_id, draw_id) |>
+  summarize(group_h = pred[RACE == "HI"]/stu_enroll[RACE=="HI"],
+            group_w = pred[RACE == "WH"]/stu_enroll[RACE=="WH"]) |>
+    mutate(diffv = group_h - group_w)
+
+
+annotate_df <- diff_a |> group_by(model_id) |>
+  summarize(total = n(),
+            diffcount = sum(diffv > 0),
+            diffv = 0.7) |>
+  mutate(diff_per = diffcount / total)
+#annotate_df
+
+p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x))) +
+    geom_density_ridges_gradient(from=-0.75, to = 1, scale = 1.5, alpha = 4/5, bandwidth = 0.05) +
+    scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
+            guide = guide_none()) +
+    geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
+    geom_text(data = annotate_df,
+        position = position_nudge(y = 0.6, x = 0),
+        size = 2.5,
+    aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "> 0): ", pretty_per(diff_per)))) +
+    scale_y_discrete(labels = function(x) print_model_name(x, lbreak=TRUE), expand = expansion(c(0,0))) +
+      facet_wrap(add_model_cov(model_id) ~ add_model_time(model_id),
+    strip.position = "top", scales = "free_y") +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    labs(x = "Arrest rate per 1,000",
+    title = stringr::str_wrap(paste0("Model estimated difference (", "\u0394", ") between Hispanic and White student arrest rates in ", dist_name_for_title), 90),
+    subtitle = "No difference shown as red vertical line.",
+    y = "",
+    )+
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+
+
+diff_b <- diff_a |> mutate(model_id = "All Models Pooled") |>  mutate(model_id == as.character(model_id))
+
+annotate_df <- diff_b |> group_by(model_id) |>
+  summarize(total = n(),
+            diffcount = sum(diffv > 0),
+            diffv = 0.5) |>
+  mutate(diff_per = diffcount / total)
+
+p3 <- ggplot(diff_b,
+    aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x))) +
+    geom_density_ridges_gradient(from=-1, to = 1, rel_min_height = 0.01, scale = 1, alpha = 4/5, bandwidth = 0.05) +
+    scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
+            guide = guide_none()) +
+    geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
+    geom_text(data = annotate_df,
+        size = 3.5,
+        position = position_nudge(y = 0.7, x = 0.15),
+    aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "> 0): ", pretty_per(diff_per)))) +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    scale_y_discrete(expand = expansion(0, 0)) +
+    labs(x = "Arrest rate per 1,000",
+    title = stringr::str_wrap(paste0("Pooled model estimated differences (", "\u0394", ") between ",
+    dist_name_for_title, " student arrest rates in 21-22"), 90),
+    subtitle = "No difference shown as red vertical line.",
+    y = "",
+    ) +
+    theme(legend.position = "bottom", axis.text.y = element_blank())
+
+
+#(p1 / p2)
+
+#p1 / p2
+p1 / p3
+
+
+```
+
+We can
+
+## State-level overview
+
+```{r}
+#| label: comparestates
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 10
+state_draws <- get_state_prediction_draws(con, LEA_STATE = "ALL", YEAR = "21-22",
+                          model = c("nat_m1_mod", "nat_m2_mod", "nat_m3_mod", "nat_m4_mod",
+                                    "sg_m1_mod", "sg_m2_mod", "sg_m3_mod", "sg_m4_mod"),
+                          RACE = "ALL", SEX = "ALL")
+
+state_obsv <- rdata |> group_by(LEA_STATE, YEAR) |>
+              summarize(arrests = sum(ARRESTS),
+                      enroll = sum(stu_enroll))
+state_obsv <- state_obsv |>
+   rowwise() |>
+    mutate(ci_upper = agresti_coull(arrests, enroll, confidence_level = 0.95)[1],
+            ci_lower = agresti_coull(arrests, enroll, confidence_level = 0.95)[2]) |>
+    mutate(type = "observed")
+
+facet_state <- function(x) {
+  y <- rep(1, length(x))
+  y[ x %in% state.abb[13:25]] <- 3
+  y[ x %in% state.abb[26:37]] <- 2
+  y[ x %in% state.abb[38:50]] <- 4
+  y[x == "DC"] <- 1
+  y[x == "PR"] <- 3
+  y[x == "VI"] <- 4
+  return(y)
+}
+
+plot_draws <- inner_join(state_draws, state_obsv |> select(LEA_STATE, YEAR, arrests, enroll))
+plot_draws <- plot_draws |>
+                mutate(arr_rate = 1000 * fitted_value / enroll)
+state_obsv <- state_obsv |>
+            mutate(arr_rate = 1000 * arrests / enroll)
+
+rm(state_draws); gc()
+
+```
+
+
+```{r}
+#| label: plotstates
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| fig-height: 10
+ ggplot(plot_draws |> filter(model_id %in% c("nat_m3_mod", "sg_m2_mod")),
+        aes(x = arr_rate, y = LEA_STATE, fill = model_id)) +
+    geom_density_ridges(scale = 1.5, rel_min_height = 0.01, alpha = 3/5, bandwidth = 0.1) +
+    geom_pointrange(data = state_obsv ,
+   aes(y = LEA_STATE, x = arr_rate,fill = NULL, xmin = ci_lower/(enroll/1000), xmax = ci_upper/(enroll/1000)),
+   show.legend = FALSE,
+   position = position_nudge(y = 0.35)) +
+   facet_wrap(~facet_state(LEA_STATE), scales = "free_y") +
+   scale_x_continuous(expand = expansion(0,0)) +
+   scale_y_discrete(limits = rev) +
+  scale_fill_manual(values = c("#d55c00a9", "#0071b2c5"),
+  labels = function(x) print_model_name(x, lbreak=FALSE)) +
+       labs(title = "State arrest rate estimates, 2021-22",
+    x = "Arrest rate per 1,000", y = "",
+    fill = "Model:") +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = FALSE, font_size = 14) +
+    theme(  strip.background = element_blank(),
+  strip.text.x = element_blank(), legend.position = "bottom")
+```
+
+The recreation of the Table 1 state demographic-group differences is now part
+of the white paper's "Comparing state-level demographic group differences"
+(`wp_fig_state_differences`); only the all-states overview above is kept here.
+
+
+```{r}
+#| label: cleanup
+#| include: false
+close_draws_view(h)
+```
