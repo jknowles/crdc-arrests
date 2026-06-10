@@ -12,12 +12,22 @@ reg.finalizer(environment(), function(e) api_disconnect(.CON), onexit = TRUE)
 #*   via Hugging Face. Cite: Knowles & Miller 2025.
 #* @apiVersion v1
 
-#* Error filter -> 400 for validation errors, 500 otherwise (no internal leak)
-#* @filter errorHandling
-function(req, res) {
-  tryCatch(plumber::forward(), error = function(e) {
-    if (inherits(e, "api_bad_request")) { res$status <- 400; err_envelope(conditionMessage(e)) }
-    else { res$status <- 500; err_envelope("Internal server error.") }
+# Global error handler -> 400 for validation errors, 500 otherwise (no internal
+# leak). A `@filter` wrapping forward() in tryCatch does NOT catch errors thrown
+# inside endpoint handlers (plumber routes those to the error handler set here),
+# so validation aborts must be mapped via pr_set_error, not a filter.
+#* @plumber
+function(pr) {
+  pr |> plumber::pr_set_error(function(req, res, err) {
+    # null="null" matches the endpoints' @serializer so `data` renders as JSON
+    # null (not {}), keeping error envelopes consistent with success envelopes.
+    res$serializer <- plumber::serializer_unboxed_json(null = "null")
+    if (inherits(err, "api_bad_request")) {
+      res$status <- 400L
+      return(err_envelope(conditionMessage(err)))
+    }
+    res$status <- 500L
+    err_envelope("Internal server error.")
   })
 }
 
