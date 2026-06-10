@@ -387,8 +387,8 @@ cov_obs |>
     equal_better = 100 * mean(equal_better),
     narrowed = 100 * median(pct_narrowed), .groups = "drop") |>
   dplyr::mutate(
-    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
-    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+    form = ifelse(startsWith(model_id, "unified"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(unified|stratified)_m", "", model_id)))) |>
   dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
   dplyr::transmute(
     Models = paste(form, num),
@@ -421,8 +421,8 @@ cov_obs |>
     equal_better = 100 * mean(equal_better),
     narrowed = 100 * median(pct_narrowed), .groups = "drop") |>
   dplyr::mutate(
-    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
-    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+    form = ifelse(startsWith(model_id, "unified"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(unified|stratified)_m", "", model_id)))) |>
   dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
   dplyr::transmute(
     Models = paste(form, num),
@@ -455,8 +455,8 @@ cov_obs |>
     equal_better = 100 * mean(equal_better),
     narrowed = 100 * median(pct_narrowed), .groups = "drop") |>
   dplyr::mutate(
-    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
-    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+    form = ifelse(startsWith(model_id, "unified"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(unified|stratified)_m", "", model_id)))) |>
   dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
   dplyr::transmute(
     Models = paste(form, num),
@@ -498,8 +498,8 @@ noarr_draws |>
     modeled = median(tot),
     lo = quantile(tot, 0.025), hi = quantile(tot, 0.975), .groups = "drop") |>
   dplyr::mutate(
-    form = ifelse(startsWith(model_id, "nat"), "Unified", "Stratified"),
-    num  = as.integer(sub("_mod$", "", sub("^(nat|sg)_m", "", model_id)))) |>
+    form = ifelse(startsWith(model_id, "unified"), "Unified", "Stratified"),
+    num  = as.integer(sub("_mod$", "", sub("^(unified|stratified)_m", "", model_id)))) |>
   dplyr::arrange(factor(form, levels = c("Unified", "Stratified")), num) |>
   dplyr::transmute(
     Models = paste(form, num),

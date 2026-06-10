@@ -1524,11 +1524,24 @@ download_crdc_data <- function(year,
       stop("Zip file not found: ", zip_file)
     }
 
-    message("Extracting ", zip_file, " to ", extract_dir)
+    message("Extracting ", zip_file, " to ", dest_dir)
 
-    # Extract the zip file
+    # Extract the zip file, then rename the top-level folder to the canonical
+    # year_dir name. The zip's internal folder name can differ from the zip
+    # filename (e.g. the 2017-18 zip contains "2017-18-crdc-data-corrected-
+    # publication 2" rather than "2017-18-crdc-data-corrected-05242021").
     tryCatch({
-      unzip(zip_file, exdir = extract_dir, overwrite = overwrite)
+      zip_entries <- unzip(zip_file, list = TRUE)$Name
+      nested <- zip_entries[grepl("/", zip_entries, fixed = TRUE)]
+      zip_top <- if (length(nested)) unique(sub("/.*", "", nested))[1] else NA_character_
+
+      unzip(zip_file, exdir = dest_dir, overwrite = overwrite)
+
+      extracted <- file.path(dest_dir, zip_top)
+      if (!is.na(zip_top) && nzchar(zip_top) && extracted != extract_dir) {
+        file.rename(extracted, extract_dir)
+        message("Renamed '", zip_top, "' -> '", year_dir, "'")
+      }
       message("Successfully extracted files to: ", extract_dir)
     }, error = function(e) {
       stop("Failed to extract zip file: ", e$message)

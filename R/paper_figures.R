@@ -30,7 +30,7 @@ close_draws_view <- function(h) {
 #' Resolve `rel` to a local path ONLY if it is already available — a local base,
 #' or already cached for a remote base. NEVER downloads (unlike crdc_path() for
 #' big objects). Returns NA_character_ if not present. Use for optional inputs
-#' (e.g. the ~2.9 GB pooled fits) so a render degrades gracefully to a table.
+#' (e.g. the ~2.9 GB unified fits) so a render degrades gracefully to a table.
 crdc_cached_path <- function(rel) {
   base <- crdc_artifacts_base()
   p <- if (!grepl("^(hf://|https://|s3://)", base)) file.path(base, rel)
@@ -146,22 +146,22 @@ agresti_coull <- function(numerator, denominator, confidence_level = 0.95) {
 # Model classification helpers (one-/three-year; unified/stratified; covariate).
 add_model_time <- function(x) {
   y <- rep("One year", length(x))
-  y[x %in% c("nat_m3_mod", "nat_m4_mod", "nat_m5_mod",
-             "sg_m3_mod", "sg_m4_mod", "sg_m5_mod")] <- "Three year"
+  y[x %in% c("unified_m3_mod", "unified_m4_mod", "unified_m5_mod",
+             "stratified_m3_mod", "stratified_m4_mod", "stratified_m5_mod")] <- "Three year"
   y
 }
 add_model_form <- function(x) {
-  y <- rep("Stratified", length(x)); y[startsWith(x, "nat")] <- "Unified"; y
+  y <- rep("Stratified", length(x)); y[startsWith(x, "unified")] <- "Unified"; y
 }
 add_model_cov <- function(x) {
   y <- rep("Baseline", length(x))
-  y[x %in% c("sg_m2_mod", "nat_m4_mod", "nat_m5_mod",
-             "nat_m2_mod", "sg_m4_mod", "sg_m5_mod")] <- "Covariate"
+  y[x %in% c("stratified_m2_mod", "unified_m4_mod", "unified_m5_mod",
+             "unified_m2_mod", "stratified_m4_mod", "stratified_m5_mod")] <- "Covariate"
   y
 }
 print_model_name <- function(x, lbreak = FALSE) {
-  y <- rep("Stratified", length(x)); y[startsWith(x, "nat")] <- "Unified"
-  x <- gsub("_mod", "", x); x <- gsub("nat_m", "", x); x <- gsub("sg_m", "", x)
+  y <- rep("Stratified", length(x)); y[startsWith(x, "unified")] <- "Unified"
+  x <- gsub("_mod", "", x); x <- gsub("unified_m", "", x); x <- gsub("stratified_m", "", x)
   if (lbreak) paste0(y, "\nModel:", x) else paste0(y, " Model:", x)
 }
 wp_model_palette <- function() c("Modeled" = "#000a9bff", "Frequentist" = "#858585bb")
@@ -448,8 +448,8 @@ wp_fig_group_difference <- function(con, rdata, focal_dist) {
 # keep_ids = the four groups the paper highlights from Table 1.
 .wp_state_group_data <- function(con, rdata) {
   draws <- get_state_prediction_draws(con, LEA_STATE = c("AK", "CO"), YEAR = "21-22",
-    model = c("nat_m1_mod", "nat_m2_mod", "nat_m3_mod", "nat_m4_mod",
-              "sg_m1_mod", "sg_m2_mod", "sg_m3_mod", "sg_m4_mod"),
+    model = c("unified_m1_mod", "unified_m2_mod", "unified_m3_mod", "unified_m4_mod",
+              "stratified_m1_mod", "stratified_m2_mod", "stratified_m3_mod", "stratified_m4_mod"),
     RACE = c("BL", "AM"), SEX = c("M", "F"))
   obsv <- rdata |> dplyr::filter(LEA_STATE %in% c("AK", "CO")) |>
     dplyr::group_by(LEA_STATE, YEAR, RACE, SEX) |>
@@ -486,7 +486,7 @@ wp_fig_group_difference <- function(con, rdata, focal_dist) {
 wp_fig_state_differences <- function(con, rdata) {
   d <- .wp_state_group_data(con, rdata)
   pd <- d$plot_draws; obsv <- d$obsv; keep_ids <- d$keep_ids
-  two <- c("nat_m3_mod", "sg_m2_mod")
+  two <- c("unified_m3_mod", "stratified_m2_mod")
   p1 <- ggplot2::ggplot(pd |> dplyr::filter(rowid %in% keep_ids, model_id %in% two),
       ggplot2::aes(x = fitted_value / (enroll / 1000), y = rowid, fill = model_id)) +
     ggridges::geom_density_ridges(scale = 1, from = 0, to = 9, rel_min_height = 0.01,
@@ -580,7 +580,7 @@ wp_table_computation <- function(model_stats) {
   ms <- model_stats |>
     dplyr::mutate(
       form = add_model_form(model_id),
-      spec = as.integer(sub("^(nat|sg)_m([0-9]+)_mod$", "\\2", model_id)),
+      spec = as.integer(sub("^(unified|stratified)_m([0-9]+)_mod$", "\\2", model_id)),
       Models = paste(form, spec)) |>
     dplyr::group_by(Models, form, spec) |>
     dplyr::summarize(`Runtime in minutes` = round(sum(runtime_minutes), 1),
@@ -615,4 +615,43 @@ wp_fig_national_rates <- function(crdc_y2122) {
       x = "", y = "Arrests per 1,000 students", fill = "Sex") +
     ggridges::theme_ridges(grid = TRUE, font_size = 22) +
     ggplot2::theme(legend.position = "bottom")
+}
+
+#' Render a parameterized Quarto template for one year-wave in isolation.
+#'
+#' tar_map fans the SAME template (model_descriptives / annual_descriptives)
+#' across years, and targets dispatches those branches CONCURRENTLY. Quarto
+#' writes its intermediates (`<input>.knit.md`, a `<input>_files/` dir) named
+#' after the input file, right next to it. Three branches rendering one template
+#' therefore race on the same intermediate paths — one branch's finalization
+#' fails to read the source/intermediate another branch has already replaced
+#' ("cannot open file ... No such file or directory").
+#'
+#' Fix: render from a per-wave COPY of the template with a unique name. The copy
+#' stays in the project root so the template's relative `source("R/...")` and
+#' `export/...` reads still resolve (Quarto sets the working dir to the input's
+#' directory). Intermediates are then named per wave and never collide. The copy
+#' and its intermediates are removed on exit. Figure outputs are already
+#' namespaced per wave inside the templates (fig.path keyed on the suffix).
+render_year_doc <- function(template, suffix, year_full, target_name, output_file) {
+  stopifnot(file.exists(template))
+  stem    <- tools::file_path_sans_ext(template)
+  ext     <- tools::file_ext(template)
+  tmp_qmd <- sprintf("%s__%s.%s", stem, suffix, ext)
+  tmp_stem <- tools::file_path_sans_ext(tmp_qmd)
+
+  if (!file.copy(template, tmp_qmd, overwrite = TRUE)) {
+    stop("render_year_doc: failed to copy ", template, " -> ", tmp_qmd)
+  }
+  on.exit({
+    unlink(tmp_qmd)
+    unlink(paste0(tmp_stem, ".knit.md"))
+    unlink(paste0(tmp_stem, "_files"), recursive = TRUE)
+  }, add = TRUE)
+
+  withr::with_envvar(c(CRDC_ARTIFACTS = "export"),
+    quarto::quarto_render(tmp_qmd,
+      execute_params = list(year_full = year_full, target_name = target_name),
+      output_file = output_file))
+  output_file
 }

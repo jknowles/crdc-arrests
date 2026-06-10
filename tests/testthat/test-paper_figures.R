@@ -2,7 +2,7 @@ test_that("open_draws_view exposes predicted_draws as a view over partitioned pa
   # synthetic draws shard mirroring the published schema: partition cols
   # (model_id, YEAR, LEA_STATE) come from the path; the rest are file columns.
   d  <- tempfile()
-  pq <- file.path(d, "parquet/model_id=nat_m2_mod/YEAR=21-22/LEA_STATE=RI")
+  pq <- file.path(d, "parquet/model_id=unified_m2_mod/YEAR=21-22/LEA_STATE=RI")
   dir.create(pq, recursive = TRUE)
   drv <- duckdb::duckdb(); con0 <- DBI::dbConnect(drv)
   DBI::dbExecute(con0, sprintf(
@@ -13,8 +13,8 @@ test_that("open_draws_view exposes predicted_draws as a view over partitioned pa
   withr::with_envvar(c(CRDC_ARTIFACTS = d), {
     h <- open_draws_view()
     on.exit(close_draws_view(h))
-    res <- get_prediction_summary(h$con, model = "nat_m2_mod")
-    expect_equal(res$model_id, "nat_m2_mod")
+    res <- get_prediction_summary(h$con, model = "unified_m2_mod")
+    expect_equal(res$model_id, "unified_m2_mod")
     expect_true("fitted_value" %in% names(res))
   })
 })
@@ -34,22 +34,22 @@ test_that("read_stage_df reads a tabular stage artifact via crdc_path", {
 test_that("crdc_cached_path returns local path if present, NA otherwise, never downloads", {
   d <- tempfile(); dir.create(d)
   withr::with_envvar(c(CRDC_ARTIFACTS = d), {
-    expect_true(is.na(crdc_cached_path("stages/models/pooled_m2.qs2")))   # absent
-    p <- file.path(d, "stages/models/pooled_m2.qs2"); dir.create(dirname(p), recursive = TRUE)
+    expect_true(is.na(crdc_cached_path("stages/models/unified_m2.qs2")))   # absent
+    p <- file.path(d, "stages/models/unified_m2.qs2"); dir.create(dirname(p), recursive = TRUE)
     writeLines("x", p)
-    expect_equal(crdc_cached_path("stages/models/pooled_m2.qs2"), p)      # present
+    expect_equal(crdc_cached_path("stages/models/unified_m2.qs2"), p)      # present
   })
   # remote base, nothing cached -> NA (and no network touched)
   withr::with_envvar(c(CRDC_ARTIFACTS = "hf://datasets/x/y@z",
                        CRDC_CACHE = tempfile()), {
-    expect_true(is.na(crdc_cached_path("stages/models/pooled_m2.qs2")))
+    expect_true(is.na(crdc_cached_path("stages/models/unified_m2.qs2")))
   })
 })
 
 test_that("with_model_labels adds a model_label column from the registry", {
-  df  <- data.frame(model_id = c("nat_m2_mod", "sg_m1_mod"), stringsAsFactors = FALSE)
+  df  <- data.frame(model_id = c("unified_m2_mod", "stratified_m1_mod"), stringsAsFactors = FALSE)
   out <- with_model_labels(df)
-  expect_equal(out$model_label, c("Pooled (m2)", "Student-group (m1)"))
+  expect_equal(out$model_label, c("Unified (m2)", "Stratified (m1)"))
 })
 
 test_that("cv_apply_branding sets the civilytics theme; logo hook gated on magick", {

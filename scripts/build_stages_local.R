@@ -60,13 +60,13 @@ build_crdc <- function() {
 }
 
 build_diagnostics <- function() {
-  message(">> diagnostics (hmc + pooled qs2; 5 nat fits)")
-  nat_ids <- crdc_pooled_ids()
-  fits <- lapply(nat_ids, tar_read_raw); names(fits) <- nat_ids
+  message(">> diagnostics (hmc + unified qs2; 5 unified fits)")
+  unified_ids <- crdc_unified_ids()
+  fits <- lapply(unified_ids, tar_read_raw); names(fits) <- unified_ids
   stage_hmc_diagnostics(fits, dir = DIR)
-  stage_pooled_fits(fits, dir = DIR)
+  stage_unified_fits(fits, dir = DIR)
   rm(fits); gc(FALSE)
-  message("wrote hmc_diagnostics.parquet + pooled_m{1..5}.qs2")
+  message("wrote hmc_diagnostics.parquet + unified_m{1..5}.qs2")
 }
 
 build_model_stats <- function() {
@@ -79,13 +79,13 @@ build_model_stats <- function() {
     s
   }
   rows <- list()
-  for (id in crdc_pooled_ids()) {            # nat: single fits
+  for (id in crdc_unified_ids()) {            # unified: single fits
     fit <- tar_read_raw(id)
     rows[[length(rows) + 1L]] <- one(fit, id)
     rm(fit); gc(FALSE)
     message("  ", id)
   }
-  for (id in paste0("sg_m", 1:5, "_mod")) {  # sg: dynamic branches, one at a time
+  for (id in paste0("stratified_m", 1:5, "_mod")) {  # stratified: dynamic branches, one at a time
     ch <- m$children[[match(id, m$name)]]
     ch <- ch[!is.na(ch)]
     for (b in ch) {

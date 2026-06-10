@@ -4,7 +4,7 @@ Steps to take the Draws API from merged code → live public API + published dat
 Locked decisions: HF dataset **public** (container fetches `summary.duckdb` with no
 auth); `data_release` = `civilytics-crdc-arrests-2025.1`; API at
 `crdc-api.civilytics.org`; docs at `pages.civilytics.org/crdc-arrests`;
-default model `nat_m2`. Remotes: `origin` dual-pushes to GitHub (canonical) + Gitea
+default model `unified_m2`. Remotes: `origin` dual-pushes to GitHub (canonical) + Gitea
 (deploy). Auth note: a stale `GITHUB_TOKEN` may shadow `gh`; if a git/gh command
 fails auth, prefix `GITHUB_TOKEN= GH_TOKEN= …` (and restart VS Code to flush it).
 
@@ -66,11 +66,11 @@ Canonical (your env has `tarchetypes`):
 - [ ] Confirm the landing page links resolve (API base, Swagger, llms.txt, HF dataset, data dictionary).
 
 ## F. End-to-end verification
-- [ ] `curl "https://crdc-api.civilytics.org/api/v1/estimates?state=TX&race=BL&sex=M&model=nat_m2&interval=95&limit=1"` → success envelope with `rate_median`/bounds.
-- [ ] `curl "https://crdc-api.civilytics.org/api/v1/states/CA?model=nat_m2"` → state aggregate.
+- [ ] `curl "https://crdc-api.civilytics.org/api/v1/estimates?state=TX&race=BL&sex=M&model=unified_m2&interval=95&limit=1"` → success envelope with `rate_median`/bounds.
+- [ ] `curl "https://crdc-api.civilytics.org/api/v1/states/CA?model=unified_m2"` → state aggregate.
 - [ ] `curl "https://crdc-api.civilytics.org/api/v1/districts?q=Baltimore"` → name/geo lookup.
 - [ ] Open `/api/v1/__docs__/` (Swagger) and `/api/v1/llms.txt`.
-- [ ] Draws path: `/api/v1/draws?state=TX&race=BL&sex=M&model=nat_m2` returns an HF shard URL + DuckDB SQL; run that SQL in DuckDB (`INSTALL httpfs; LOAD httpfs; SELECT … read_parquet(...)`) and confirm rows.
+- [ ] Draws path: `/api/v1/draws?state=TX&race=BL&sex=M&model=unified_m2` returns an HF shard URL + DuckDB SQL; run that SQL in DuckDB (`INSTALL httpfs; LOAD httpfs; SELECT … read_parquet(...)`) and confirm rows.
 - [ ] Confirm a repeat request is served from Cloudflare cache (response headers).
 
 ## Post-launch

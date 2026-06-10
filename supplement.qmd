@@ -111,22 +111,22 @@ group_palette <- c("WH" = "#09d2ecc2", "BL" = "#ab00a9f1", "HI" = "#00ab17f1")
 # --- Model-labelling helpers (inlined for transparency; used by Parts 3-4) ---
 add_model_time <- function(x) {
   y <- rep("One year", length(x))
-  y[x %in% c("nat_m3_mod", "nat_m4_mod", "nat_m5_mod",
-             "sg_m3_mod", "sg_m4_mod", "sg_m5_mod")] <- "Three year"
+  y[x %in% c("unified_m3_mod", "unified_m4_mod", "unified_m5_mod",
+             "stratified_m3_mod", "stratified_m4_mod", "stratified_m5_mod")] <- "Three year"
   y
 }
 add_model_form <- function(x) {
-  y <- rep("Stratified", length(x)); y[startsWith(x, "nat")] <- "Unified"; y
+  y <- rep("Stratified", length(x)); y[startsWith(x, "unified")] <- "Unified"; y
 }
 add_model_cov <- function(x) {
   y <- rep("Baseline", length(x))
-  y[x %in% c("sg_m2_mod", "nat_m4_mod", "nat_m5_mod",
-             "nat_m2_mod", "sg_m4_mod", "sg_m5_mod")] <- "Covariate"
+  y[x %in% c("stratified_m2_mod", "unified_m4_mod", "unified_m5_mod",
+             "unified_m2_mod", "stratified_m4_mod", "stratified_m5_mod")] <- "Covariate"
   y
 }
 print_model_name <- function(x, lbreak = FALSE) {
-  y <- rep("Stratified", length(x)); y[startsWith(x, "nat")] <- "Unified"
-  x <- gsub("_mod", "", x); x <- gsub("nat_m", "", x); x <- gsub("sg_m", "", x)
+  y <- rep("Stratified", length(x)); y[startsWith(x, "unified")] <- "Unified"
+  x <- gsub("_mod", "", x); x <- gsub("unified_m", "", x); x <- gsub("stratified_m", "", x)
   if (lbreak) paste0(y, "\nModel:", x) else paste0(y, " Model:", x)
 }
 
@@ -1207,15 +1207,15 @@ in `white_paper.qmd`. They are not duplicated here.
 
 Here we compute the model statistics.
 
-### National Models
+### Unified Models
 
 ```{r}
 #| label: compute-nat-model-stats
 
-# Pooled-model stats from the published diagnostics artifact (precomputed
+# Unified-model stats from the published diagnostics artifact (precomputed
 # calculate_model_stats(); labels via the model registry).
 read_stage_df("stages/diagnostics/model_stats.parquet") |>
-  filter(model_id %in% crdc_pooled_ids()) |>
+  filter(model_id %in% crdc_unified_ids()) |>
   with_model_labels() |>
   transmute(Model = model_label, ndraws, chains, threads, thin, leas,
             parameters, worst_rhat, min_bulk_ess, mean_bulk_ess,
@@ -1225,13 +1225,13 @@ read_stage_df("stages/diagnostics/model_stats.parquet") |>
 ```
 
 
-### Subgroup Models
+### Stratified Models
 
 ```{r}
 #| label: compute-sg-stats
 
-# Student-group model stats from the published diagnostics artifact: each
-# sg_m#_mod stored its per-group rows; sum them per model (matches the original
+# Stratified model stats from the published diagnostics artifact: each
+# stratified_m#_mod stored its per-group rows; sum them per model (matches the original
 # disaggregated_*_avg aggregation), labelled via the registry.
 read_stage_df("stages/diagnostics/model_stats.parquet") |>
   filter(grepl("^sg_", model_id)) |>
@@ -1251,14 +1251,14 @@ read_stage_df("stages/diagnostics/model_stats.parquet") |>
 ```{r}
 #| label: hmc-diagnostics
 
-# Live pooled-model HMC diagnostics when the fits are available locally/cached
-# (stages/models/pooled_m#.qs2); otherwise show the published diagnostics table.
+# Live unified-model HMC diagnostics when the fits are available locally/cached
+# (stages/models/unified_m#.qs2); otherwise show the published diagnostics table.
 # crdc_cached_path() never downloads, so this won't force a ~2.9 GB pull.
 reg <- crdc_model_registry()
 any_live <- FALSE
-for (id in crdc_pooled_ids()) {
+for (id in crdc_unified_ids()) {
   spec <- reg$spec[match(id, reg$id)]
-  f <- crdc_cached_path(sprintf("stages/models/pooled_%s.qs2", spec))
+  f <- crdc_cached_path(sprintf("stages/models/unified_%s.qs2", spec))
   if (!is.na(f)) {
     any_live <- TRUE
     cat("\n###", crdc_model_label(id), "\n")
@@ -1266,7 +1266,7 @@ for (id in crdc_pooled_ids()) {
   }
 }
 if (!any_live) {
-  cat("Pooled fits not present locally; showing the published diagnostics table.\n")
+  cat("Unified fits not present locally; showing the published diagnostics table.\n")
   knitr::kable(read_stage_df("stages/diagnostics/hmc_diagnostics.parquet"))
 }
 ```
@@ -1480,7 +1480,7 @@ p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x)
     scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
             guide = guide_none()) +
     geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
-    geom_text(data = annotate_df |> filter(model_id %in% c("sg_m2_mod", "sg_m4_mod")),
+    geom_text(data = annotate_df |> filter(model_id %in% c("stratified_m2_mod", "stratified_m4_mod")),
         size = 3,
         position = position_nudge(y = 0.4, x = 0),
     aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "> 0): ", pretty_per(diff_per)))) +
@@ -1633,7 +1633,7 @@ p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x)
     scale = 1.5, alpha = 4/5, bandwidth = 0.05) +
     scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
             guide = guide_none()) +
-    geom_text(data = annotate_df |> filter(model_id == "sg_m4_mod"),
+    geom_text(data = annotate_df |> filter(model_id == "stratified_m4_mod"),
         size = 3,
         position = position_nudge(y = 0.7, x = 0),
     aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "<0): ", pretty_per(diff_per)))) +
@@ -1822,8 +1822,8 @@ We can
 #| fig-width: 10
 #| fig-height: 10
 state_draws <- get_state_prediction_draws(con, LEA_STATE = "ALL", YEAR = "21-22",
-                          model = c("nat_m1_mod", "nat_m2_mod", "nat_m3_mod", "nat_m4_mod",
-                                    "sg_m1_mod", "sg_m2_mod", "sg_m3_mod", "sg_m4_mod"),
+                          model = c("unified_m1_mod", "unified_m2_mod", "unified_m3_mod", "unified_m4_mod",
+                                    "stratified_m1_mod", "stratified_m2_mod", "stratified_m3_mod", "stratified_m4_mod"),
                           RACE = "ALL", SEX = "ALL")
 
 state_obsv <- rdata |> group_by(LEA_STATE, YEAR) |>
@@ -1864,7 +1864,7 @@ rm(state_draws); gc()
 #| message: false
 #| fig-width: 10
 #| fig-height: 10
- ggplot(plot_draws |> filter(model_id %in% c("nat_m3_mod", "sg_m2_mod")),
+ ggplot(plot_draws |> filter(model_id %in% c("unified_m3_mod", "stratified_m2_mod")),
         aes(x = arr_rate, y = LEA_STATE, fill = model_id)) +
     geom_density_ridges(scale = 1.5, rel_min_height = 0.01, alpha = 3/5, bandwidth = 0.1) +
     geom_pointrange(data = state_obsv ,

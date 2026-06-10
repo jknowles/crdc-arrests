@@ -70,6 +70,11 @@ cv_apply_branding()   # civilytics theme on all figures (+ logo when magick pres
 
 # Year suffix: from tar_render_rep params when present, else the default wave.
 suffix <- if (exists("params") && !is.null(params$target_name)) params$target_name else "y2122"
+# Per-year figure path: each wave renders the SAME template, so without a
+# year-specific prefix all waves write to the same export/figures/*.png files.
+# In parallel that corrupts PNGs (concurrent writes); sequentially they silently
+# overwrite each other. Namespace the figures by `suffix` to keep them isolated.
+knitr::opts_chunk$set(fig.path = sprintf("export/figures/modeldescriptives-%s-", suffix))
 # Load the model-input + district-geo stages for this wave (published artifacts)
 sch_ref_arr  <- read_stage_df(sprintf("stages/crdc/model_data_%s.parquet", suffix))
 ccd_dist_geo <- read_stage_df(sprintf("stages/crdc/ccd_dist_geo_%s.parquet", suffix))

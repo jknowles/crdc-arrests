@@ -52,6 +52,13 @@ enroll_cap <- ifelse(DEV_MODE, 5000, 30)
 NITER <- ifelse(DEV_MODE, 500, 3500)
 ITER_MULTIPLIER <- 2L
 
+# The two heavy DuckDB targets (api_db, draws_parquet) read the same draws DB and
+# can be dispatched to sibling crew workers at the same time. DuckDB enforces
+# memory_limit per-instance with no cross-instance coordination, so each target's
+# limit is computed as (RAM * fraction) / DUCKDB_HEAVY_CONCURRENCY to keep the sum
+# of concurrent limits within RAM. Bump this if more concurrent DuckDB jobs are added.
+DUCKDB_HEAVY_CONCURRENCY <- 2L
+
 # This normalizes the number of workers available for fitting models, which are
 # listed as MCMC workers. We limit the number of MCMC workers to avoid
 # parallelization explosion in the code.
@@ -66,7 +73,15 @@ if (N_PAR_CHAINS > NCHAINS) {
 # Set the options for the targets pipeline to work including loading key packages
 # and setting up the parallelization strategy
 tar_option_set(
-  packages = c("tibble", "brms", "dplyr", "knitr", "tidyr", "qs2", "quarto"),
+  # NOTE: crew workers do NOT replay library() calls from tar_source()'d files;
+  # they only attach packages listed here. Any package used UNQUALIFIED inside a
+  # target's function (e.g. tidybayes::add_predicted_draws called as
+  # add_predicted_draws) must appear in this vector or the worker will fail with
+  # "could not find function". Keep this in sync with library() calls in R/*.R.
+  packages = c(
+    "tibble", "brms", "dplyr", "knitr", "tidyr", "qs2", "quarto",
+    "tidybayes", "DBI", "duckdb"
+  ),
   controller = crew::crew_controller_group(
     crew::crew_controller_local(
       name = "main",
@@ -194,12 +209,21 @@ list(
     )
   ),
   # Render the annual report for each year (cue=never: explicit renders only).
-  tarchetypes::tar_render_rep(
-    name = annual_report,
-    path = "annual_descriptives_template.qmd",
-    params = crdc_data |> dplyr::select(year_full, target_name) |>
+  tar_map(
+    values = crdc_data |> dplyr::select(year_full, target_name) |>
       dplyr::mutate(output_file = paste0("annual_descriptives_", year_full, ".html")),
-    cue = tar_cue(mode = "never")
+    names = "target_name",
+    tar_target(
+      annual_report,
+      {
+        force(stage_crdc)
+        render_year_doc("annual_descriptives_template.qmd",
+          suffix = target_name, year_full = year_full,
+          target_name = target_name, output_file = output_file)
+      },
+      format = "file",
+      cue = tar_cue(mode = "never")
+    )
   ),
   # Combine model data from all years
   tar_target(
@@ -239,7 +263,7 @@ list(
   ),
 
   tar_target(
-    nat_m1_fml,
+    unified_m1_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         RACE * SEX +
@@ -250,9 +274,9 @@ list(
   ),
 
   tar_target(
-    nat_m1_mod,
+    unified_m1_mod,
     brm(
-      nat_m1_fml,
+      unified_m1_fml,
       data = recent_data$data,
       seed = 11213,
       prior = make_arrest_priors(),
@@ -268,7 +292,7 @@ list(
   ),
 
   tar_target(
-    nat_m2_fml,
+    unified_m2_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         RACE * SEX +
@@ -280,9 +304,9 @@ list(
   ),
 
   tar_target(
-    nat_m2_mod,
+    unified_m2_mod,
     brm(
-      nat_m2_fml,
+      unified_m2_fml,
       data = recent_data$data,
       seed = 11213,
       prior = make_arrest_priors(),
@@ -299,7 +323,7 @@ list(
   ),
 
   tar_target(
-    nat_m3_fml,
+    unified_m3_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         YEAR +
@@ -311,9 +335,9 @@ list(
   ),
 
   tar_target(
-    nat_m3_mod,
+    unified_m3_mod,
     brm(
-      nat_m3_fml,
+      unified_m3_fml,
       data = three_year_data$data,
       seed = 11213,
       prior = make_arrest_priors(),
@@ -330,7 +354,7 @@ list(
   ),
 
   tar_target(
-    nat_m4_fml,
+    unified_m4_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         YEAR +
@@ -343,9 +367,9 @@ list(
   ),
 
   tar_target(
-    nat_m4_mod,
+    unified_m4_mod,
     brm(
-      nat_m4_fml,
+      unified_m4_fml,
       data = three_year_data$data,
       seed = 11213,
       prior = make_arrest_priors(),
@@ -362,7 +386,7 @@ list(
   ),
 
   tar_target(
-    nat_m5_fml,
+    unified_m5_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         YEAR +
@@ -376,9 +400,9 @@ list(
   ),
 
   tar_target(
-    nat_m5_mod,
+    unified_m5_mod,
     brm(
-      nat_m5_fml,
+      unified_m5_fml,
       data = three_year_data$data,
       seed = 11213,
       prior = make_arrest_priors(),
@@ -411,7 +435,7 @@ list(
   ),
 
   tar_target(
-    sg_m1_fml,
+    stratified_m1_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 + (1 | LEA_STATE) + (1 | LEAID),
       family = "binomial"
@@ -419,10 +443,10 @@ list(
   ),
 
   tar_target(
-    sg_m1_mod,
+    stratified_m1_mod,
     command = {
       obj <- brm(
-        sg_m1_fml,
+        stratified_m1_fml,
         data = recent_data_group,
         seed = 11213,
         prior = make_arrest_priors(int_only = TRUE),
@@ -442,7 +466,7 @@ list(
   ),
 
   tar_target(
-    sg_m2_fml,
+    stratified_m2_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         referral_rate +
@@ -453,10 +477,10 @@ list(
   ),
 
   tar_target(
-    sg_m2_mod,
+    stratified_m2_mod,
     command = {
       obj <- brm(
-        sg_m2_fml,
+        stratified_m2_fml,
         data = recent_data_group,
         seed = 11213,
         prior = make_arrest_priors(),
@@ -476,7 +500,7 @@ list(
   ),
 
   tar_target(
-    sg_m3_fml,
+    stratified_m3_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 + YEAR + (1 | LEA_STATE) + (1 | LEAID),
       family = "binomial"
@@ -484,10 +508,10 @@ list(
   ),
 
   tar_target(
-    sg_m3_mod,
+    stratified_m3_mod,
     command = {
       obj <- brm(
-        sg_m3_fml,
+        stratified_m3_fml,
         data = three_year_data_group,
         seed = 11213,
         prior = make_arrest_priors(),
@@ -508,7 +532,7 @@ list(
   ),
 
   tar_target(
-    sg_m4_fml,
+    stratified_m4_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         YEAR +
@@ -520,10 +544,10 @@ list(
   ),
 
   tar_target(
-    sg_m4_mod,
+    stratified_m4_mod,
     command = {
       obj <- brm(
-        sg_m4_fml,
+        stratified_m4_fml,
         data = three_year_data_group,
         seed = 11213,
         prior = make_arrest_priors(),
@@ -545,7 +569,7 @@ list(
   ),
 
   tar_target(
-    sg_m5_fml,
+    stratified_m5_fml,
     brms::brmsformula(
       ARRESTS | trials(stu_enroll) ~ 1 +
         YEAR +
@@ -558,10 +582,10 @@ list(
   ),
 
   tar_target(
-    sg_m5_mod,
+    stratified_m5_mod,
     command = {
       obj <- brm(
-        sg_m5_fml,
+        stratified_m5_fml,
         data = three_year_data_group,
         seed = 11213,
         prior = make_arrest_priors(),
@@ -583,7 +607,22 @@ list(
   ),
   tar_target(
     posterior_db,
-    process_all_targets(ndraws = 500, db_path = "export/db/crdc_arrests.duckdb")
+    process_all_targets(
+      model_objects = list(
+        unified_m1_mod = unified_m1_mod,
+        unified_m2_mod = unified_m2_mod,
+        unified_m3_mod = unified_m3_mod,
+        unified_m4_mod = unified_m4_mod,
+        unified_m5_mod = unified_m5_mod,
+        stratified_m1_mod = stratified_m1_mod,
+        stratified_m2_mod = stratified_m2_mod,
+        stratified_m3_mod = stratified_m3_mod,
+        stratified_m4_mod = stratified_m4_mod,
+        stratified_m5_mod = stratified_m5_mod
+      ),
+      ndraws = 500,
+      db_path = "export/db/crdc_arrests.duckdb"
+    )
   ),
 
   # --- API data product targets -------------------------------------------
@@ -615,7 +654,7 @@ list(
         enroll_lookup = enroll_lookup,
         district_dim  = district_dim,
         data_release  = "civilytics-crdc-arrests-2025.1",
-        memory_limit  = sprintf("%dGB", duckdb_mem_limit_gb()),
+        memory_limit  = sprintf("%dGB", duckdb_mem_limit_gb(concurrency = DUCKDB_HEAVY_CONCURRENCY)),
         threads       = 6,
         temp_dir      = "tmp/duckdb_spill"
       )
@@ -629,7 +668,7 @@ list(
       build_draws_parquet(
         draws_db_path = "export/db/crdc_arrests.duckdb",
         out_dir       = "export/parquet",
-        memory_limit  = sprintf("%dGB", duckdb_mem_limit_gb()),
+        memory_limit  = sprintf("%dGB", duckdb_mem_limit_gb(concurrency = DUCKDB_HEAVY_CONCURRENCY)),
         threads       = 6,
         temp_dir      = "tmp/duckdb_spill"
       )
@@ -675,57 +714,100 @@ list(
   tar_target(
     model_stats_artifact,
     stage_model_stats(list(
-      nat_m1_mod = nat_m1_mod, nat_m2_mod = nat_m2_mod, nat_m3_mod = nat_m3_mod,
-      nat_m4_mod = nat_m4_mod, nat_m5_mod = nat_m5_mod,
-      sg_m1_mod = sg_m1_mod, sg_m2_mod = sg_m2_mod, sg_m3_mod = sg_m3_mod,
-      sg_m4_mod = sg_m4_mod, sg_m5_mod = sg_m5_mod
+      unified_m1_mod = unified_m1_mod, unified_m2_mod = unified_m2_mod, unified_m3_mod = unified_m3_mod,
+      unified_m4_mod = unified_m4_mod, unified_m5_mod = unified_m5_mod,
+      stratified_m1_mod = stratified_m1_mod, stratified_m2_mod = stratified_m2_mod, stratified_m3_mod = stratified_m3_mod,
+      stratified_m4_mod = stratified_m4_mod, stratified_m5_mod = stratified_m5_mod
     ), dir = "export/stages"),
     format = "file"
   ),
   tar_target(
     hmc_diagnostics_artifact,
     stage_hmc_diagnostics(list(
-      nat_m1_mod = nat_m1_mod, nat_m2_mod = nat_m2_mod, nat_m3_mod = nat_m3_mod,
-      nat_m4_mod = nat_m4_mod, nat_m5_mod = nat_m5_mod
+      unified_m1_mod = unified_m1_mod, unified_m2_mod = unified_m2_mod, unified_m3_mod = unified_m3_mod,
+      unified_m4_mod = unified_m4_mod, unified_m5_mod = unified_m5_mod
     ), dir = "export/stages"),
     format = "file"
   ),
   tar_target(
-    pooled_fits_artifact,
-    stage_pooled_fits(list(
-      nat_m1_mod = nat_m1_mod, nat_m2_mod = nat_m2_mod, nat_m3_mod = nat_m3_mod,
-      nat_m4_mod = nat_m4_mod, nat_m5_mod = nat_m5_mod
+    unified_fits_artifact,
+    stage_unified_fits(list(
+      unified_m1_mod = unified_m1_mod, unified_m2_mod = unified_m2_mod, unified_m3_mod = unified_m3_mod,
+      unified_m4_mod = unified_m4_mod, unified_m5_mod = unified_m5_mod
     ), dir = "export/stages"),
     format = "file"
   ),
 
   # --- Subsystem 3: reproducible render targets (cue=never; explicit renders only).
-  # Docs read published artifacts via crdc_path(), so they render standalone too. ---
-  tarchetypes::tar_render(white_paper, "white_paper.qmd",
-    output_file = "white_paper.html", cue = tar_cue(mode = "never")),
-  tarchetypes::tar_render(supplement, "supplement.qmd",
-    output_file = "supplement.html", cue = tar_cue(mode = "never")),
-  tarchetypes::tar_render(social_media_posts, "social_media_posts.qmd",
-    output_file = "social_media_posts.html", cue = tar_cue(mode = "never")),
-  tarchetypes::tar_render_rep(
-    name = model_descriptives,
-    path = "model_descriptives_template.qmd",
-    params = crdc_data |> dplyr::select(year_full, target_name) |>
+  # When built via tar_make() the docs read from local export/ (CRDC_ARTIFACTS set
+  # to "export" inside the command). For standalone re-renders outside the pipeline,
+  # set CRDC_ARTIFACTS=hf://datasets/... in the environment before calling quarto.
+  tar_target(
+    white_paper,
+    {
+      force(stage_inputs); force(stage_crdc)
+      force(model_stats_artifact); force(draws_parquet)
+      withr::with_envvar(c(CRDC_ARTIFACTS = "export"),
+        quarto::quarto_render("white_paper.qmd", output_file = "white_paper.html"))
+      "white_paper.html"
+    },
+    format = "file",
+    cue = tar_cue(mode = "never")
+  ),
+  tar_target(
+    supplement,
+    {
+      force(stage_inputs); force(stage_crdc)
+      force(model_stats_artifact); force(hmc_diagnostics_artifact)
+      force(unified_fits_artifact); force(draws_parquet)
+      withr::with_envvar(c(CRDC_ARTIFACTS = "export"),
+        quarto::quarto_render("supplement.qmd", output_file = "supplement.html"))
+      "supplement.html"
+    },
+    format = "file",
+    cue = tar_cue(mode = "never")
+  ),
+  tar_target(
+    social_media_posts,
+    {
+      force(stage_inputs); force(stage_crdc); force(draws_parquet)
+      withr::with_envvar(c(CRDC_ARTIFACTS = "export"),
+        quarto::quarto_render("social_media_posts.qmd",
+          output_file = "social_media_posts.html"))
+      "social_media_posts.html"
+    },
+    format = "file",
+    cue = tar_cue(mode = "never")
+  ),
+  tar_map(
+    values = crdc_data |> dplyr::select(year_full, target_name) |>
       dplyr::mutate(output_file = paste0("model_descriptives_", year_full, ".html")),
-    cue = tar_cue(mode = "never"))
+    names = "target_name",
+    tar_target(
+      model_descriptives,
+      {
+        force(stage_crdc)
+        render_year_doc("model_descriptives_template.qmd",
+          suffix = target_name, year_full = year_full,
+          target_name = target_name, output_file = output_file)
+      },
+      format = "file",
+      cue = tar_cue(mode = "never")
+    )
+  )
 
   # Hypothetical Model 6 specification. Not run. Run attempted in September 2025
   # but was canceled after 7 days of continuous compute failed to produce results.
   #,
-  #     tar_target(nat_m6_fml,
+  #     tar_target(unified_m6_fml,
   #   brms::brmsformula(
   #     ARRESTS | trials(stu_enroll) ~ 1 + YEAR + RACE * SEX + referral_rate + total_referrals + (1 + RACE * SEX |LEAID)  + (1|LEA_STATE),
   #     family = "binomial"
   #   )
   # ),
   # tar_target(
-  #   nat_m6_mod,
-  #   brm(nat_m6_fml,
+  #   unified_m6_mod,
+  #   brm(unified_m6_fml,
   #     data = three_year_data$data,
   #       seed = 11213,
   #   prior = make_arrest_priors(),

@@ -1,110 +1,17 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
-crdc_le_raw_y1718|stem|e601a1443c97fa75|8bc5ab679faeb6d0|2c530c1562a7fbd1|31756365|tmp/data/2017-18-crdc-data-corrected-05242021/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Referrals and Arrests.csv|t18771.7951157407s|s25426723b|25426723|file|local|vector|||0.968||
 sg_m4_fml|stem|967523c8873a3836|9b9bc2aabbb2b753|2c530c1562a7fbd1|587780868||t20348.7116177197s|s1379b|1379|rds|local|vector|||0.967||
 sg_m5_fml|stem|df3435df006db086|2fdeafe1e915d479|2c530c1562a7fbd1|335826664||t20348.7116179772s|s1390b|1390|rds|local|vector|||0.953||
-crdc_raw_y2122|stem|2a612eb625bb21c1|1cf14982dd1c322a|2c530c1562a7fbd1|1227505197|tmp/data/2021-22-crdc-data/SCH/Enrollment.csv|t20103.9965277778s|s69616975b|69616975|file|local|vector|||0.97||
-crdc_le_raw_y2122|stem|5d20b934d296b1e5|d423b45d9ea509dc|2c530c1562a7fbd1|-1289639656|tmp/data/2021-22-crdc-data/SCH/Referrals and Arrests.csv|t20103.9965277778s|s25533415b|25533415|file|local|vector|||0.961||
 sg_m3_fml|stem|20c97f7a290c7f09|235f831d3ee63cb0|2c530c1562a7fbd1|-1648321610||t20348.7116181533s|s1366b|1366|rds|local|vector|||0.968||
 nat_m1_fml|stem|2063e90a1b14d984|4225999c07cd6ae3|2c530c1562a7fbd1|1320104543||t20348.7116181916s|s1378b|1378|rds|local|vector|||0.986||
 sg_m2_fml|stem|e2a649eb3de4c59d|f0b4b97ecac9f882|2c530c1562a7fbd1|1689439182||t20348.7116182352s|s1372b|1372|rds|local|vector|||0.94||
-crdc_raw_y1718|stem|d9e8917cd35d8a47|77abd23311eb4aeb|2c530c1562a7fbd1|2103174307|tmp/data/2017-18-crdc-data-corrected-05242021/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Enrollment.csv|t18771.7951157407s|s35235313b|35235313|file|local|vector|||0.973||
 nat_m3_fml|stem|d4162b5f4e070c7c|9cf92cbc5ec6708a|2c530c1562a7fbd1|1482695029||t20348.7116183585s|s1384b|1384|rds|local|vector|||0.971||
 nat_m2_fml|stem|a58e7ebda1d7f876|a51318bc59ca7593|2c530c1562a7fbd1|-1480375856||t20348.7116184067s|s1393b|1393|rds|local|vector|||0.967||
 sg_m1_fml|stem|b33a68d1305954db|823eef7fe1c2922a|2c530c1562a7fbd1|1515684279||t20348.7116184543s|s1359b|1359|rds|local|vector|||0.971||
 nat_m4_fml|stem|e16a371f535950b7|87756301ac2feed7|2c530c1562a7fbd1|2119920575||t20348.711618503s|s1398b|1398|rds|local|vector|||0.957||
 nat_m5_fml|stem|7c164212f229d9a1|bf0ea9ec01711b9b|2c530c1562a7fbd1|-1002344667||t20348.7116185471s|s1407b|1407|rds|local|vector|||0.965||
-crdc_le_raw_y1516|stem|d51df8eafed4c663|a9d1f66512586388|2c530c1562a7fbd1|1919824932|tmp/data/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv|t17809.6872337963s|s464998393b|464998393|file|local|vector|||0.951||
-crdc_raw_y1516|stem|d51df8eafed4c663|a9d1f66512586388|2c530c1562a7fbd1|2382437|tmp/data/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv|t17809.6872337963s|s464998393b|464998393|file|local|vector|||0.966||
-lerefs_y1718|stem|20a4ca318467f0c8|16ab57acf2fb3067|1205abbf45adab1c|520527632||t20348.7116377253s|s2139366b|2139366|rds|local|vector|||1.448||
-lerefs_y2122|stem|5928e9f3bcbd619f|ea3f72b41fea85fc|108a5aa0a3864c1e|-498823485||t20348.7116468745s|s2312523b|2312523|rds|local|vector|||1.489||
-popcounts_y1718|stem|4195e8f237048d69|5f01feec527af241|8e7bea5b1f91e916|515515294||t20348.7116706672s|s7930477b|7930477|rds|local|vector|||2.17||
-popcounts_y2122|stem|b98b4cc62b4cc5a9|1f1a18a88b75ace1|0bc5c9ab83cc7865|1863053471||t20348.711703274s|s9947961b|9947961|rds|local|vector|||3.825||
-schenrollraw_y1718|stem|433676c921f6c551|5091becf5a2ee6b3|12bb02e9f42eb824|-1209498085||t20348.7117207494s|s1971805b|1971805|rds|local|vector|||0.131||
-incomplete_enroll_y1718|stem|34088e4b7e3dbfdc|71955137162a55b9|2ea4a1717d9afe7c|-521805248||t20348.7117252225s|s619b|619|rds|local|vector|||0.076||
-schuniverse_y1718|stem|4e74518cd34b1d1f|908b4958a37cebdf|273a338d5343a336|1350045905||t20348.7117329138s|s1539973b|1539973|rds|local|vector|||0.007||
-schenrollraw_y2122|stem|eb210f7f97fba467|dc474784a5f6d540|e3f24bcf60d1f857|-1405972867||t20348.7117539503s|s1970561b|1970561|rds|local|vector|||0.268||
-schuniverse_y2122|stem|c26ca282b857e15d|21e6badc24074163|a1f82e990c526b38|-1580020359||t20348.7117663495s|s1562845b|1562845|rds|local|vector|||0.014||
-enroll_validation_y1718|stem|e83a1276e13561d6|491c5b59267ce09f|c91656d1f515291f|2037590623||t20348.7117728098s|s44b|44|rds|local|vector|||0.214||
-incomplete_enroll_y2122|stem|68ffad67a2b52c2d|8c8cfda8f894c74a|78af54c8d8096b82|1386764362||t20348.7117744262s|s88652b|88652|rds|local|vector|||0.22||
-enroll_validation_y2122|stem|e83a1276e13561d6|92fe11ca42b343b9|1c9da0e1116632b1|1489361543||t20348.7117806034s|s44b|44|rds|local|vector|||0.201||
-referrals_y1718|stem|d4bbf8cd134f574e|307b03c75dbb1313|6ce25b0e0c022258|-437126440||t20348.711930426s|s4601730b|4601730|rds|local|vector|||22.739||
-referrals_y2122|stem|d29dfcd9ce3e76fa|8e56a9a60bd46e8a|ad7f91d38c9f84e8|-1853949064||t20348.7119607651s|s4562764b|4562764|rds|local|vector|||22.816||
-ccd_dist_geo_y1718|stem|48998fd0325b2b2e|872c56fa40f0dafa|2c530c1562a7fbd1|1111726959||t20348.711976328s|s2359824b|2359824|rds|local|vector|||29.219||
-combo_y1718|stem|d8890e0dc6dbbdcf|49a549751c8ff64b|a3a3445ece6e6fc4|-1921073229||t20348.7119967076s|s6057704b|6057704|rds|local|vector|||0.182||
-popcounts_y1516|stem|4ce50073526d3337|34aba44b4d7899b2|66cb0f8896bf1606|-1611711062||t20348.7121554625s|s43047065b|43047065|rds|local|vector|||31.185||
-lerefs_y1516|stem|4ce50073526d3337|eca532a5dbee57a4|566af6de607dd7ab|-2115460697||t20348.7123100202s|s43047065b|43047065|rds|local|vector|||31.264||
-combo_y2122|stem|597d21b271da12f3|aecbf8071b5b61e0|20fff4d1e771637f|-1870767721||t20348.7123686687s|s6012129b|6012129|rds|local|vector|||0.181||
-schenrollraw_y1516|stem|dfa817b8124d9510|70f64d5d4b3864f6|c61178dde8f3e408|-1381593536||t20348.712416594s|s1648329b|1648329|rds|local|vector|||0.15||
-incomplete_enroll_y1516|stem|8e845e9fa225cce2|b5b8335d6e4f19ba|7b43e0cf01580a36|405512488||t20348.7124586515s|s390b|390|rds|local|vector|||0.124||
-ccd_dist_geo_y1516|stem|ee9f882df83c505c|5937244162060691|2c530c1562a7fbd1|459335788||t20348.7124702423s|s2158162b|2158162|rds|local|vector|||53.756||
-ccd_dist_geo_y2122|stem|1890605997c6d3e3|f726ccb802e8eafc|2c530c1562a7fbd1|-17610853||t20348.712482447s|s2553642b|2553642|rds|local|vector|||37.015||
-fullref_data_y1718|stem|ee8d4447ecad8d34|9694a9be52be2445|01e6da27072a99e5|-475913737||t20348.7125321798s|s14475352b|14475352|rds|local|vector|||12.614||
-ccd_sch_geo_y2122|stem|529bfc5878060db8|bf982fb983da2f95|2c530c1562a7fbd1|1426763027||t20348.712562586s|s8006797b|8006797|rds|local|vector|||74.561||
-enroll_validation_y1516|stem|e83a1276e13561d6|102d1ecc9059e516|1a57e64d030a6878|-1178482528||t20348.7125907164s|s44b|44|rds|local|vector|||0.221||
-ccd_sch_geo_y1516|stem|cd4da50506ebe50f|ee61165c6f95c6c4|2c530c1562a7fbd1|1103758895||t20348.7126055772s|s7711810b|7711810|rds|local|vector|||80.569||
-schuniverse_y1516|stem|9aeafb573443e4fc|68c908093f9c3c93|311cbac82a18be07|-1047064175||t20348.7126089907s|s1512185b|1512185|rds|local|vector|||0.078||
-ccd_sch_geo_y1718|stem|539f4e5425cfc2bf|7971094961ef0a6a|2c530c1562a7fbd1|-1402510733||t20348.7126248812s|s8175895b|8175895|rds|local|vector|||83.87||
-full_crdc_data_y1718|stem|fdba095aa92ab322|5af1cd9a848f446d|1fa0f67aa7473907|2064176509||t20348.712691277s|s8999140b|8999140|rds|local|vector|||0.61||
 validate_mod_data_y1718|stem|ef640145045b5202|e71fe7f476d4c211|9835c795232e0415|24126851||t20348.7127152913s|s48b|48|rds|local|vector|||0.153||
-fullref_data_y2122|stem|678edaacc9a3b2c1|2cab750976fa1e5d|bf241fdc67e7a5e1|384275118||t20348.7127613898s|s14163187b|14163187|rds|local|vector|||13.852||
-combined_sch_data|stem|0260d1ce8114c381|860d9f963c04f8a4|5fe10bb639cadd71|1638284719||t20348.7128183664s|s23768324b|23768324|rds|local|vector|||0.058||
-full_crdc_data_y2122|stem|c40b8626bf51d437|5042e75ee40d5994|16cbfb7671e779ff|2071353756||t20348.7129049743s|s8705026b|8705026|rds|local|vector|||0.154||
-model_data_y1718|stem|47b70eda6a19c711|d657f97da8badeaf|0ee7aefb42aef822|255484060||t20348.71298828s|s10666169b|10666169|rds|local|vector|||0.419||
-referrals_y1516|stem|fb3a226668b49341|78e9391db4ca7ae6|e98363ced9673ec3|1086382978||t20348.7130053029s|s4458612b|4458612|rds|local|vector|||21.299||
-validate_mod_data_y2122|stem|ef640145045b5202|4c2c046b4a190a6e|ac5aec5eb38b39b9|-1366141415||t20348.7130166566s|s48b|48|rds|local|vector|||0.174||
-model_data_y2122|stem|9496cd90d4dc1fed|b792b4a2c13ce3b4|5b131da060797b61|-1820986820||t20348.7130775096s|s10454766b|10454766|rds|local|vector|||0.419||
-combo_y1516|stem|9375e9da19f04272|bb06b7b7d14374bc|4f8e173de9425f3a|1284942222||t20348.7130974103s|s5589891b|5589891|rds|local|vector|||0.17||
-fullref_data_y1516|stem|0d0ce21b570c3c71|f04098027aa9ee78|05fe4972e36e49af|1630994757||t20348.7133107932s|s13509539b|13509539|rds|local|vector|||12.791||
-full_crdc_data_y1516|stem|153b0c544d2d034e|ce71b030971b23c6|3c8b5da8e0693f50|-1243346010||t20348.7134116401s|s8364467b|8364467|rds|local|vector|||0.277||
 validate_mod_data_y1516|stem|ef640145045b5202|01b389863fe5cfb4|222207e0a3d21e67|-1935849745||t20348.7134411351s|s48b|48|rds|local|vector|||0.013||
-model_data_y1516|stem|3ab070f247a8e6e6|e67fa6c08094e186|c92076ee06b83c38|569081280||t20348.7135394956s|s10003883b|10003883|rds|local|vector|||0.427||
-combined_model_data|stem|03d010835cecf402|cd1d7acbca5513f2|2401ae247511d104|-1623699016||t20348.7139548172s|s31065126b|31065126|rds|local|vector|||1.023||
-scaled_rate|function|e47309ccf7ce9e72
-NCHAINS|object|195dadb6d6a0c78f
-calculate_model_cov_summaries|function|2d696e5ba79444c2
-ITER_MULTIPLIER|object|b3a2147ad240fae3
-crdc_missing_code|function|36851543ea4e4b90
-get_prediction_draws|function|52d327ad9dc33b36
-crdc_missing_code_2122|function|3a102d23a17a7464
-crdc_sub_1516|function|fb0689d3b7c6e862
-intersect_crdc_ccd|function|1d3f8bb308b7046d
-crdc_missing_code_1516|function|d2200b624b0f693b
-generate_subset_data|function|3497e10c043e1b2d
-enroll_cap|object|eced30da0c13a5bf
-calculate_model_stats|function|24605cd26bee5e0d
-CPU_CAPACITY|object|10d4c57f141ad2c3
-find_offending_character|function|09415ba9f39515ad
-validate_le|function|6f330130e9591d0f
-fix_1516_crdc_combokey|function|da786c8002a412db
-mod_control|object|023c320ddc72348d
-make_arrest_priors|function|00ad2aa8b9f2b9c9
-validate_enrollments|function|2b5653e1a1b1f921
-match_test|function|fd096e91ba4b768e
-NTHREADS|object|195dadb6d6a0c78f
-na_zero|function|3013e33d167c1c66
-get_prediction_summary|function|ed0dceacfd95f4b6
-restrict_model_data|function|7c864db8b1c560fc
-parse_model_name|function|ee758061b30805bf
-MCMC_WORKERS|object|1f35528bd840b63d
-NITER|object|257014dc9570ae9b
-crdc_sub|function|437102600f998c1b
-get_state_prediction_summary|function|cad2fe56a3b02742
-DEV_MODE|object|cc6a331fb3c0077c
-crdc_data|object|211ca90da9a1b70c
-na_sum|function|989cd5c4bbcc43b8
-crdc_race_recode|function|9740c159c7a6c8d4
-N_PAR_CHAINS|object|195dadb6d6a0c78f
-generate_demographic_data|function|f63ce399a2d8e314
-crdc_lea_collapse|function|a29a42ae4a47bfad
-incomplete_referrals|function|44c7ab83ee96f516
-incomplete_enrollments|function|3b043893e886072b
-get_crdc_sch_data|function|302675f510971e4b
-reshape_le_rate_long|function|f9e47411e612718a
-reshape_le|function|2c2ed501eb83e393
-sch_denom_enroll|function|a01d3c5650661d11
-recent_data|stem|a53d439f6ee414f5|93a27f3450e815ba|081212758a9d1443|-1502711747||t20349.7795751405s|s2524631b|2524631|rds|local|vector|||9.018||
 recent_data_group|stem|beee44c963d5d7e4|2a168c9a1a68bf44|f927ce183fa886a7|-91311326||t20349.7795878337s|s2480566b|2480566|rds|local|group||recent_data_group_ba80e65115ab43df*recent_data_group_535157a29b716310*recent_data_group_a294f761e95a06f5*recent_data_group_ed43c461a57e5666*recent_data_group_784db525217bfc85*recent_data_group_1a6ae5030b7f1b11*recent_data_group_c8409f6966e54ee5*recent_data_group_408f9d5de4a0ff9b|0.05||
-three_year_data|stem|92c7a957db4d2bcb|96f84b29d421d88c|081212758a9d1443|-1029055116||t20349.7797224541s|s7200457b|7200457|rds|local|vector|||9.761||
 three_year_data_group|stem|c5cad35b95a81e9d|41b728d28130d0db|447457c7e9b98685|-704152408||t20349.7797451661s|s7163876b|7163876|rds|local|group||three_year_data_group_8bab7383f3447535*three_year_data_group_23a8f49b87581d2b*three_year_data_group_ab3f4abbf08d9abb*three_year_data_group_4cda8d33e34d47d7*three_year_data_group_f608a695445da92d*three_year_data_group_e3199d5703bd1353*three_year_data_group_8ae8add594ce9391*three_year_data_group_5956dab6a699078e|0.08||
 nat_m2_mod|stem|665ae06540fd42f3|db96e751cb6094fe|c82abb1a0e834ece|-442673747||t20349.8156167689s|s680827731b|680827731|rds|local|vector|||3089.079||
 nat_m1_mod|stem|6bce85e99142a6e6|eea955af5117d97c|bca674d087f25725|1144146898||t20349.8162352256s|s659850534b|659850534|rds|local|vector|||3141.428||
@@ -115,28 +22,10 @@ sg_m2_mod_4592e942df05c309|branch|a28263ec8a88ac68|56bdace55afdc47e|8f7f18a7880e
 sg_m2_mod_eac40d16a0832ae3|branch|cda6f017574c2491|56bdace55afdc47e|8f7f18a7880ef97a|804693630||t20349.8244029427s|s644123717b|644123717|rds|local|list|sg_m2_mod||292.546||
 sg_m2_mod_096b73cfab8f4ee5|branch|a8f43752d1dd59a6|56bdace55afdc47e|8f7f18a7880ef97a|-85491370||t20349.8268159719s|s645569624b|645569624|rds|local|list|sg_m2_mod||429.408||
 sg_m2_mod_e3f5275d605eb710|branch|c74ae2c11ce5fbcd|56bdace55afdc47e|8f7f18a7880ef97a|725139373||t20349.8282631761s|s661706630b|661706630|rds|local|list|sg_m2_mod||308.537||
-sg_m1_mod_9c79fa1b307e608b|branch|d7f852f2339d7afc|46b55741d6c7991a|79bf959306aad272|1936348013||t20349.8295777141s|s183848772b|183848772|rds|local|list|sg_m1_mod||106.012||
 sg_m2_mod_386c774f3335ed28|branch|154a5fe86b8d6409|56bdace55afdc47e|8f7f18a7880ef97a|481295226||t20349.8307061136s|s664524400b|664524400|rds|local|list|sg_m2_mod||313.575||
 sg_m2_mod|pattern|a4227d44467f0d9f|56bdace55afdc47e||-1466787599||||4525834266|rds|local|list||sg_m2_mod_9c79fa1b307e608b*sg_m2_mod_2a3bcca541e4ddeb*sg_m2_mod_1dae0161b884dbed*sg_m2_mod_4592e942df05c309*sg_m2_mod_eac40d16a0832ae3*sg_m2_mod_096b73cfab8f4ee5*sg_m2_mod_e3f5275d605eb710*sg_m2_mod_386c774f3335ed28|2176.738||
-sg_m1_mod_2a3bcca541e4ddeb|branch|6ffa5b3e6e1a372e|46b55741d6c7991a|79bf959306aad272|54957041||t20349.8307778372s|s188932384b|188932384|rds|local|list|sg_m1_mod||78.301||
-sg_m1_mod_4592e942df05c309|branch|d4a9edc170d0d207|46b55741d6c7991a|79bf959306aad272|-1363969730||t20349.8333922352s|s277581191b|277581191|rds|local|list|sg_m1_mod||215.911||
-sg_m1_mod_1dae0161b884dbed|branch|7ac4d0885381b703|46b55741d6c7991a|79bf959306aad272|-1380181186||t20349.8336017877s|s268228942b|268228942|rds|local|list|sg_m1_mod||233.434||
-sg_m1_mod_eac40d16a0832ae3|branch|8c9f478c3155d53c|46b55741d6c7991a|79bf959306aad272|1631280287||t20349.8355863618s|s312765951b|312765951|rds|local|list|sg_m1_mod||177.684||
-sg_m1_mod_096b73cfab8f4ee5|branch|19f5fbec3dc6be34|46b55741d6c7991a|79bf959306aad272|1536900436||t20349.8364362828s|s313757835b|313757835|rds|local|list|sg_m1_mod||232.672||
-sg_m1_mod_e3f5275d605eb710|branch|9f0ce95efd0ee3a2|46b55741d6c7991a|79bf959306aad272|-1782149488||t20349.8384505362s|s323999229b|323999229|rds|local|list|sg_m1_mod||235.055||
-sg_m1_mod_386c774f3335ed28|branch|42c212c2155817a0|46b55741d6c7991a|79bf959306aad272|-1582166059||t20349.839465288s|s324840401b|324840401|rds|local|list|sg_m1_mod||248.752||
-sg_m1_mod|pattern|25015c9a9b1f85fb|46b55741d6c7991a||-2110728922||||2193954705|rds|local|list||sg_m1_mod_9c79fa1b307e608b*sg_m1_mod_2a3bcca541e4ddeb*sg_m1_mod_1dae0161b884dbed*sg_m1_mod_4592e942df05c309*sg_m1_mod_eac40d16a0832ae3*sg_m1_mod_096b73cfab8f4ee5*sg_m1_mod_e3f5275d605eb710*sg_m1_mod_386c774f3335ed28|1527.821||
 nat_m3_mod|stem|19120e8111fb8d73|e48b90183fb2e41e|3f003153eb6a26f0|-760019618||t20350.0376494834s|s692908774b|692908774|rds|local|vector|||17185.449||
 nat_m5_mod|stem|e6fbddb13133a539|34f60b7eed437145|7555bc363721014b|1903887015||t20350.0404067442s|s415486744b|415486744|rds|local|vector|||17343.85||
-sg_m4_mod_62d1c755bf6f4b94|branch|2d6a537fd2b3aa11|cc34c2ee53a02a5c|326a80eed81c9261|1031542628||t20350.0468413444s|s287372709b|287372709|rds|local|list|sg_m4_mod||544.287||
-sg_m4_mod_13c695400c2a19ce|branch|98572512a638fcdc|cc34c2ee53a02a5c|326a80eed81c9261|-597037521||t20350.0536218125s|s294343440b|294343440|rds|local|list|sg_m4_mod||574.224||
-sg_m4_mod_992cfdcdb7e0e64e|branch|b3d7df492ee5193a|cc34c2ee53a02a5c|326a80eed81c9261|809796840||t20350.0696711643s|s374863267b|374863267|rds|local|list|sg_m4_mod||1371.992||
-sg_m4_mod_bdfba8362ec58915|branch|bd77d9b26f2c9416|cc34c2ee53a02a5c|326a80eed81c9261|-520055305||t20350.0886228518s|s384512467b|384512467|rds|local|list|sg_m4_mod||1622.338||
-sg_m4_mod_a10fdfb7e1a4a901|branch|b4ed49167cd244d4|cc34c2ee53a02a5c|326a80eed81c9261|2036099515||t20350.1045811354s|s403149453b|403149453|rds|local|list|sg_m4_mod||1363.18||
-sg_m4_mod_c378b623705d4928|branch|0422a483f1d2effa|cc34c2ee53a02a5c|326a80eed81c9261|-1725433228||t20350.125336946s|s404735369b|404735369|rds|local|list|sg_m4_mod||1776.962||
-sg_m4_mod_917c7816146bdcbd|branch|dd16c50d0ba7cf5e|cc34c2ee53a02a5c|326a80eed81c9261|-713477045||t20350.1390100309s|s407154560b|407154560|rds|local|list|sg_m4_mod||1165.118||
-sg_m4_mod_7f1ca2df840090f6|branch|f6078e7b7a768eb8|cc34c2ee53a02a5c|326a80eed81c9261|748040964||t20350.1606933507s|s408897233b|408897233|rds|local|list|sg_m4_mod||1857.427||
-sg_m4_mod|pattern|dd479e7e634f19d8|cc34c2ee53a02a5c||-2020654419||||2965028498|rds|local|list||sg_m4_mod_62d1c755bf6f4b94*sg_m4_mod_13c695400c2a19ce*sg_m4_mod_992cfdcdb7e0e64e*sg_m4_mod_bdfba8362ec58915*sg_m4_mod_a10fdfb7e1a4a901*sg_m4_mod_c378b623705d4928*sg_m4_mod_917c7816146bdcbd*sg_m4_mod_7f1ca2df840090f6|10275.528||
 sg_m5_mod_62d1c755bf6f4b94|branch|7741d479dc875840|39662ba525175494|e37719f9322065a8|1660285858||t20350.1677194122s|s286767348b|286767348|rds|local|list|sg_m5_mod||595.4||
 sg_m5_mod_13c695400c2a19ce|branch|2091e17b961b9312|39662ba525175494|e37719f9322065a8|1270919442||t20350.17527239s|s294026739b|294026739|rds|local|list|sg_m5_mod||640.869||
 sg_m5_mod_992cfdcdb7e0e64e|branch|b5906b02adb61e0f|39662ba525175494|e37719f9322065a8|442387373||t20350.1927173066s|s374992124b|374992124|rds|local|list|sg_m5_mod||1493.205||
@@ -156,49 +45,6 @@ sg_m3_mod_c378b623705d4928|branch|673b859b5f9cf320|1fe82987073d75bb|3edf1e7de422
 sg_m3_mod_917c7816146bdcbd|branch|0ca2ca0a150264f3|1fe82987073d75bb|3edf1e7de4225cc4|1241305341||t20350.286994993s|s343378164b|343378164|rds|local|list|sg_m3_mod||989.032||
 sg_m3_mod_7f1ca2df840090f6|branch|e99472fe9fb15f75|1fe82987073d75bb|3edf1e7de4225cc4|-1014741351||t20350.2914225765s|s344569010b|344569010|rds|local|list|sg_m3_mod||1029.881||
 sg_m3_mod|pattern|5a4c357000c89405|1fe82987073d75bb||274831039||||2491312465|rds|local|list||sg_m3_mod_62d1c755bf6f4b94*sg_m3_mod_13c695400c2a19ce*sg_m3_mod_992cfdcdb7e0e64e*sg_m3_mod_bdfba8362ec58915*sg_m3_mod_a10fdfb7e1a4a901*sg_m3_mod_c378b623705d4928*sg_m3_mod_917c7816146bdcbd*sg_m3_mod_7f1ca2df840090f6|6131.312||
-scaled_rate|function|e47309ccf7ce9e72
-NCHAINS|object|195dadb6d6a0c78f
-calculate_model_cov_summaries|function|2d696e5ba79444c2
-ITER_MULTIPLIER|object|b3a2147ad240fae3
-crdc_missing_code|function|36851543ea4e4b90
-get_prediction_draws|function|52d327ad9dc33b36
-crdc_missing_code_2122|function|3a102d23a17a7464
-crdc_sub_1516|function|fb0689d3b7c6e862
-intersect_crdc_ccd|function|1d3f8bb308b7046d
-crdc_missing_code_1516|function|d2200b624b0f693b
-generate_subset_data|function|3497e10c043e1b2d
-enroll_cap|object|eced30da0c13a5bf
-calculate_model_stats|function|24605cd26bee5e0d
-CPU_CAPACITY|object|10d4c57f141ad2c3
-find_offending_character|function|09415ba9f39515ad
-validate_le|function|6f330130e9591d0f
-fix_1516_crdc_combokey|function|da786c8002a412db
-mod_control|object|023c320ddc72348d
-make_arrest_priors|function|00ad2aa8b9f2b9c9
-validate_enrollments|function|2b5653e1a1b1f921
-match_test|function|fd096e91ba4b768e
-NTHREADS|object|195dadb6d6a0c78f
-na_zero|function|3013e33d167c1c66
-get_prediction_summary|function|ed0dceacfd95f4b6
-restrict_model_data|function|7c864db8b1c560fc
-parse_model_name|function|ee758061b30805bf
-MCMC_WORKERS|object|1f35528bd840b63d
-NITER|object|257014dc9570ae9b
-crdc_sub|function|437102600f998c1b
-get_state_prediction_summary|function|cad2fe56a3b02742
-DEV_MODE|object|cc6a331fb3c0077c
-crdc_data|object|211ca90da9a1b70c
-na_sum|function|989cd5c4bbcc43b8
-crdc_race_recode|function|9740c159c7a6c8d4
-N_PAR_CHAINS|object|195dadb6d6a0c78f
-generate_demographic_data|function|f63ce399a2d8e314
-crdc_lea_collapse|function|a29a42ae4a47bfad
-incomplete_referrals|function|44c7ab83ee96f516
-incomplete_enrollments|function|3b043893e886072b
-get_crdc_sch_data|function|302675f510971e4b
-reshape_le_rate_long|function|f9e47411e612718a
-reshape_le|function|2c2ed501eb83e393
-sch_denom_enroll|function|a01d3c5650661d11
 nat_m6_fml|stem|f888da6c7e0035e8|3ab9d5fffc81067f|2c530c1562a7fbd1|901631564||t20350.8538454796s|s1422b|1422|rds|local|vector|||0.675||
 sg_m4_mod_62d1c755bf6f4b94|branch|69f5f87153618f09|c530220e83ca38da|326a80eed81c9261|1031542628||t20350.8587737093s|s308797141b|308797141|rds|local|list|sg_m4_mod||414.141||
 sg_m4_mod_13c695400c2a19ce|branch|9471040523159abc|c530220e83ca38da|326a80eed81c9261|-597037521||t20350.8588981268s|s316295407b|316295407|rds|local|list|sg_m4_mod||419.412||
@@ -218,3 +64,251 @@ sg_m1_mod_096b73cfab8f4ee5|branch|4845833523c98b36|15abdc0bc75e7425|79bf959306aa
 sg_m1_mod_e3f5275d605eb710|branch|58536bf87d32a7a0|15abdc0bc75e7425|79bf959306aad272|-1782149488||t20350.9064987269s|s369971923b|369971923|rds|local|list|sg_m1_mod||317.372||
 sg_m1_mod_386c774f3335ed28|branch|9e1a3eb4454e940c|15abdc0bc75e7425|79bf959306aad272|-1582166059||t20350.9097502231s|s370905521b|370905521|rds|local|list|sg_m1_mod||324.198||
 sg_m1_mod|pattern|00c8e10bcff6e735|15abdc0bc75e7425||-2110728922||||2504882204|rds|local|list||sg_m1_mod_9c79fa1b307e608b*sg_m1_mod_2a3bcca541e4ddeb*sg_m1_mod_1dae0161b884dbed*sg_m1_mod_4592e942df05c309*sg_m1_mod_eac40d16a0832ae3*sg_m1_mod_096b73cfab8f4ee5*sg_m1_mod_e3f5275d605eb710*sg_m1_mod_386c774f3335ed28|1852.789||
+ccd_sch_geo_y1718|stem|539f4e5425cfc2bf|7971094961ef0a6a|2c530c1562a7fbd1|-1402510733||t20348.7126157407s|s8175895b|8175895|rds|local|vector|||83.87||
+ccd_sch_geo_y2122|stem|529bfc5878060db8|bf982fb983da2f95|2c530c1562a7fbd1|1426763027||t20348.7125578704s|s8006797b|8006797|rds|local|vector|||74.561||
+ccd_sch_geo_y1516|stem|cd4da50506ebe50f|ee61165c6f95c6c4|2c530c1562a7fbd1|1103758895||t20348.7126041667s|s7711810b|7711810|rds|local|vector|||80.569||
+crdc_le_raw_y1516|stem|d51df8eafed4c663|a9d1f66512586388|2c530c1562a7fbd1|1919824932|tmp/data/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv|t20398.7840162037s|s464998393b|464998393|file|local|vector|||0.951||
+crdc_raw_y1516|stem|d51df8eafed4c663|a9d1f66512586388|2c530c1562a7fbd1|2382437|tmp/data/2015-16-crdc-data/Data Files and Layouts/CRDC 2015-16 School Data.csv|t20398.7840162037s|s464998393b|464998393|file|local|vector|||0.966||
+lerefs_y1516|stem|4ce50073526d3337|eca532a5dbee57a4|566af6de607dd7ab|-2115460697||t20348.7123032407s|s43047065b|43047065|rds|local|vector|||31.264||
+popcounts_y1516|stem|4ce50073526d3337|34aba44b4d7899b2|66cb0f8896bf1606|-1611711062||t20348.7121527778s|s43047065b|43047065|rds|local|vector|||31.185||
+referrals_y1516|stem|fb3a226668b49341|78e9391db4ca7ae6|e98363ced9673ec3|1086382978||t20348.7129976852s|s4458612b|4458612|rds|local|vector|||21.299||
+schenrollraw_y1516|stem|dfa817b8124d9510|70f64d5d4b3864f6|c61178dde8f3e408|-1381593536||t20348.7124074074s|s1648329b|1648329|rds|local|vector|||0.15||
+schuniverse_y1516|stem|9aeafb573443e4fc|68c908093f9c3c93|311cbac82a18be07|-1047064175||t20348.7126041667s|s1512185b|1512185|rds|local|vector|||0.078||
+combo_y1516|stem|9375e9da19f04272|bb06b7b7d14374bc|4f8e173de9425f3a|1284942222||t20348.7130902778s|s5589891b|5589891|rds|local|vector|||0.17||
+fullref_data_y1516|stem|0d0ce21b570c3c71|f04098027aa9ee78|05fe4972e36e49af|1630994757||t20348.7133101852s|s13509539b|13509539|rds|local|vector|||12.791||
+full_crdc_data_y1516|stem|153b0c544d2d034e|ce71b030971b23c6|3c8b5da8e0693f50|-1243346010||t20348.7134027778s|s8364467b|8364467|rds|local|vector|||0.277||
+model_data_y1516|stem|3ab070f247a8e6e6|e67fa6c08094e186|c92076ee06b83c38|569081280||t20348.7135300926s|s10003883b|10003883|rds|local|vector|||0.427||
+crdc_raw_y1718|stem|d9e8917cd35d8a47|77abd23311eb4aeb|2c530c1562a7fbd1|2103174307|tmp/data/2017-18-crdc-data-corrected-05242021/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Enrollment.csv|t20398.7839699074s|s35235313b|35235313|file|local|vector|||0.973||
+popcounts_y1718|stem|4195e8f237048d69|5f01feec527af241|8e7bea5b1f91e916|515515294||t20348.7116666667s|s7930477b|7930477|rds|local|vector|||2.17||
+schenrollraw_y1718|stem|433676c921f6c551|5091becf5a2ee6b3|12bb02e9f42eb824|-1209498085||t20348.711712963s|s1971805b|1971805|rds|local|vector|||0.131||
+schuniverse_y1718|stem|4e74518cd34b1d1f|908b4958a37cebdf|273a338d5343a336|1350045905||t20348.711724537s|s1539973b|1539973|rds|local|vector|||0.007||
+crdc_le_raw_y1718|stem|e601a1443c97fa75|8bc5ab679faeb6d0|2c530c1562a7fbd1|31756365|tmp/data/2017-18-crdc-data-corrected-05242021/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Referrals and Arrests.csv|t20398.7839699074s|s25426723b|25426723|file|local|vector|||0.869|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+lerefs_y1718|stem|20a4ca318467f0c8|16ab57acf2fb3067|1205abbf45adab1c|520527632||t20348.7116319444s|s2139366b|2139366|rds|local|vector|||1.448||
+referrals_y1718|stem|d4bbf8cd134f574e|307b03c75dbb1313|6ce25b0e0c022258|-437126440||t20348.7119212963s|s4601730b|4601730|rds|local|vector|||22.739||
+combo_y1718|stem|d8890e0dc6dbbdcf|49a549751c8ff64b|a3a3445ece6e6fc4|-1921073229||t20348.7119907407s|s6057704b|6057704|rds|local|vector|||0.182||
+fullref_data_y1718|stem|ee8d4447ecad8d34|9694a9be52be2445|01e6da27072a99e5|-475913737||t20348.7125231481s|s14475352b|14475352|rds|local|vector|||12.614||
+full_crdc_data_y1718|stem|fdba095aa92ab322|5af1cd9a848f446d|1fa0f67aa7473907|2064176509||t20348.7126851852s|s8999140b|8999140|rds|local|vector|||0.61||
+model_data_y1718|stem|47b70eda6a19c711|d657f97da8badeaf|0ee7aefb42aef822|255484060||t20348.7129861111s|s10666169b|10666169|rds|local|vector|||0.419||
+crdc_raw_y2122|stem|b80d07b6c518bfba|1cf14982dd1c322a|2c530c1562a7fbd1|1227505197|tmp/data/2021-22-crdc-data/SCH/Enrollment.csv|t20398.7838657407s|s69490696b|69490696|file|local|vector|||0.968|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m1_fml|stem|2063e90a1b14d984|4225999c07cd6ae3|2c530c1562a7fbd1|1941688540||t20613.7538958133s|s1378b|1378|rds|local|vector|||0.967|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+crdc_le_raw_y2122|stem|c6f86f8af9fac081|d423b45d9ea509dc|2c530c1562a7fbd1|-1289639656|tmp/data/2021-22-crdc-data/SCH/Referrals and Arrests.csv|t20398.7838773148s|s25407182b|25407182|file|local|vector|||0.957|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+lerefs_y2122|stem|5928e9f3bcbd619f|ea3f72b41fea85fc|bcd449c80e1c9273|-498823485||t20613.7539206797s|s2312523b|2312523|rds|local|vector|||1.256||
+referrals_y2122|stem|d29dfcd9ce3e76fa|8e56a9a60bd46e8a|ad7f91d38c9f84e8|-1853949064||t20348.7119560185s|s4562764b|4562764|rds|local|vector|||22.816||
+popcounts_y2122|stem|55db2f23339dd993|1f1a18a88b75ace1|42ad8f02d802df8c|1863053471||t20613.7539595847s|s9947954b|9947954|rds|local|vector|||3.671||
+schuniverse_y2122|stem|4647be756c6e913d|21e6badc24074163|d1f319a61115c658|-1580020359||t20613.7539695148s|s1562844b|1562844|rds|local|vector|||0.012||
+schenrollraw_y2122|stem|99ee2d85a628aa17|dc474784a5f6d540|da2513cd4db34c88|-1405972867||t20613.7539825439s|s1970561b|1970561|rds|local|vector|||0.123||
+combo_y2122|stem|c6d3256d6780036f|aecbf8071b5b61e0|6016b5024b931074|-1870767721||t20613.7540224233s|s6012090b|6012090|rds|local|vector|||0.408||
+fullref_data_y2122|stem|8e05e6d9ba58a0ea|2cab750976fa1e5d|e4b31d3250436354|384275118||t20613.7542606494s|s14163197b|14163197|rds|local|vector|||15.857||
+full_crdc_data_y2122|stem|faef139382fd0961|5042e75ee40d5994|f808f564edecbaee|2071353756||t20613.7543376609s|s8705027b|8705027|rds|local|vector|||0.362||
+model_data_y2122|stem|fdeef24b8c2666ea|b792b4a2c13ce3b4|765cbe1751b46c95|-1820986820||t20613.7544273168s|s10454767b|10454767|rds|local|vector|||0.386||
+combined_model_data|stem|c7c2d4cdb574b018|cd1d7acbca5513f2|1efde66c93bd5a38|-1623699016||t20613.754722392s|s31065127b|31065127|rds|local|vector|||0.633||
+ccd_dist_geo_y2122|stem|1890605997c6d3e3|f726ccb802e8eafc|2c530c1562a7fbd1|-17610853||t20348.7124768519s|s2553642b|2553642|rds|local|vector|||37.015||
+ccd_dist_geo_y1718|stem|48998fd0325b2b2e|872c56fa40f0dafa|2c530c1562a7fbd1|1111726959||t20348.7119675926s|s2359824b|2359824|rds|local|vector|||29.219||
+ccd_dist_geo_y1516|stem|ee9f882df83c505c|5937244162060691|2c530c1562a7fbd1|459335788||t20348.7124652778s|s2158162b|2158162|rds|local|vector|||53.756||
+combined_sch_data|stem|0260d1ce8114c381|860d9f963c04f8a4|5fe10bb639cadd71|1638284719||t20348.7128125s|s23768324b|23768324|rds|local|vector|||0.058||
+incomplete_enroll_y1718|stem|34088e4b7e3dbfdc|71955137162a55b9|2ea4a1717d9afe7c|-521805248||t20348.711724537s|s619b|619|rds|local|vector|||0.076||
+incomplete_enroll_y1516|stem|8e845e9fa225cce2|b5b8335d6e4f19ba|7b43e0cf01580a36|405512488||t20348.7124537037s|s390b|390|rds|local|vector|||0.124||
+enroll_validation_y1718|stem|e83a1276e13561d6|491c5b59267ce09f|c91656d1f515291f|2037590623||t20348.7117708333s|s44b|44|rds|local|vector|||0.214||
+enroll_validation_y1516|stem|e83a1276e13561d6|102d1ecc9059e516|1a57e64d030a6878|-1178482528||t20348.7125810185s|s44b|44|rds|local|vector|||0.221||
+stratified_m2_fml|stem|e2a649eb3de4c59d|f0b4b97ecac9f882|2c530c1562a7fbd1|1454087010||t20613.8051307804s|s1372b|1372|rds|local|vector|||0.934|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+stratified_m1_fml|stem|b33a68d1305954db|823eef7fe1c2922a|2c530c1562a7fbd1|-696828553||t20613.8054225497s|s1359b|1359|rds|local|vector|||0.934|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m2_fml|stem|a58e7ebda1d7f876|a51318bc59ca7593|2c530c1562a7fbd1|-1718052249||t20613.805527318s|s1393b|1393|rds|local|vector|||0.988|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+stratified_m4_fml|stem|967523c8873a3836|9b9bc2aabbb2b753|2c530c1562a7fbd1|827135737||t20613.8056255035s|s1379b|1379|rds|local|vector|||1.068|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+stratified_m3_fml|stem|20c97f7a290c7f09|235f831d3ee63cb0|2c530c1562a7fbd1|-262955209||t20613.8056256019s|s1366b|1366|rds|local|vector|||0.961|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m5_fml|stem|7c164212f229d9a1|bf0ea9ec01711b9b|2c530c1562a7fbd1|-2036042525||t20613.8056257311s|s1407b|1407|rds|local|vector|||1.034|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m4_fml|stem|e16a371f535950b7|87756301ac2feed7|2c530c1562a7fbd1|-1383583203||t20613.805625775s|s1398b|1398|rds|local|vector|||0.004||
+stratified_m5_fml|stem|df3435df006db086|2fdeafe1e915d479|2c530c1562a7fbd1|624667830||t20613.8056258192s|s1390b|1390|rds|local|vector|||1.067|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m3_fml|stem|d4162b5f4e070c7c|9cf92cbc5ec6708a|2c530c1562a7fbd1|-1923130063||t20613.8056258615s|s1384b|1384|rds|local|vector|||0.003||
+combined_dist_geo|stem|5986f52d9805e26a|35bb56b06684feb6|c3255d17d63ef9bf|-977450594||t20613.8056370576s|s7088829b|7088829|rds|local|vector|||0||
+incomplete_enroll_y2122|stem|68ffad67a2b52c2d|8c8cfda8f894c74a|57227d89f02a835f|1386764362||t20613.8056382766s|s88652b|88652|rds|local|vector|||1.372|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+enroll_validation_y2122|stem|e83a1276e13561d6|92fe11ca42b343b9|36dd6f207d4bc1a2|1489361543||t20613.8056383547s|s44b|44|rds|local|vector|||0.726||
+validate_mod_data_y2122|stem|ef640145045b5202|4c2c046b4a190a6e|cb3f9ad1535d2675|-1366141415||t20613.8056384009s|s48b|48|rds|local|vector|||0.301||
+recent_data|stem|a53d439f6ee414f5|93a27f3450e815ba|5ff14cb4fbd364c4|-1502711747||t20613.8059161128s|s2524631b|2524631|rds|local|vector|||12.852|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+three_year_data|stem|92c7a957db4d2bcb|96f84b29d421d88c|5ff14cb4fbd364c4|-1029055116||t20613.8059309556s|s7200457b|7200457|rds|local|vector|||12.964|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+district_dim|stem|660f2d38f3f8c897|4d686fa85d609e46|3f285d0ebd2bd50e|269009691||t20613.8059337731s|s538708b|538708|rds|local|vector|||0.976|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2. Unmapped FIPS code(s) -> NA LEA_STATE; extend .fips_to_state if needed.|
+enroll_lookup|stem|ced43af57a1f9416|66ff6b0c0573f0d7|b9870b8e76674416|-1624551914||t20613.8063691417s|s1975912b|1975912|rds|local|vector|||0.037||
+stage_inputs|stem|5ba7261d83c836f6|98c501f396e9b7a5|60563c914629e654|1562141216|export/stages/inputs/three_year_data.parquet*export/stages/inputs/recent_data.parquet*export/stages/inputs/combined_model_data.parquet*export/stages/inputs/combined_sch_data.parquet|t20613.8061759262s|s77165237b|77165237|file|local|vector|||4.876||
+stage_crdc|stem|0512dc1c9b5346b0|1eb77b48380797db|f0323c40994d4382|-1358725703|export/stages/crdc/full_crdc_data_y2122.parquet*export/stages/crdc/full_crdc_data_y1718.parquet*export/stages/crdc/full_crdc_data_y1516.parquet*export/stages/crdc/model_data_y2122.parquet*export/stages/crdc/model_data_y1718.parquet*export/stages/crdc/model_data_y1516.parquet*export/stages/crdc/popcounts_y2122.parquet*export/stages/crdc/popcounts_y1718.parquet*export/stages/crdc/popcounts_y1516.parquet*export/stages/crdc/schenrollraw_y2122.parquet*export/stages/crdc/schenrollraw_y1718.parquet*export/stages/crdc/schenrollraw_y1516.parquet*export/stages/crdc/lerefs_y2122.parquet*export/stages/crdc/lerefs_y1718.parquet*export/stages/crdc/lerefs_y1516.parquet*export/stages/crdc/ccd_sch_geo_y2122.parquet*export/stages/crdc/ccd_sch_geo_y1718.parquet*export/stages/crdc/ccd_sch_geo_y1516.parquet*export/stages/crdc/ccd_dist_geo_y2122.parquet*export/stages/crdc/ccd_dist_geo_y1718.parquet*export/stages/crdc/ccd_dist_geo_y1516.parquet|t20613.8066970739s|s246520871b|246520871|file|local|vector|||16.314||
+annual_report_y2122|stem|f10eb673c0f71758|f01d8d22180b8696|5df9969c169bd043|742522251|annual_descriptives_2021-22.html|t20613.826283844s|s439802b|439802|file|local|vector|||25.391|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+annual_report_y1718|stem|497ac6240dbcb200|e044d9835abb0286|5df9969c169bd043|-1705777131|annual_descriptives_2017-18.html|t20613.8262867838s|s437879b|437879|file|local|vector|||25.179|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+annual_report_y1516|stem|e68fddbf825fb095|ceabe8de05b15679|5df9969c169bd043|-2025772780|annual_descriptives_2015-16.html|t20613.826293847s|s440153b|440153|file|local|vector|||25.338|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+model_descriptives_y2122|stem|057baa39613de518|71b3727291ab9720|5df9969c169bd043|-1578079902|model_descriptives_2021-22.html|t20613.8263865155s|s17114827b|17114827|file|local|vector|||34.697|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+model_descriptives_y1516|stem|12956fca8739c71f|39a8932c2bebe442|5df9969c169bd043|-1460499058|model_descriptives_2015-16.html|t20613.8263968359s|s17064182b|17064182|file|local|vector|||34.952|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+model_descriptives_y1718|stem|b026f67a0ab9480e|d64011773257a06b|5df9969c169bd043|1277892798|model_descriptives_2017-18.html|t20613.826400633s|s17093140b|17093140|file|local|vector|||34.819|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m1_mod|stem|0b5e403bb507d8f0|39a4cd86dc68c1a2|15688c83f78c432c|1935828699||t20613.8781172342s|s495216054b|495216054|rds|local|vector|||1978.886|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2. Chain 4 finished unexpectedly! . 1 chain(s) finished unexpectedly!. The returned fit object will only read in results of successful chains. Please use read_cmdstan_csv() to read the results of the failed chains separately.Use the $output(chain_id) method for more output of the failed chains.|
+unified_m2_mod|stem|79e1073e1beddc1e|cd39236525d2c2d2|30f8575aafdcb555|667281947||t20613.9230757306s|s680827666b|680827666|rds|local|vector|||3828.741|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m5_mod|stem|0bac1d0319574d5b|8d92bf0429a64ba9|b377c093d278455d|-972725697||t20614.0743620643s|s415498660b|415498660|rds|local|vector|||16910.108|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_m4_mod|stem|9527c5e86cbbdd7c|b429ea4181af2350|6c4c779f2a801a71|-1867690600||t20614.1844999074s|s415257519b|415257519|rds|local|vector|||22570.514||
+stratified_m2_mod_9c79fa1b307e608b|branch|f6baaf311c7dad81|7aa0016497e667a7|9680bfc49d84652a|-2035429499||t20614.1873102772s|s380065896b|380065896|rds|local|list|stratified_m2_mod||228.981||
+stratified_m2_mod_2a3bcca541e4ddeb|branch|952d04b02ff726e7|7aa0016497e667a7|9680bfc49d84652a|-1348753147||t20614.1900838544s|s393104894b|393104894|rds|local|list|stratified_m2_mod||225.819||
+stratified_m2_mod_1dae0161b884dbed|branch|4ea7464d965688a2|7aa0016497e667a7|9680bfc49d84652a|-1503370265||t20614.1951266042s|s558529654b|558529654|rds|local|list|stratified_m2_mod||415.792||
+stratified_m2_mod_4592e942df05c309|branch|b45fe6ed2d4c34bc|7aa0016497e667a7|9680bfc49d84652a|-2042400703||t20614.2004280344s|s578209532b|578209532|rds|local|list|stratified_m2_mod||437.997||
+stratified_m2_mod_eac40d16a0832ae3|branch|1014dbfa70c1f80e|7aa0016497e667a7|9680bfc49d84652a|-1571253997||t20614.2059892383s|s644123759b|644123759|rds|local|list|stratified_m2_mod||457.276||
+stratified_m2_mod_096b73cfab8f4ee5|branch|4812b20117c0c90b|7aa0016497e667a7|9680bfc49d84652a|-1721816569||t20614.2135652884s|s645569674b|645569674|rds|local|list|stratified_m2_mod||632.133||
+stratified_m2_mod_e3f5275d605eb710|branch|4aebc830e6aba51f|7aa0016497e667a7|9680bfc49d84652a|24096648||t20614.2195859347s|s661706653b|661706653|rds|local|list|stratified_m2_mod||497.135||
+stratified_m2_mod_386c774f3335ed28|branch|865cf1bf87d242aa|7aa0016497e667a7|9680bfc49d84652a|803736973||t20614.2243651976s|s664524370b|664524370|rds|local|list|stratified_m2_mod||391.313||
+stratified_m2_mod|pattern|85ff23fee5a5e989|7aa0016497e667a7||-1946282275||||4525834432|rds|local|list||stratified_m2_mod_9c79fa1b307e608b*stratified_m2_mod_2a3bcca541e4ddeb*stratified_m2_mod_1dae0161b884dbed*stratified_m2_mod_4592e942df05c309*stratified_m2_mod_eac40d16a0832ae3*stratified_m2_mod_096b73cfab8f4ee5*stratified_m2_mod_e3f5275d605eb710*stratified_m2_mod_386c774f3335ed28|3286.446||
+stratified_m1_mod_9c79fa1b307e608b|branch|f52bf60b0d70522a|f7df47ff0413aca2|26abc1549bdaa061|1198258723||t20614.2255927757s|s209860744b|209860744|rds|local|list|stratified_m1_mod||98.446||
+unified_m3_mod|stem|c936f215e2105a12|994bee8e508208ea|3ce74ea8a54f7e60|1674009344||t20614.2261013724s|s692908842b|692908842|rds|local|vector|||13084.518||
+hmc_diagnostics_artifact|stem|1c18b4e30181acfb|61d3edc8b0dd2744|faa94c8f46797da4|1360789250|export/stages/diagnostics/hmc_diagnostics.parquet|t20614.2264499108s|s1026b|1026|file|local|vector|||1.106|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+unified_fits_artifact|stem|a9180869eae95bb7|0fd41695a7c86a7f|75ec76bd53bcddff|-938965837|export/stages/models/unified_m1.qs2*export/stages/models/unified_m2.qs2*export/stages/models/unified_m3.qs2*export/stages/models/unified_m4.qs2*export/stages/models/unified_m5.qs2|t20614.2264957647s|s2934701421b|2934701421|file|local|vector|||16.487|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+stratified_m1_mod_2a3bcca541e4ddeb|branch|389a33fa1db2b259|f7df47ff0413aca2|26abc1549bdaa061|1313629078||t20614.2266896148s|s215757264b|215757264|rds|local|list|stratified_m1_mod||86.916||
+stratified_m1_mod_1dae0161b884dbed|branch|570638ec1cac8402|f7df47ff0413aca2|26abc1549bdaa061|1398739482||t20614.2293250633s|s306246166b|306246166|rds|local|list|stratified_m1_mod||244.438||
+stratified_m1_mod_4592e942df05c309|branch|82862f905f388b06|f7df47ff0413aca2|26abc1549bdaa061|-1679852168||t20614.2296051627s|s316914054b|316914054|rds|local|list|stratified_m1_mod||240.544||
+stratified_m1_mod_eac40d16a0832ae3|branch|394b07c44682e240|f7df47ff0413aca2|26abc1549bdaa061|-2078108341||t20614.231842242s|s357074912b|357074912|rds|local|list|stratified_m1_mod||204.841||
+stratified_m1_mod_096b73cfab8f4ee5|branch|79144e2087c6ec85|f7df47ff0413aca2|26abc1549bdaa061|-1461423325||t20614.2328052236s|s358161625b|358161625|rds|local|list|stratified_m1_mod||263.608||
+stratified_m1_mod_e3f5275d605eb710|branch|f99612aead9a0547|f7df47ff0413aca2|26abc1549bdaa061|-1794223106||t20614.2355612906s|s369959458b|369959458|rds|local|list|stratified_m1_mod||308.475||
+stratified_m1_mod_386c774f3335ed28|branch|89977ab8e7eb0ce7|f7df47ff0413aca2|26abc1549bdaa061|169839691||t20614.2360507613s|s370905527b|370905527|rds|local|list|stratified_m1_mod||267.024||
+stratified_m1_mod|pattern|c36d18faf3fa7968|f7df47ff0413aca2||1845290968||||2504879750|rds|local|list||stratified_m1_mod_9c79fa1b307e608b*stratified_m1_mod_2a3bcca541e4ddeb*stratified_m1_mod_1dae0161b884dbed*stratified_m1_mod_4592e942df05c309*stratified_m1_mod_eac40d16a0832ae3*stratified_m1_mod_096b73cfab8f4ee5*stratified_m1_mod_e3f5275d605eb710*stratified_m1_mod_386c774f3335ed28|1714.292||
+stratified_m4_mod_62d1c755bf6f4b94|branch|1094510577aa774d|57ec941fb5e62a15|e586ac0197ad2696|-1384151399||t20614.2402653757s|s308783937b|308783937|rds|local|list|stratified_m4_mod||395.363||
+stratified_m4_mod_13c695400c2a19ce|branch|9516c3eacc44b76a|57ec941fb5e62a15|e586ac0197ad2696|-1949866975||t20614.2408387014s|s316282621b|316282621|rds|local|list|stratified_m4_mod||402.255||
+stratified_m4_mod_992cfdcdb7e0e64e|branch|c70dcecac7200fd4|57ec941fb5e62a15|e586ac0197ad2696|-2020214198||t20614.2526937605s|s402828689b|402828689|rds|local|list|stratified_m4_mod||1059.577||
+stratified_m4_mod_bdfba8362ec58915|branch|23f680f8124518d9|57ec941fb5e62a15|e586ac0197ad2696|-1547668869||t20614.2546852725s|s413169863b|413169863|rds|local|list|stratified_m4_mod||1181.809||
+stratified_m4_mod_a10fdfb7e1a4a901|branch|37f8f1a0ff51f96b|57ec941fb5e62a15|e586ac0197ad2696|-1568490115||t20614.262403105s|s433172818b|433172818|rds|local|list|stratified_m4_mod||823.516||
+stratified_m4_mod_c378b623705d4928|branch|49f2ea0375838906|57ec941fb5e62a15|e586ac0197ad2696|-129986896||t20614.2700491904s|s434836125b|434836125|rds|local|list|stratified_m4_mod||1312.118||
+stratified_m4_mod_917c7816146bdcbd|branch|bc8e7ebd5e062ca4|57ec941fb5e62a15|e586ac0197ad2696|-1126822678||t20614.2725230167s|s437501057b|437501057|rds|local|list|stratified_m4_mod||858.902||
+stratified_m3_mod_62d1c755bf6f4b94|branch|1d3eba91002906c1|6229241ef97bcaf3|cbba353ab0debcea|410503794||t20614.2766802517s|s242962045b|242962045|rds|local|list|stratified_m3_mod||350.036||
+stratified_m3_mod_13c695400c2a19ce|branch|8f26b29562f372dd|6229241ef97bcaf3|cbba353ab0debcea|-1890414727||t20614.2808495322s|s248549908b|248549908|rds|local|list|stratified_m3_mod||350.99||
+stratified_m4_mod_7f1ca2df840090f6|branch|90a4c0c07fefea59|57ec941fb5e62a15|e586ac0197ad2696|1915264917||t20614.2853585361s|s439291078b|439291078|rds|local|list|stratified_m4_mod||1307.196||
+stratified_m4_mod|pattern|d70a16bcc7ac0345|57ec941fb5e62a15||1576111934||||3185866188|rds|local|list||stratified_m4_mod_62d1c755bf6f4b94*stratified_m4_mod_13c695400c2a19ce*stratified_m4_mod_992cfdcdb7e0e64e*stratified_m4_mod_bdfba8362ec58915*stratified_m4_mod_a10fdfb7e1a4a901*stratified_m4_mod_c378b623705d4928*stratified_m4_mod_917c7816146bdcbd*stratified_m4_mod_7f1ca2df840090f6|7340.736||
+stratified_m3_mod_992cfdcdb7e0e64e|branch|306f37415139d321|6229241ef97bcaf3|cbba353ab0debcea|-1030554229||t20614.2907505287s|s312362675b|312362675|rds|local|list|stratified_m3_mod||843.978||
+stratified_m3_mod_bdfba8362ec58915|branch|3dcf81d556d83207|6229241ef97bcaf3|cbba353ab0debcea|-274136416||t20614.2955716978s|s319357444b|319357444|rds|local|list|stratified_m3_mod||870.715||
+stratified_m3_mod_a10fdfb7e1a4a901|branch|ca75fc035a73655d|6229241ef97bcaf3|cbba353ab0debcea|684366196||t20614.3001591527s|s339005089b|339005089|rds|local|list|stratified_m3_mod||800.446||
+stratified_m3_mod_c378b623705d4928|branch|2d35bbd5b5c94a02|6229241ef97bcaf3|cbba353ab0debcea|502865223||t20614.3070372671s|s341128053b|341128053|rds|local|list|stratified_m3_mod||978.177||
+stratified_m3_mod_917c7816146bdcbd|branch|0131bc7ac240a1e4|6229241ef97bcaf3|cbba353ab0debcea|1351203922||t20614.3117158708s|s343378112b|343378112|rds|local|list|stratified_m3_mod||985.75||
+stratified_m5_mod_62d1c755bf6f4b94|branch|7c1a57a24f99978d|cbb5dba8290e4244|b869982a05dca941|-471715617||t20614.3167972442s|s286767334b|286767334|rds|local|list|stratified_m5_mod||428.51||
+stratified_m3_mod_7f1ca2df840090f6|branch|a8aaaa1d41d055e4|6229241ef97bcaf3|cbba353ab0debcea|864034646||t20614.3200427036s|s344569058b|344569058|rds|local|list|stratified_m3_mod||1111.095||
+stratified_m3_mod|pattern|f2a4a2d8dd5ba169|6229241ef97bcaf3||-1263301829||||2491312384|rds|local|list||stratified_m3_mod_62d1c755bf6f4b94*stratified_m3_mod_13c695400c2a19ce*stratified_m3_mod_992cfdcdb7e0e64e*stratified_m3_mod_bdfba8362ec58915*stratified_m3_mod_a10fdfb7e1a4a901*stratified_m3_mod_c378b623705d4928*stratified_m3_mod_917c7816146bdcbd*stratified_m3_mod_7f1ca2df840090f6|6291.187||
+stratified_m5_mod_13c695400c2a19ce|branch|83db3781cf8fa379|cbb5dba8290e4244|b869982a05dca941|1993341971||t20614.3213933812s|s294026734b|294026734|rds|local|list|stratified_m5_mod||386.45||
+stratified_m5_mod_992cfdcdb7e0e64e|branch|d01fa0a36815612c|cbb5dba8290e4244|b869982a05dca941|893008874||t20614.3338559534s|s374992198b|374992198|rds|local|list|stratified_m5_mod||1180.127||
+stratified_m5_mod_bdfba8362ec58915|branch|a97eb0c8feb29602|cbb5dba8290e4244|b869982a05dca941|-465815383||t20614.3369614747s|s384462346b|384462346|rds|local|list|stratified_m5_mod||1331.624||
+stratified_m5_mod_a10fdfb7e1a4a901|branch|a581fa20d568ada2|cbb5dba8290e4244|b869982a05dca941|793443696||t20614.3475017733s|s403273243b|403273243|rds|local|list|stratified_m5_mod||1164.724||
+stratified_m5_mod_c378b623705d4928|branch|da7bcfcf0169637d|cbb5dba8290e4244|b869982a05dca941|979708797||t20614.3558698117s|s404750533b|404750533|rds|local|list|stratified_m5_mod||1619.309||
+stratified_m5_mod_917c7816146bdcbd|branch|5063516bbf1bee6f|cbb5dba8290e4244|b869982a05dca941|-1419469177||t20614.3610754997s|s407433966b|407433966|rds|local|list|stratified_m5_mod||1158.404||
+stratified_m5_mod_7f1ca2df840090f6|branch|8c23388ccb957325|cbb5dba8290e4244|b869982a05dca941|1251902357||t20614.3712216625s|s409013773b|409013773|rds|local|list|stratified_m5_mod||1312.975||
+stratified_m5_mod|pattern|bef7cdfc7653419b|cbb5dba8290e4244||-393817771||||2964720127|rds|local|list||stratified_m5_mod_62d1c755bf6f4b94*stratified_m5_mod_13c695400c2a19ce*stratified_m5_mod_992cfdcdb7e0e64e*stratified_m5_mod_bdfba8362ec58915*stratified_m5_mod_a10fdfb7e1a4a901*stratified_m5_mod_c378b623705d4928*stratified_m5_mod_917c7816146bdcbd*stratified_m5_mod_7f1ca2df840090f6|8582.123||
+model_stats_artifact|stem|533bc9f74b438569|397b308f0c8d62b5|5172be1a3479d194|2027595102|export/stages/diagnostics/model_stats.parquet|t20614.3727822217s|s4695b|4695|file|local|vector|||47.708|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2|
+posterior_db|stem|2a11bf667f4fb5fc|40e01ee126e888a8|41eeca16fdd6e9e1|-40982123||t20614.5347207267s|s208b|208|rds|local|vector|||1924.767|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2. package ‘DBI’ was built under R version 4.5.2. package ‘duckdb’ was built under R version 4.5.2|
+.stage_to_utf8|function|ff46d074394b7912
+enroll_cap|object|eced30da0c13a5bf
+na_sum|function|989cd5c4bbcc43b8
+restrict_model_data|function|7c864db8b1c560fc
+.fips_to_state|object|8694a27ba58a18a4
+crdc_race_recode|function|9740c159c7a6c8d4
+open_draws_con|function|c75128a6ddf540a4
+render_year_doc|function|5da18754255fad77
+crdc_sub_1516|function|fb0689d3b7c6e862
+detect_total_ram_gb|function|426151b61dd65871
+crdc_missing_code_1516|function|d2200b624b0f693b
+.crdc_is_big|function|3cee4a2692045300
+crdc_model_registry|function|0a58152ce7c401d2
+get_state_prediction_draws|function|5360baf1ff6f91c0
+.wp_parse_state_row|function|9b5bdee940d5c4f0
+fix_1516_crdc_combokey|function|da786c8002a412db
+.state_names|object|fbbc2e9e8dc29b8f
+na_zero|function|3013e33d167c1c66
+scaled_rate|function|e47309ccf7ce9e72
+.wp_dist_name|function|f4b8b0b11a5b70e7
+agresti_coull|function|5ef20f3bcfa10842
+get_prediction_draws|function|b485e030b2390d9a
+validate_le|function|6f330130e9591d0f
+make_spill_dir|function|9bf22a4e93c05a07
+DEV_MODE|object|cc6a331fb3c0077c
+add_model_cov|function|ff32bbc30426be26
+add_model_time|function|6c78b1d6c109b23b
+print_model_name|function|9e5c8b4f0e2f4583
+wp_group_palette|function|18b49601c94a9738
+.GROUP_KEYS|object|37d632a4c5506a8d
+calculate_model_stats|function|24605cd26bee5e0d
+NTHREADS|object|50003b5d5254d75e
+close_draws_con|function|df0b5f7ecc4edcee
+export_draws_parquet|function|0992acb49bf51135
+mod_control|object|023c320ddc72348d
+v|object|50003b5d5254d75e
+make_arrest_priors|function|00ad2aa8b9f2b9c9
+calculate_model_cov_summaries|function|2d696e5ba79444c2
+crdc_missing_code|function|36851543ea4e4b90
+crdc_missing_code_2122|function|3a102d23a17a7464
+cv_apply_branding|function|7f10cc07589982ed
+crdc_sub|function|437102600f998c1b
+wp_model_palette|function|1259ea388359302f
+get_prediction_summary|function|1e85f6171de74a76
+add_model_form|function|18d6491ffbae4b24
+write_api_meta|function|8cded385a81dc316
+ITER_MULTIPLIER|object|b3a2147ad240fae3
+crdc_data|object|8a2f4f94c4e55358
+generate_subset_data|function|3497e10c043e1b2d
+crdc_artifacts_base|function|3d53df14b08e7105
+parse_model_name|function|ee758061b30805bf
+match_test|function|fd096e91ba4b768e
+DUCKDB_HEAVY_CONCURRENCY|object|b3a2147ad240fae3
+generate_demographic_data|function|f63ce399a2d8e314
+MCMC_WORKERS|object|b3a2147ad240fae3
+N_PAR_CHAINS|object|50003b5d5254d75e
+.crdc_http|function|46156ef018584225
+.crdc_mirror_parquet|function|8c9c913f42496307
+crdc_cache_dir|function|4e68d96acae7e41a
+pretty_per|function|4053a9a3fea20c24
+.STATE_KEYS|object|854926dece338edc
+publish_stages|function|8e8d053fac024a02
+close_draws_view|function|1c223978ad3ce946
+crdc_expected_paths|function|09ee873b4f5e4fe4
+parse_demographic_id|function|9a0a8ed7c57736fc
+pretty_count|function|12179fc7925b29ae
+get_state_prediction_summary|function|73889146fad8ae30
+find_offending_character|function|09415ba9f39515ad
+CPU_CAPACITY|object|6f5918b501ae94a9
+NITER|object|257014dc9570ae9b
+NCHAINS|object|50003b5d5254d75e
+intersect_crdc_ccd|function|1d3f8bb308b7046d
+validate_enrollments|function|2b5653e1a1b1f921
+stage_write_parquet|function|aadcc4c1415069f5
+wp_fig_national_rates|function|264e7a787a92691e
+duckdb_mem_limit_gb|function|6e7b8d4b2beae1a2
+stage_unified_fits|function|2c81d4173eb23661
+crdc_model_label|function|1e8457832b911c18
+crdc_unified_ids|function|8f8a0fa7775f4220
+get_crdc_sch_data|function|302675f510971e4b
+build_district_dim|function|6378889f4e2d9c55
+reshape_le_rate_long|function|f9e47411e612718a
+crdc_lea_collapse|function|a29a42ae4a47bfad
+.wp_state_group_data|function|33e53501c94572cb
+.wp_group_data|function|c4baae59dee5a60e
+wp_fig_hpd_ridges|function|fc3ac32ef62fe218
+.wp_group_density_plot|function|fb8b129761536e7e
+hpd_bounds_sql|function|f4e15f87445affa2
+build_draws_parquet|function|05a95fed8297d808
+incomplete_referrals|function|44c7ab83ee96f516
+incomplete_enrollments|function|3b043893e886072b
+sch_denom_enroll|function|a01d3c5650661d11
+reshape_le|function|2c2ed501eb83e393
+wp_fig_district_intervals|function|320790bdcc551996
+wp_table_computation|function|d85427c710a0d4fe
+crdc_path|function|8aaaaf2f90dd0d68
+crdc_cached_path|function|74c1607ea33454e2
+.wp_zero_panel|function|618589f299967eca
+download_crdc_data|function|16b6e1720718bf1f
+process_single_model_draws|function|0fbed068565d9c8f
+stage_crdc_artifacts|function|6c11bbe51271aab2
+stage_inputs_artifacts|function|cadae4bd6a95e635
+stage_hmc_diagnostics|function|a776fbd54679634b
+with_model_labels|function|5b40d5be281bad78
+stage_model_stats|function|a67a3a436927bf9d
+wp_table_state_rates|function|ce3a978cbd32d9a8
+wp_fig_state_differences|function|3a1ab3eccdba8498
+wp_fig_group_density|function|bafb7b9ed5460492
+wp_fig_group_difference|function|bba083d8abe4190d
+build_arrest_summary|function|702e5288de0ada1a
+build_state_summary|function|d083b84062ab4c4d
+read_stage_df|function|576e359c5e702621
+open_draws_view|function|af68955bb801938d
+wp_fig_zero_distribution|function|840e20f8d08a606b
+auto_download_crdc_data|function|4a33b0a7ba2e1a27
+process_target_draws|function|3b5c20b3933c1e88
+build_api_db|function|c4b15c6ed5ec3080
+process_all_targets|function|5e18de3d65311d07
+draws_parquet|stem|3d8311db0dc829c9|7a3d001616b86e0d|b4ef9e2f9e9d01b2|318713540|export/parquet|t20614.5473935534s|s1370964188b|1370964188|file|local|vector|||250.828|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2. package ‘DBI’ was built under R version 4.5.2. package ‘duckdb’ was built under R version 4.5.2|
+white_paper|stem|af9c599092abe984|97be9754cf0d869c|2307fe00de3709e8|-1978067252|white_paper.html|t20614.5478854246s|s30205936b|30205936|file|local|vector|||36.515|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2. package ‘DBI’ was built under R version 4.5.2. package ‘duckdb’ was built under R version 4.5.2|
+social_media_posts|stem|0af0d8947d453664|f3cf66619798f7ed|63767d89c37ad2e8|1855388146|social_media_posts.html|t20614.5484112739s|s28116484b|28116484|file|local|vector|||84.276||
+supplement|stem|05816221cf87de6b|a9e6e98329e5c444|b426255e99fcc227|-1706889779|supplement.html|t20614.5485565247s|s30430058b|30430058|file|local|vector|||94.332|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2. package ‘DBI’ was built under R version 4.5.2. package ‘duckdb’ was built under R version 4.5.2|
+api_db|stem|dd077bfe59004f28|88a2c94f3cc7b9e4|fbf122096464aadd|-636820539|export/api/crdc_api.duckdb|t20614.5496645016s|s258224128b|258224128|file|local|vector|||446.53|package ‘tibble’ was built under R version 4.5.2. package ‘Rcpp’ was built under R version 4.5.2. package ‘dplyr’ was built under R version 4.5.2. package ‘knitr’ was built under R version 4.5.2. package ‘tidyr’ was built under R version 4.5.2. package ‘DBI’ was built under R version 4.5.2. package ‘duckdb’ was built under R version 4.5.2|

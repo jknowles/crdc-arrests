@@ -1,7 +1,7 @@
 #' Resolve a logical artifact path to a URI for native readers.
 #'
 #' Returns a STRING usable by DuckDB `read_parquet()`, `qs2::qs_read()`, or
-#' `download.file()`. Big objects (draws parquet tree, pooled-fit qs2) are cached
+#' `download.file()`. Big objects (draws parquet tree, unified-fit qs2) are cached
 #' locally on first use; small objects resolve to the remote URI for direct
 #' (range) reads. This resolves a path + caches — it does NOT read data.
 crdc_artifacts_base <- function() {
@@ -13,7 +13,7 @@ crdc_cache_dir <- function() {
   Sys.getenv("CRDC_CACHE", tools::R_user_dir("crdc-arrests", which = "cache"))
 }
 
-# Big objects to cache locally: the draws tree and the pooled-fit qs2 files.
+# Big objects to cache locally: the draws tree and the unified-fit qs2 files.
 .crdc_is_big <- function(rel) {
   grepl("^parquet(/|$)", rel) || grepl("^stages/models/", rel)
 }

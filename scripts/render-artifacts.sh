@@ -13,6 +13,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+if ! command -v quarto &> /dev/null; then
+  echo "ERROR: Quarto CLI not found. Install from https://quarto.org and ensure it is on PATH."
+  exit 1
+fi
+
 if [ "$#" -gt 0 ]; then
   DOCS=("$@")
 else

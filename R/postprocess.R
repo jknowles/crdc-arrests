@@ -173,7 +173,10 @@ parse_demographic_id <- function(model_id) {
   return(list(race = race, sex = sex))
 }
 #' Main function to process all targets
-process_all_targets <- function(ndraws = 500, db_path = "export/db/crdc_arrests.duckdb") {
+#' @param model_objects Named list of fitted brmsfit objects, passed directly
+#'   from _targets.R. Must not call tar_read_raw() here — forbidden inside a
+#'   running target.
+process_all_targets <- function(model_objects, ndraws = 500, db_path = "export/db/crdc_arrests.duckdb") {
 
   # Connect to DuckDB. Retain the driver in `drv` for the function's lifetime —
   # an anonymous dbConnect(duckdb(), ...) can be GC'd during the long
@@ -185,28 +188,13 @@ process_all_targets <- function(ndraws = 500, db_path = "export/db/crdc_arrests.
     duckdb::duckdb_shutdown(drv)
   })
 
-  # Define target names and their corresponding objects
-  target_info <- list(
-    nat_m1_mod = "nat_m1_mod",
-    nat_m2_mod = "nat_m2_mod",
-    nat_m3_mod = "nat_m3_mod",
-    nat_m4_mod = "nat_m4_mod",
-    nat_m5_mod = "nat_m5_mod",
-    sg_m1_mod = "sg_m1_mod",
-    sg_m2_mod = "sg_m2_mod",
-    sg_m3_mod = "sg_m3_mod",
-    sg_m4_mod = "sg_m4_mod",
-    sg_m5_mod = "sg_m5_mod"
-  )
-
   create_table <- TRUE
 
-  for (i in seq_along(target_info)) {
-    target_name <- names(target_info)[i]
+  for (i in seq_along(model_objects)) {
+    target_name <- names(model_objects)[i]
     cat("\n=== Processing target:", target_name, "===\n")
 
-    # Load the target using targets
-    target_obj <- targets::tar_read_raw(target_info[[i]])
+    target_obj <- model_objects[[i]]
 
     # Process the target
     process_target_draws(

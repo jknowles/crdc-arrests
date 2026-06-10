@@ -50,12 +50,12 @@ test_that("build_arrest_summary: LEAID absent from enroll_lookup yields NA rate"
   draws <- rbind(
     data.frame(LEAID = "0100005", LEA_STATE = "AL", YEAR = "21-22", RACE = "BL",
                SEX = "M", pred = 0:9, draw_id = 1:10,
-               model_id = "nat_m2_mod", subgroup_id = "nat_m2_mod",
+               model_id = "unified_m2_mod", subgroup_id = "unified_m2_mod",
                stringsAsFactors = FALSE),
     # "9999999" has no entry in enroll_lookup -> stu_enroll will be NA
     data.frame(LEAID = "9999999", LEA_STATE = "AL", YEAR = "21-22", RACE = "BL",
                SEX = "M", pred = 1:10, draw_id = 1:10,
-               model_id = "nat_m2_mod", subgroup_id = "nat_m2_mod",
+               model_id = "unified_m2_mod", subgroup_id = "unified_m2_mod",
                stringsAsFactors = FALSE)
   )
   DBI::dbWriteTable(con, "predicted_draws", draws)
@@ -90,7 +90,7 @@ test_that("build_arrest_summary: un-padded LEAID in draws still joins district g
     LEAID = "100005",          # un-padded — simulates raw CRDC data
     LEA_STATE = "AL", YEAR = "21-22", RACE = "BL", SEX = "M",
     pred = 0:9, draw_id = 1:10,
-    model_id = "nat_m2_mod", subgroup_id = "nat_m2_mod",
+    model_id = "unified_m2_mod", subgroup_id = "unified_m2_mod",
     stringsAsFactors = FALSE
   )
   DBI::dbWriteTable(con, "predicted_draws", draws)
@@ -128,11 +128,11 @@ test_that("build_state_summary aggregates per-draw then summarizes", {
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   draws <- rbind(
     data.frame(LEAID="0100005", LEA_STATE="AL", YEAR="21-22", RACE="BL", SEX="M",
-               pred=c(2L,4L), draw_id=1:2, model_id="nat_m2_mod",
-               subgroup_id="nat_m2_mod"),
+               pred=c(2L,4L), draw_id=1:2, model_id="unified_m2_mod",
+               subgroup_id="unified_m2_mod"),
     data.frame(LEAID="0100006", LEA_STATE="AL", YEAR="21-22", RACE="BL", SEX="M",
-               pred=c(3L,3L), draw_id=1:2, model_id="nat_m2_mod",
-               subgroup_id="nat_m2_mod")
+               pred=c(3L,3L), draw_id=1:2, model_id="unified_m2_mod",
+               subgroup_id="unified_m2_mod")
   )
   DBI::dbWriteTable(con, "predicted_draws", draws)
   enroll <- data.frame(LEAID=c("0100005","0100006"), YEAR="21-22", RACE="BL",
@@ -171,6 +171,6 @@ test_that("write_api_meta stamps the data_release", {
   m <- DBI::dbGetQuery(acon, "SELECT * FROM meta")
   expect_equal(m$data_release[1], "civilytics-crdc-arrests-2025.1")
   expect_equal(m$citation[1], "Knowles & Miller 2025")
-  expect_equal(m$default_model_national[1], "nat_m2_mod")
-  expect_equal(m$default_model_subgroup[1], "sg_m2_mod")
+  expect_equal(m$default_model_unified[1], "unified_m2_mod")
+  expect_equal(m$default_model_stratified[1], "stratified_m2_mod")
 })

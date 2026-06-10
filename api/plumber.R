@@ -76,7 +76,7 @@ function(q="", state="", limit="100", offset="0") handle_districts(.CON, q, stat
 #* @param race One of AM, BL, HI, WH
 #* @param sex One of F, M
 #* @param year One of 15-16, 17-18, 21-22
-#* @param model Model id (default nat_m2)
+#* @param model Model id (default unified_m2)
 #* @param interval One of 50, 80, 95 (default 95)
 #* @param limit
 #* @param page

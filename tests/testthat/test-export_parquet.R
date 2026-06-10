@@ -7,7 +7,7 @@ test_that("export_draws_parquet writes Hive-partitioned parquet by model/year/st
   expect_true(dir.exists(out))
   files <- list.files(out, recursive = TRUE, pattern = "\\.parquet$")
   expect_true(length(files) >= 1)
-  expect_true(any(grepl("model_id=nat_m2_mod", files)))
+  expect_true(any(grepl("model_id=unified_m2_mod", files)))
   expect_true(any(grepl("YEAR=21-22", files)))
   expect_true(any(grepl("LEA_STATE=AL", files)))
 
@@ -22,7 +22,7 @@ test_that("export_draws_parquet writes Hive-partitioned parquet by model/year/st
   # list.files pattern matches basename only, so filter full paths separately
   all_parquet <- list.files(out, recursive = TRUE, pattern = "\\.parquet$",
                              full.names = TRUE)
-  shard <- all_parquet[grepl("model_id=nat_m2_mod", all_parquet) &
+  shard <- all_parquet[grepl("model_id=unified_m2_mod", all_parquet) &
                          grepl("LEA_STATE=AL", all_parquet)]
   expect_true(length(shard) >= 1)
   rcon2 <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
@@ -78,18 +78,18 @@ test_that("export_draws_parquet chunks per model_id (all models exported)", {
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   draws <- rbind(
     data.frame(LEAID="0100005", LEA_STATE="AL", YEAR="21-22", RACE="BL", SEX="M",
-               pred=0:9, draw_id=1:10, model_id="nat_m2_mod",
-               subgroup_id="nat_m2_mod", stringsAsFactors=FALSE),
+               pred=0:9, draw_id=1:10, model_id="unified_m2_mod",
+               subgroup_id="unified_m2_mod", stringsAsFactors=FALSE),
     data.frame(LEAID="0100006", LEA_STATE="AL", YEAR="21-22", RACE="WH", SEX="F",
-               pred=rep(5L,10), draw_id=1:10, model_id="sg_m2_mod",
-               subgroup_id="sg_m2_mod", stringsAsFactors=FALSE)
+               pred=rep(5L,10), draw_id=1:10, model_id="stratified_m2_mod",
+               subgroup_id="stratified_m2_mod", stringsAsFactors=FALSE)
   )
   DBI::dbWriteTable(con, "predicted_draws", draws)
   out <- file.path(tempfile(), "pq")
   export_draws_parquet(con, out_dir = out)
   files <- list.files(out, recursive = TRUE, pattern = "\\.parquet$")
-  expect_true(any(grepl("model_id=nat_m2_mod", files)))
-  expect_true(any(grepl("model_id=sg_m2_mod", files)))
+  expect_true(any(grepl("model_id=unified_m2_mod", files)))
+  expect_true(any(grepl("model_id=stratified_m2_mod", files)))
   rcon <- DBI::dbConnect(duckdb::duckdb()); on.exit(DBI::dbDisconnect(rcon, shutdown=TRUE), add=TRUE)
   n <- DBI::dbGetQuery(rcon, sprintf(
     "SELECT COUNT(*) n FROM read_parquet('%s/**/*.parquet', hive_partitioning=true)", out))$n

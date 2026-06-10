@@ -14,10 +14,10 @@ test_that("remote small objects resolve to the hf:// URI for a direct read", {
   })
 })
 
-test_that(".crdc_is_big flags draws tree and pooled fits only", {
+test_that(".crdc_is_big flags draws tree and unified fits only", {
   expect_true(.crdc_is_big("parquet"))
-  expect_true(.crdc_is_big("parquet/model_id=nat_m2_mod/YEAR=21-22/LEA_STATE=TX/data_0.parquet"))
-  expect_true(.crdc_is_big("stages/models/pooled_m2.qs2"))
+  expect_true(.crdc_is_big("parquet/model_id=unified_m2_mod/YEAR=21-22/LEA_STATE=TX/data_0.parquet"))
+  expect_true(.crdc_is_big("stages/models/unified_m2.qs2"))
   expect_false(.crdc_is_big("stages/inputs/recent_data.parquet"))
   expect_false(.crdc_is_big("stages/diagnostics/model_stats.parquet"))
 })
@@ -25,8 +25,8 @@ test_that(".crdc_is_big flags draws tree and pooled fits only", {
 test_that(".crdc_http converts an hf:// base + rev to an https resolve URL", {
   expect_equal(
     .crdc_http("hf://datasets/civilytics/crdc-school-arrest-rates@civilytics-crdc-arrests-2025.1",
-               "stages/models/pooled_m2.qs2"),
-    "https://huggingface.co/datasets/civilytics/crdc-school-arrest-rates/resolve/civilytics-crdc-arrests-2025.1/stages/models/pooled_m2.qs2")
+               "stages/models/unified_m2.qs2"),
+    "https://huggingface.co/datasets/civilytics/crdc-school-arrest-rates/resolve/civilytics-crdc-arrests-2025.1/stages/models/unified_m2.qs2")
   expect_equal(
     .crdc_http("hf://datasets/civilytics/crdc-school-arrest-rates", "x.qs2"),
     "https://huggingface.co/datasets/civilytics/crdc-school-arrest-rates/resolve/main/x.qs2")

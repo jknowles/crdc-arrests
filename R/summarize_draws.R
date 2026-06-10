@@ -241,8 +241,8 @@ write_api_meta <- function(api_db_path, data_release) {
   meta <- data.frame(
     data_release = data_release,
     citation = "Knowles & Miller 2025",
-    default_model_national = "nat_m2_mod",
-    default_model_subgroup = "sg_m2_mod",
+    default_model_unified = "unified_m2_mod",
+    default_model_stratified = "stratified_m2_mod",
     stringsAsFactors = FALSE
   )
   DBI::dbWriteTable(acon, "meta", meta, overwrite = TRUE)

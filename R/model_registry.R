@@ -1,22 +1,23 @@
 #' Model identifier + display-label registry (single source of truth).
 #'
-#' PRESENTATION-ONLY "pooled" rename lives here. The published `model_id` keys
-#' stay `nat_*` / `sg_*` (Subsystem 1 data contract); only the human-facing
-#' `label` says "Pooled" vs "Student-group". The future deep rename flips `id`
-#' to `pooled_*` HERE and nowhere else.
+#' The published `model_id` keys are `unified_*` (one model fit to the whole
+#' dataset) and `stratified_*` (one model per RACE x SEX), matching the white
+#' paper's "unified" vs "stratified" terminology. `group` and `label` derive
+#' from the same vocabulary, so the id, the data contract, and the prose all
+#' agree. This registry is the single place the model vocabulary is defined.
 crdc_model_registry <- function() {
   tibble::tribble(
-    ~id,          ~group,          ~spec, ~label,
-    "nat_m1_mod", "pooled",        "m1",  "Pooled (m1)",
-    "nat_m2_mod", "pooled",        "m2",  "Pooled (m2)",
-    "nat_m3_mod", "pooled",        "m3",  "Pooled (m3)",
-    "nat_m4_mod", "pooled",        "m4",  "Pooled (m4)",
-    "nat_m5_mod", "pooled",        "m5",  "Pooled (m5)",
-    "sg_m1_mod",  "student_group", "m1",  "Student-group (m1)",
-    "sg_m2_mod",  "student_group", "m2",  "Student-group (m2)",
-    "sg_m3_mod",  "student_group", "m3",  "Student-group (m3)",
-    "sg_m4_mod",  "student_group", "m4",  "Student-group (m4)",
-    "sg_m5_mod",  "student_group", "m5",  "Student-group (m5)"
+    ~id,                 ~group,        ~spec, ~label,
+    "unified_m1_mod",    "unified",     "m1",  "Unified (m1)",
+    "unified_m2_mod",    "unified",     "m2",  "Unified (m2)",
+    "unified_m3_mod",    "unified",     "m3",  "Unified (m3)",
+    "unified_m4_mod",    "unified",     "m4",  "Unified (m4)",
+    "unified_m5_mod",    "unified",     "m5",  "Unified (m5)",
+    "stratified_m1_mod", "stratified",  "m1",  "Stratified (m1)",
+    "stratified_m2_mod", "stratified",  "m2",  "Stratified (m2)",
+    "stratified_m3_mod", "stratified",  "m3",  "Stratified (m3)",
+    "stratified_m4_mod", "stratified",  "m4",  "Stratified (m4)",
+    "stratified_m5_mod", "stratified",  "m5",  "Stratified (m5)"
   )
 }
 
@@ -26,8 +27,8 @@ crdc_model_label <- function(id) {
   reg$label[match(id, reg$id)]
 }
 
-#' The pooled model ids whose brms fits ship as qs2 for live diagnostics.
-crdc_pooled_ids <- function() {
+#' The unified model ids whose brms fits ship as qs2 for live diagnostics.
+crdc_unified_ids <- function() {
   reg <- crdc_model_registry()
-  reg$id[reg$group == "pooled"]
+  reg$id[reg$group == "unified"]
 }

@@ -44,4 +44,17 @@ local({
 ok_edu <- requireNamespace("educationdata", quietly = TRUE)  # CCD pulls (non-fatal)
 if (!ok_edu) message("    NOTE: educationdata not available — CCD directory pulls will fail.")
 
+# Quarto CLI — needed only for render targets (supplement, white_paper, etc.).
+# Model fitting and data targets do not require Quarto.
+q_path <- tryCatch(quarto::quarto_path(), error = function(e) NULL)
+if (is.null(q_path)) {
+  message("    WARNING: Quarto CLI not found.")
+  message("             Render targets (supplement, white_paper, social_media_posts, etc.)")
+  message("             will fail mid-pipeline. Install from https://quarto.org and ensure")
+  message("             it is on PATH before running tar_make() or render-artifacts.sh.")
+  message("             Data prep and model-fitting targets do NOT require Quarto.")
+} else {
+  message("    Quarto: ", q_path)
+}
+
 message("== Setup complete. Validate with: scripts/smoke-pipeline.sh ==")

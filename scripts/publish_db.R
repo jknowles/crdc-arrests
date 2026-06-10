@@ -1,10 +1,20 @@
 #!/usr/bin/env Rscript
 # Publish the compact summary DuckDB to Hugging Face as summary.duckdb.
-# Requires `huggingface-cli` + HF_TOKEN. Usage: Rscript scripts/publish_db.R
+# Requires the `hf` CLI + either a WRITE-scoped HF_TOKEN in the environment or a
+# stored `hf auth login` session. Usage: Rscript scripts/publish_db.R
 db <- "export/api/crdc_api.duckdb"
 repo <- "civilytics/crdc-school-arrest-rates"
 release <- "civilytics-crdc-arrests-2025.1"
-stopifnot(nzchar(Sys.getenv("HF_TOKEN")), file.exists(db))
+stopifnot(file.exists(db))
+# Accept either an HF_TOKEN env var or a stored `hf auth login` session (mirrors
+# scripts/publish_hf.R) so the publish works without exporting a token.
+authed <- nzchar(Sys.getenv("HF_TOKEN")) ||
+  identical(suppressWarnings(system("hf auth whoami",
+            ignore.stdout = TRUE, ignore.stderr = TRUE)), 0L)
+if (!authed) {
+  stop("Not authenticated to Hugging Face. Either run `hf auth login` ",
+       "(paste a WRITE token) or set HF_TOKEN=hf_... with write scope, then re-run.")
+}
 
 cmd <- sprintf(
   "hf upload %s %s summary.duckdb --repo-type=dataset --commit-message='%s'",

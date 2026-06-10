@@ -1,16 +1,16 @@
 test_that("build_draws_parquet exports every model from a db path", {
-  dbpath <- fixture_draws_db_file(c("nat_m2_mod", "sg_m2_mod"))
+  dbpath <- fixture_draws_db_file(c("unified_m2_mod", "stratified_m2_mod"))
   on.exit(unlink(dbpath), add = TRUE)
   out <- file.path(tempfile(), "parquet")
   res <- build_draws_parquet(dbpath, out)
   expect_equal(res, out)
   files <- list.files(out, recursive = TRUE, pattern = "\\.parquet$")
-  expect_true(any(grepl("model_id=nat_m2_mod", files)))
-  expect_true(any(grepl("model_id=sg_m2_mod", files)))
+  expect_true(any(grepl("model_id=unified_m2_mod", files)))
+  expect_true(any(grepl("model_id=stratified_m2_mod", files)))
 })
 
 test_that("build_api_db writes arrest_summary, state_summary, district_dim, meta", {
-  dbpath <- fixture_draws_db_file("nat_m2_mod")
+  dbpath <- fixture_draws_db_file("unified_m2_mod")
   on.exit(unlink(dbpath), add = TRUE)
   api <- tempfile(fileext = ".duckdb")
   res <- build_api_db(dbpath, api, fixture_enroll_lookup(), fixture_district_dim(),

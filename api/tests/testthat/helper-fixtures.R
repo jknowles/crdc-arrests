@@ -4,7 +4,7 @@ fixture_api_db <- function() {
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = path)
   arrest <- data.frame(
     LEAID="0100005", LEA_STATE="AL", YEAR="21-22", RACE="BL", SEX="M",
-    model_id="nat_m2_mod", subgroup_id="nat_m2_mod", n_draws=500L,
+    model_id="unified_m2_mod", subgroup_id="unified_m2_mod", n_draws=500L,
     stu_enroll=100L, observed_arrests=3L,
     count_median=5, count_mean=5.1, count_sd=2,
     count_lower_50=4, count_upper_50=6, count_lower_80=3, count_upper_80=8,
@@ -15,7 +15,7 @@ fixture_api_db <- function() {
     lea_name="Alpha SD", state_name="Alabama", lat=32.1, lon=-86.1,
     stringsAsFactors = FALSE)
   state <- data.frame(
-    LEA_STATE="AL", YEAR="21-22", RACE="BL", SEX="M", model_id="nat_m2_mod",
+    LEA_STATE="AL", YEAR="21-22", RACE="BL", SEX="M", model_id="unified_m2_mod",
     n_draws=500L, stu_enroll=200L, count_median=6, count_mean=6, count_sd=1,
     count_lower_50=5, count_upper_50=7, count_lower_80=4, count_upper_80=8,
     count_lower_95=3, count_upper_95=9, rate_median=0.03, rate_mean=0.03,
@@ -25,8 +25,8 @@ fixture_api_db <- function() {
     state_name="Alabama", lat=32.1, lon=-86.1, enrollment=1200L,
     stringsAsFactors=FALSE)
   meta <- data.frame(data_release="civilytics-crdc-arrests-2025.1",
-    citation="Knowles & Miller 2025", default_model_national="nat_m2_mod",
-    default_model_subgroup="sg_m2_mod", stringsAsFactors=FALSE)
+    citation="Knowles & Miller 2025", default_model_unified="unified_m2_mod",
+    default_model_stratified="stratified_m2_mod", stringsAsFactors=FALSE)
   DBI::dbWriteTable(con, "arrest_summary", arrest)
   DBI::dbWriteTable(con, "state_summary", state)
   DBI::dbWriteTable(con, "district_dim", ddim)

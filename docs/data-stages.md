@@ -10,7 +10,7 @@ All published artifacts live on the Hugging Face dataset
 **`civilytics/crdc-school-arrest-rates`**, pinned to `data_release =
 civilytics-crdc-arrests-2025.1`. Documents read them via `crdc_path()` (see
 [`REPRODUCIBILITY.md`](../REPRODUCIBILITY.md)): set `CRDC_ARTIFACTS=export` to
-read locally (owner), or leave the default `hf://…` (stranger; big objects cache
+read locally (owner), or leave the default `hf://…` (new user; big objects cache
 on first use).
 
 ## Pipeline stages → artifacts
@@ -21,7 +21,7 @@ flowchart TD
   PROC --> MD["model_data_{y2122,y1718,y1516}<br/>schenrollraw_, lerefs_, popcounts_,<br/>full_crdc_data_, ccd_sch_geo_, ccd_dist_geo_"]
   MD --> COMB["combined_model_data<br/>combined_sch_data"]
   COMB --> RESTR["recent_data / three_year_data<br/>(restrict_model_data: enroll cap)"]
-  RESTR --> FITS["brms fits:<br/>pooled nat_m1..m5 + subgroup sg_m1..m5"]
+  RESTR --> FITS["brms fits:<br/>unified_m1..m5 + stratified_m1..m5"]
   FITS --> DRAWS["posterior_db -> predicted_draws<br/>(69 GB DuckDB, owner-only)"]
   DRAWS --> PARQUET["parquet/ shards (1.4 GB)"]
   DRAWS --> SUMM["summary.duckdb<br/>(arrest_summary / state_summary / district_dim)"]
@@ -31,7 +31,7 @@ flowchart TD
   COMB  -.publish.-> SI
   MD    -.publish.-> SC["stages/crdc/*.parquet"]
   FITS  -.publish.-> SD["stages/diagnostics/{model_stats,hmc_diagnostics}.parquet"]
-  FITS  -.publish (pooled only).-> SM["stages/models/pooled_m*.qs2 (2.9 GB)"]
+  FITS  -.publish (unified only).-> SM["stages/models/unified_m*.qs2 (2.9 GB)"]
   DRAWS -.already public.-> PARQUET
   DRAWS -.already public.-> SUMM
 
@@ -42,7 +42,7 @@ flowchart TD
 ```
 
 Solid arrows are the compute pipeline (owner-side; the `_targets/` store + 69 GB
-draws DB never ship). Dashed arrows are the **published** artifacts a stranger
+draws DB never ship). Dashed arrows are the **published** artifacts a new user
 downloads.
 
 ## Artifact catalog
@@ -72,14 +72,14 @@ downloads.
 
 | Artifact | Source | Notes | Consumed by |
 |---|---|---|---|
-| `model_stats.parquet` | `calculate_model_stats()` over all 10 models | per-model convergence/runtime stats; `model_id` + registry `model_label` ("Pooled (m#)" / "Student-group (m#)"); subgroup models contribute their per-group rows | supplement (model-stats tables) |
-| `hmc_diagnostics.parquet` | pooled fits' sampler diagnostics | divergences / max-treedepth / E-BFMI per pooled model | supplement (HMC fallback) |
+| `model_stats.parquet` | `calculate_model_stats()` over all 10 models | per-model convergence/runtime stats; `model_id` + registry `model_label` ("Unified (m#)" / "Stratified (m#)"); stratified models contribute their per-group rows | supplement (model-stats tables) |
+| `hmc_diagnostics.parquet` | unified fits' sampler diagnostics | divergences / max-treedepth / E-BFMI per unified model | supplement (HMC fallback) |
 
-### `stages/models/` — pooled fits (~2.9 GB, optional)
+### `stages/models/` — unified fits (~2.9 GB, optional)
 
 | Artifact | Source target | Notes |
 |---|---|---|
-| `pooled_m{1..5}.qs2` | `nat_m{1..5}_mod` | the 5 pooled brms fits; let `supplement.qmd` run **live** `check_hmc_diagnostics()`. Subgroup fits (`sg_*`, ~31 GB) are **not** shipped — their stats come from `model_stats.parquet`. |
+| `unified_m{1..5}.qs2` | `unified_m{1..5}_mod` | the 5 unified brms fits; let `supplement.qmd` run **live** `check_hmc_diagnostics()`. Stratified fits (`stratified_*`, ~31 GB) are **not** shipped — their stats come from `model_stats.parquet`. |
 
 ### Already public (Subsystem 1)
 
@@ -88,19 +88,20 @@ downloads.
 | `parquet/` shards (1.4 GB) | raw posterior draws, partitioned `model_id/YEAR/LEA_STATE`; the docs' `predicted_draws` view reads these |
 | `summary.duckdb` (~247 MB) | API summary tables (`arrest_summary`, `state_summary`, `district_dim`, `meta`) |
 
-## Naming note (pooled vs student-group)
+## Naming note (unified vs stratified)
 
-The published `model_id` keys are `nat_*` (pooled, all student groups together)
-and `sg_*` (one model per student group). Subsystem-3 artifacts **display** these
-as "Pooled (m#)" / "Student-group (m#)" via the model registry
-(`R/model_registry.R`) — a presentation-only rename. A future deep rename of the
-stored `model_id` keys to `pooled_*` is tracked separately (see the spec §I).
+The published `model_id` keys are `unified_*` (one model fit to the whole
+dataset, all student groups together) and `stratified_*` (one model per student
+group). Subsystem-3 artifacts display these as "Unified (m#)" / "Stratified (m#)"
+via the model registry (`R/model_registry.R`), the single source of truth for the
+model vocabulary, so the keys, the data contract, and the white-paper prose all
+agree.
 
 ## Reproduction download sizes
 
 - **Core** (all docs; diagnostics from the table): `stages/` data (<300 MB) +
   `parquet/` (1.4 GB) ≈ **~1.7 GB**.
-- **+ live pooled diagnostics**: add `stages/models/` (~2.9 GB) ≈ **~4.6 GB**.
+- **+ live unified diagnostics**: add `stages/models/` (~2.9 GB) ≈ **~4.6 GB**.
 
 Versus the owner-side cost this avoids: the 18 GB `_targets/` store, the 69 GB
 draws DB, and the ~7-day model run.

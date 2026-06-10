@@ -10,8 +10,8 @@
 | YEAR | 15-16 / 17-18 / 21-22 |
 | RACE | AM, BL, HI, WH |
 | SEX | F, M |
-| model_id | nat_m1..nat_m5 / sg_m1..sg_m5 (+ "_mod") |
-| subgroup_id | national: == model_id; subgroup: RACE_SEX (e.g. BL_M) |
+| model_id | unified_m1..unified_m5 / stratified_m1..stratified_m5 (+ "_mod") |
+| subgroup_id | unified: == model_id; stratified: RACE_SEX (e.g. BL_M) |
 | n_draws | posterior draws summarized |
 | stu_enroll | binomial denominator (enrollment in cell) |
 | observed_arrests | raw CRDC arrests (reference) |
@@ -28,12 +28,12 @@ the rate, then summarize across draws. NOT the (1|LEA_STATE) random effect.
 ## Codes
 - RACE: AM=American Indian/Alaska Native, BL=Black, HI=Hispanic, WH=White.
 - SEX: F, M.
-- Models: see /models. Default model when unspecified = nat_m2; the
-  subgroup-specific fits (sg_m1..sg_m5) must be requested explicitly via model=.
+- Models: see /models. Default model when unspecified = unified_m2; the
+  stratified fits (stratified_m1..stratified_m5) must be requested explicitly via model=.
 
-## National vs. subgroup
-National `nat_m*` fit all groups jointly (RACE*SEX); a row is the national model's
-prediction for that cell. Subgroup `sg_m*` fit each RACE×SEX separately; query by
+## Unified vs. stratified
+Unified `unified_m*` fit all groups jointly (RACE*SEX); a row is the unified model's
+prediction for that cell. Stratified `stratified_m*` fit each RACE×SEX separately; query by
 race/sex resolves to that group's fit (subgroup_id=RACE_SEX).
 
 ## Intervals

@@ -21,7 +21,7 @@ test_that("API boots and serves /health, /estimates, /openapi.json", {
 
   base <- sprintf("http://127.0.0.1:%d", port)
   est <- httr2::resp_body_json(httr2::req_perform(httr2::request(
-    paste0(base, "/api/v1/estimates?leaid=0100005&model=nat_m2"))))
+    paste0(base, "/api/v1/estimates?leaid=0100005&model=unified_m2"))))
   expect_equal(est$status, "success")
   expect_equal(est$data[[1]]$leaid, "0100005")
 

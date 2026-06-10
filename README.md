@@ -47,7 +47,7 @@ The project is organized around a **modeling-pipeline core** plus **three subsys
 built on top of it (full plan in [`docs/superpowers/specs/ROADMAP.md`](docs/superpowers/specs/ROADMAP.md)):
 
 1. **Draws API** — a public data product (live API + Hugging Face dataset) so people use the estimates without re-running the models.
-2. **Pipeline reproducibility** — environment capture so a stranger can `tar_make()` from source.
+2. **Pipeline reproducibility** — environment capture so a new user can `tar_make()` from source.
 3. **Artifact reproduction** — deterministically rebuild the published documents (white paper, results, figures) from published data, with no model run.
 
 ### Top-level layout
@@ -108,7 +108,7 @@ tmp/                    Scratch: downloaded data/, duckdb_spill/, pages build, s
 
 Each `.qmd` reads **published artifacts** through `crdc_path()` — set
 `CRDC_ARTIFACTS=export` to read locally (owner) or use the default `hf://…`
-(stranger) — and never touches the `_targets/` store, so it renders standalone
+(new user) — and never touches the `_targets/` store, so it renders standalone
 (`quarto render`). The same docs are also `cue="never"` render targets in
 `_targets.R`. See [`docs/data-stages.md`](docs/data-stages.md) and
 [Reproduce the published artifacts](#reproduce-the-published-artifacts-no-7run).
@@ -233,8 +233,8 @@ are described below.
 |--------|-------------|--------|
 | `combined_model_data` | Merged CRDC data across all years | RDS file (`_targets/objects/...`) |
 | `three_year_data` | Modeling dataset with enrollment caps and restrictions | List with `$data` (tidy) |
-| `nat_m*_mod` | National Bayesian models (baseline, demographic, referral‑adjusted, full) | `brmsfit` objects saved as RDS |
-| `sg_m*_mod` | Subgroup (race/sex) models – one per demographic group | List of `brmsfit` objects |
+| `unified_m*_mod` | Unified Bayesian models (baseline, demographic, referral‑adjusted, full) | `brmsfit` objects saved as RDS |
+| `stratified_m*_mod` | Stratified (race/sex) models – one per demographic group | List of `brmsfit` objects |
 | `white_paper` | The full report (ported from the Word source), rebuilt from artifacts | `white_paper.html` |
 | `supplement` | Supplementary Materials: EDA, sample construction, model diagnostics, applied examples | `supplement.html` |
 | `social_media_posts` | Branded social-media figures/tables | `social_media_posts.html` + `export/figures/socialmedia-*` |
@@ -251,7 +251,7 @@ rebuild the paper/figures from a ~1.7 GB download instead of the full pipeline:
 ```bash
 # Owner (local artifacts already in export/):
 CRDC_ARTIFACTS=export scripts/render-artifacts.sh
-# Stranger (pull from Hugging Face; big objects cache on first use):
+# New user (pull from Hugging Face; big objects cache on first use):
 scripts/cache-artifacts.sh && scripts/render-artifacts.sh
 ```
 

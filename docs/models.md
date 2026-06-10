@@ -2,7 +2,7 @@
 
 Total enrollment must be greater than or equal to 30, minimum enrollment in the 21-22 arrest rate
 top 10 Where there are more referrals or arrests than students, we reduce arrests/referrals to be
-the number of students Only fitting for RACE %in% c("WH", "BL", "AM", "HI") For subgroup specific
+the number of students Only fitting for RACE %in% c("WH", "BL", "AM", "HI") For stratified
 models we do not fit for TOTAL
 
 Remove all schools where highest grade <= 7
@@ -12,7 +12,7 @@ log1p referrals and referral rate
 
 ### Unified
 
-For the national sample we fit:
+For the unified models we fit:
 
 1. Most Recent Year ~ RACE x SEX + (1|LEAID) + (1|STATE)
 2. Most Recent Year ~ RACE x SEX + referral_rate + (1|LEAID) + (1|STATE)
@@ -23,7 +23,7 @@ For the national sample we fit:
 
 ### Stratified
 
-For stratfied by subgroup we fit:
+For the stratified models we fit:
 
 1. Most recent year + (1|LEAID) + (1|STATE)
 2. Most recent year + referral_rate + (1|LEAID) + (1|STATE)

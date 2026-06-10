@@ -32,7 +32,7 @@ stabilized rates with full posterior credible intervals.
 
 - **RACE** ∈ {AM, BL, HI, WH} · **SEX** ∈ {F, M} (8 demographic cells, no TOTAL)
 - **YEAR** ∈ {15-16, 17-18, 21-22}
-- **Models:** 10 specifications (`nat_m1`–`nat_m5`, `sg_m1`–`sg_m5`); **default = `nat_m2` / `sg_m2`** (most-recent-year + referral-rate covariate).
+- **Models:** 10 specifications (`unified_m1`–`unified_m5`, `stratified_m1`–`stratified_m5`); **default = `unified_m2` / `stratified_m2`** (most-recent-year + referral-rate covariate).
 - Estimates include count + rate point estimates and **HPD intervals at 50 / 80 / 95%**.
 - State summaries are a **draw-wise population aggregate** (sum across LEAs within each posterior draw), distinct from the model's `(1|LEA_STATE)` random effect.
 
@@ -45,7 +45,7 @@ INSTALL httpfs; LOAD httpfs;
 -- Raw draws for one slice (TX, Black males, default model, 2021-22):
 SELECT *
 FROM read_parquet(
-  'hf://datasets/civilytics/crdc-school-arrest-rates/parquet/model_id=nat_m2_mod/YEAR=21-22/LEA_STATE=TX/*.parquet'
+  'hf://datasets/civilytics/crdc-school-arrest-rates/parquet/model_id=unified_m2_mod/YEAR=21-22/LEA_STATE=TX/*.parquet'
 )
 WHERE RACE = 'BL' AND SEX = 'M'
 LIMIT 20;

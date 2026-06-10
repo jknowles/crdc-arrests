@@ -1,7 +1,7 @@
 test_that("validate_model accepts allowed ids and rejects others", {
-  expect_equal(validate_model("nat_m2"), "nat_m2_mod")
-  expect_equal(validate_model(NULL, default = "nat_m2_mod"), "nat_m2_mod")
-  expect_error(validate_model("nat_m9"), class = "api_bad_request")
+  expect_equal(validate_model("unified_m2"), "unified_m2_mod")
+  expect_equal(validate_model(NULL, default = "unified_m2_mod"), "unified_m2_mod")
+  expect_error(validate_model("unified_m9"), class = "api_bad_request")
 })
 
 test_that("validate_interval coerces to allowed masses", {

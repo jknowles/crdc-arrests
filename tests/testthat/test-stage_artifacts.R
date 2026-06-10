@@ -35,22 +35,22 @@ test_that("stage_crdc_artifacts writes one parquet per named element", {
 test_that("stage_model_stats binds per-model stats with registry labels", {
   d <- tempfile()
   fake <- function(models, model_prefix = NULL) data.frame(term = "b", est = 1.0)
-  ids <- c("nat_m2_mod", "sg_m4_mod")
+  ids <- c("unified_m2_mod", "stratified_m4_mod")
   models <- stats::setNames(list("FIT_A", "FIT_B"), ids)
   p <- stage_model_stats(models, dir = d, stats_fn = fake)
   drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
   on.exit({DBI::dbDisconnect(con, shutdown = TRUE); duckdb::duckdb_shutdown(drv)})
   res <- DBI::dbGetQuery(con, sprintf("SELECT * FROM read_parquet('%s')", p))
   expect_setequal(res$model_id, ids)
-  expect_setequal(res$model_label, c("Pooled (m2)", "Student-group (m4)"))
+  expect_setequal(res$model_label, c("Unified (m2)", "Stratified (m4)"))
 })
 
-test_that("stage_pooled_fits writes one qs2 per pooled model, round-trips", {
+test_that("stage_unified_fits writes one qs2 per unified model, round-trips", {
   d <- tempfile()
-  fits <- list(nat_m1_mod = list(tag = "A"), nat_m2_mod = list(tag = "B"))
-  out  <- stage_pooled_fits(fits, dir = d)
-  expect_setequal(basename(out), c("pooled_m1.qs2", "pooled_m2.qs2"))
-  expect_equal(qs2::qs_read(out[grepl("pooled_m1", out)])$tag, "A")
+  fits <- list(unified_m1_mod = list(tag = "A"), unified_m2_mod = list(tag = "B"))
+  out  <- stage_unified_fits(fits, dir = d)
+  expect_setequal(basename(out), c("unified_m1.qs2", "unified_m2.qs2"))
+  expect_equal(qs2::qs_read(out[grepl("unified_m1", out)])$tag, "A")
 })
 
 test_that("stage_write_parquet sanitizes non-UTF8 (Windows-1252) strings", {

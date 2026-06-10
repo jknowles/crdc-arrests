@@ -2,7 +2,7 @@
 #'
 #' These run owner-side (in the targets pipeline) and read the store. They write
 #' portable parquet/qs2 under export/stages/ for publishing to the HF dataset so
-#' a stranger can render the docs without the 7-day run. Reads stay native;
+#' a new user can render the docs without the 7-day run. Reads stay native;
 #' these are write-side helpers.
 
 #' Coerce a vector's strings to valid UTF-8. Parquet requires UTF-8; some CRDC
@@ -65,11 +65,11 @@ stage_model_stats <- function(models, dir = "export/stages",
   stage_write_parquet(df, file.path(dir, "diagnostics/model_stats.parquet"))
 }
 
-#' Extract structured HMC sampler diagnostics for the pooled fits.
-#' `pooled_fits` is a named list of brmsfit objects (names = model_id).
-stage_hmc_diagnostics <- function(pooled_fits, dir = "export/stages") {
-  rows <- lapply(names(pooled_fits), function(id) {
-    sf <- pooled_fits[[id]]$fit
+#' Extract structured HMC sampler diagnostics for the unified fits.
+#' `unified_fits` is a named list of brmsfit objects (names = model_id).
+stage_hmc_diagnostics <- function(unified_fits, dir = "export/stages") {
+  rows <- lapply(names(unified_fits), function(id) {
+    sf <- unified_fits[[id]]$fit
     data.frame(
       model_id      = id,
       model_label   = crdc_model_label(id),
@@ -83,14 +83,14 @@ stage_hmc_diagnostics <- function(pooled_fits, dir = "export/stages") {
                       file.path(dir, "diagnostics/hmc_diagnostics.parquet"))
 }
 
-#' Save the pooled (nat_*) brms fits as qs2, named by spec (pooled_m#.qs2).
-stage_pooled_fits <- function(pooled_fits, dir = "export/stages") {
+#' Save the unified brms fits as qs2, named by spec (unified_m#.qs2).
+stage_unified_fits <- function(unified_fits, dir = "export/stages") {
   reg <- crdc_model_registry()
-  vapply(names(pooled_fits), function(id) {
+  vapply(names(unified_fits), function(id) {
     spec <- reg$spec[match(id, reg$id)]
-    path <- file.path(dir, "models", sprintf("pooled_%s.qs2", spec))
+    path <- file.path(dir, "models", sprintf("unified_%s.qs2", spec))
     dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-    qs2::qs_save(pooled_fits[[id]], path)
+    qs2::qs_save(unified_fits[[id]], path)
     path
   }, character(1), USE.NAMES = FALSE)
 }
