@@ -32,3 +32,30 @@ parse_smposts <- function(md_text) {
     )
   })
 }
+
+hugo_front_matter <- function(post) {
+  lines <- c("---",
+             sprintf('title: "%s"', gsub('"', '\\\\"', post$title)),
+             sprintf('slug: "%s"', post$slug),
+             sprintf('weight: %s', if (nzchar(post$series)) post$series else "0"),
+             sprintf('draft: %s', tolower(as.character(isTRUE(post$draft)))),
+             'series: "CRDC school arrests"',
+             'source: "U.S. Department of Education, Civil Rights Data Collection"')
+  if (nzchar(post$date)) lines <- append(lines, sprintf('date: "%s"', post$date), after = 2)
+  paste(c(lines, "---", ""), collapse = "\n")
+}
+
+write_hugo_bundle <- function(post, out_root, repo_root) {
+  dir <- file.path(out_root, post$slug)
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  body <- post$body
+  for (i in seq_along(post$images)) {
+    src <- file.path(repo_root, post$images[i])
+    dest_name <- sprintf("figure-%d.png", i)
+    if (file.exists(src)) file.copy(src, file.path(dir, dest_name), overwrite = TRUE)
+    # rewrite both ![..](path) and <img src="path"> occurrences of this image
+    body <- gsub(post$images[i], dest_name, body, fixed = TRUE)
+  }
+  writeLines(paste0(hugo_front_matter(post), body), file.path(dir, "index.md"))
+  dir
+}
