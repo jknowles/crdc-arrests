@@ -238,3 +238,23 @@ Do not mix denominators across the two when reproducing numbers.
 - Set `CRDC_ARTIFACTS=export` and render `social_media_posts.qmd`; all 19 current
   PNGs (and the to-be-added Post 9 Fig 1) build from local artifacts. Posts 1–8
   numbers verified against gold-standard prose on 2026-06-22.
+
+---
+
+## Publishing (Hugo bundles)
+
+`scripts/export-hugo-posts.sh` renders `social_media_posts.qmd` to GitHub-Flavored
+Markdown and splits the output into one Hugo page bundle per post under
+`export/hugo/posts/<slug>/index.md`, with co-located figures at
+`export/hugo/posts/<slug>/figure-N.png`. Each bundle's front matter carries
+`title`, `slug`, `weight` (= series position), `series`, `source` (the originating
+docx), and `draft`; Posts 7–10 emit `draft: true`. To run the HTML render and the
+Hugo export together in one shot:
+
+```bash
+# local data, all docs
+CRDC_ARTIFACTS=export EXPORT_HUGO=1 scripts/render-artifacts.sh
+
+# local data, social posts only
+CRDC_ARTIFACTS=export EXPORT_HUGO=1 scripts/render-artifacts.sh social_media_posts.qmd
+```
