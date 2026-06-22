@@ -742,6 +742,37 @@ overall but in smaller districts -- some of which have abnormally high
 arrest numbers.
 <!-- /DRIFT -->
 
+<!-- DRIFT: post4-table-observations -->
+The data also show:
+
+1.  Many very small districts with high arrest rates primarily serve
+    students with special education needs. Research has long
+    demonstrated that students with disabilities are disproportionately
+    likely to be arrested (e.g., [GAO
+    2024](https://www.gao.gov/products/gao-24-106294); [Prison Policy
+    Initiative](https://www.prisonpolicy.org/research/disability/)).
+
+2.  At least one of these districts serves almost exclusively American
+    Indians. American Indian students have disproportionately high
+    arrest rates ([GAO
+    2024](https://www.gao.gov/products/gao-24-106294)).
+
+3.  Several of these districts exclusively serve high school students.
+    Of course, age is an extremely important factor in arrest rates.
+
+4.  Data errors (or perhaps anomalies) are more obvious with smaller
+    populations. For example, several schools on the list reported
+    relatively large numbers of arrests one year but 0-2 in other years.
+
+5.  These are mainly but not exclusively very small districts: 11 of the
+    districts in the top 20 have \<300 students. Inherently, smaller
+    districts will have greater variation in their rates.
+
+> Tomorrow, we'll look more systematically at how enrollment size and
+> arrest rates are related and how we can use the coefficient of
+> variation, a measure of precision, to quantify this.
+<!-- /DRIFT -->
+
 ```{r}
 #| label: national_lea_table_higharrestrates
 #| message: false
@@ -856,37 +887,6 @@ magick::image_write(table_img, img_path, format = "png")
 knitr::include_graphics(img_path)
 
 ```
-
-<!-- DRIFT: post4-table-observations -->
-The data also show:
-
-1.  Many very small districts with high arrest rates primarily serve
-    students with special education needs. Research has long
-    demonstrated that students with disabilities are disproportionately
-    likely to be arrested (e.g., [GAO
-    2024](https://www.gao.gov/products/gao-24-106294); [Prison Policy
-    Initiative](https://www.prisonpolicy.org/research/disability/)).
-
-2.  At least one of these districts serves almost exclusively American
-    Indians. American Indian students have disproportionately high
-    arrest rates ([GAO
-    2024](https://www.gao.gov/products/gao-24-106294)).
-
-3.  Several of these districts exclusively serve high school students.
-    Of course, age is an extremely important factor in arrest rates.
-
-4.  Data errors (or perhaps anomalies) are more obvious with smaller
-    populations. For example, several schools on the list reported
-    relatively large numbers of arrests one year but 0-2 in other years.
-
-5.  These are mainly but not exclusively very small districts: 11 of the
-    districts in the top 20 have \<300 students. Inherently, smaller
-    districts will have greater variation in their rates.
-
-> Tomorrow, we'll look more systematically at how enrollment size and
-> arrest rates are related and how we can use the coefficient of
-> variation, a measure of precision, to quantify this.
-<!-- /DRIFT -->
 
 :::
 
