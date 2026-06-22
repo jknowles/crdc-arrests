@@ -931,8 +931,8 @@ knitr::include_graphics(img_path)
 #| warning: false
 #| message: false
 #| fig-width: 9
-#| eval: false
-# exploratory: superseded by cov_plot_decile_byraceeth (see docs/social-media-post-map.md)
+#| include: false
+# exploratory: figure superseded by cov_plot_decile_byraceeth; chunk retained (include: false) because it builds shared tabdf/plotdf used below
 
 #dist_ref_arr
 
@@ -1009,8 +1009,8 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 #| warning: false
 #| message: false
 #| fig-width: 9
-#| eval: false
-# exploratory: superseded by cov_plot_decile_byraceeth (see docs/social-media-post-map.md)
+#| include: false
+# exploratory: figure superseded by cov_plot_decile_byraceeth; chunk retained (include: false) because it builds shared tabdf/plotdf used below
 
 total_enroll_decile <- quantile(
   tabdf$total_enroll[tabdf$SEX == "TOTAL" & tabdf$RACE == "TOTAL"],
