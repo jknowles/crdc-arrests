@@ -1175,6 +1175,7 @@ nat_sg_totals |>
 #| fig-width: 9
 #| warning: false
 #| message: false
+# candidate add-on for Post 6 NNH sentence; not in posted version
 
 pw <- ggplot(nat_sg_totals |> mutate(SEX = ifelse(SEX == "M", "Male students", "Female students")) |>
    filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
@@ -1202,6 +1203,45 @@ grid::grid.draw(civilytics::civilytics_logo(pw, position = "bottom-right"))
 
 
 
+
+::: {.smpost slug="arrest-rates-by-race" title="Basic facts — arrest rates by race" date="2025-03-08" status="gold" series="6"}
+
+<!-- DRIFT: post6-basic-facts-race -->
+Over 50% of school-based arrests of American Indian/Alaskan Native
+students in 2021-22 occurred in just 7 districts.
+
+Disparities in arrest rates by race/ethnicity, gender, and disability
+status are widely known and have been documented for years (e.g., for a
+small sampling of this work, see [Darling-Hammond and Ho
+2024](https://journals.sagepub.com/doi/full/10.1177/23328584241293411);
+[Homer and Fisher
+2019](https://www.tandfonline.com/doi/full/10.1080/15388220.2019.1604377);
+[Whitaker et. al
+2019](https://www.aclu.org/publications/cops-and-no-counselors);
+[Civilytics' 2017-18 CRDC
+analysis](https://www.tableau.com/foundation/data-equity/equitable-education/student-retention-referrals)).
+
+There are many different ways to describe these inequities.
+
+We can talk about *raw numbers*: more Black female students were
+arrested than White female students despite there being 3 times as many
+White female students enrolled in U.S. public schools.
+
+We can talk about *arrest rates*: White students had 0.51 arrests per
+1,000 students, Hispanic students 0.66, American Indian/Alaskan Native
+students 1.16, and Black students 1.62 arrests per 1,000 students.
+
+We can highlight the "number needed to harm." While 1 in about 1,500
+White males were arrested at school in 2021-22, 1 in about 500 Black
+males and 1 in about 700 American Indian/Alaskan Native males were
+arrested at school in 2021-22.
+
+And we can talk about the geographic concentration of students by race
+-- and therefore the geographic concentration of arrests by race. That
+leads us back to where this post started: over 50% of school-based
+arrests of American Indian/Alaskan Native students occurred in just 7
+districts.
+<!-- /DRIFT -->
 
 ```{r}
 #| label: arrests_concentration_by_sg
@@ -1242,6 +1282,8 @@ p1 <- dist_ref_arr %>%
 grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 ```
 
+
+:::
 
 ```{r}
 #| label: am_districts_table
