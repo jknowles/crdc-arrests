@@ -2005,6 +2005,8 @@ few districts actually sit near that average.
 
 :::
 
+::: {.smpost slug="misreported-zeros-analytic" title="What ten models say about Paterson's zero arrests" date="" draft="true" status="draft" series="9"}
+
 ```{r}
 
 # Get 100 highest arrests
@@ -2082,6 +2084,57 @@ plotdf <- bind_rows(obsv_plot %>%
 
 ```
 
+<!-- DRIFT: post9-intro -->
+Post 8 documented the scale of suspicious zeros in the CRDC: 125 of 376
+large districts (those with 20,000 or more students) reported exactly
+zero school-based arrests in 2021-22, a share that is statistically
+implausible if the national arrest rate applied uniformly. This post
+goes further, asking: how many arrests are likely missing from these
+zero-reporting districts, and what do ten Bayesian models tell us when
+we zoom in on a single case?
+
+We selected the 100 largest districts that reported zero total arrests.
+For these districts we calculate a "naïve" expected number of arrests
+based on the arrest rate per 1,000 students among the 100 districts
+with the largest student enrollments -- 1.15 per 1,000.[^post9-1] If
+we assume all of the zeros are misreported and apply this rate to actual
+enrollment, we would naïvely expect 2,645 arrests across these 100
+districts. We know reality lies somewhere between zero and that ceiling.
+What the models tell us clearly is this: across all ten specifications,
+the probability that any one of these 100 large districts truly had zero
+arrests is less than 2.5% -- meaning zero is outside the 95% prediction
+interval for every model. Accounting for prior years of data, **as many
+as 1,794 and at least 751 arrests are missing from the 2021-22 CRDC**
+in just these 100 districts.
+<!-- /DRIFT -->
+
+<!-- DRIFT: post9-paterson-fig1 -->
+To understand how the models reach this conclusion, we examine Paterson
+Public School District in New Jersey in detail. Paterson enrolls
+18,310 students, making 0 arrests deeply suspicious. Paterson also has
+a useful historical record: 47 reported arrests in 2015-16, declining to
+11 in 2017-18, and then 0 in 2021-22 -- a pattern that gives the
+three-year models something to work with.
+
+Figure 1 shows how each of our ten models compares to the standard
+frequentist interval. The frequentist interval for Paterson (shown in
+blue) runs from 0 to 3 -- a constant value in the case of no observed
+arrests. Each panel shows the full posterior density alongside that
+frequentist benchmark. Models are split into one-year specifications
+(left panel) and three-year specifications (right panel).
+
+The one-year models -- except for stratified model 1 -- produce
+intervals that are **narrower** than the frequentist interval,
+demonstrating one of the core advantages of the Bayesian approach:
+better precision in sparse-data cases. The three-year models tell a
+different story. Their intervals are all wider than the frequentist
+interval, and their median predicted arrest counts are greater than
+zero. Models without covariates suggest more than 10 arrests are most
+likely. The reason is the prior information encoded from 2015-16 and
+2017-18: the three-year models remember Paterson's history and expect
+it to persist.
+<!-- /DRIFT -->
+
 ```{r}
 #| label: paterson_model_comparison
 #| echo: false
@@ -2125,6 +2178,35 @@ p1 <- ggplot(res_pat, aes(x = pred, y = model_label, group = model_label)) +
 
 grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
 ```
+
+<!-- DRIFT: post9-between-figs -->
+Figure 1 shows point intervals; Figure 2 goes deeper, plotting every
+draw from the posterior as a histogram for each model. This lets us
+move beyond "is 0 plausible?" to "exactly how plausible is each
+arrest count?" For clarity we show only the covariate specification
+with a level 1 covariate; results with level 1 and level 2 covariates
+are nearly identical.
+
+The **one-year models** agree that 0 is the single most likely count
+for Paterson, but they disagree on how likely. The stratified model
+(top left of Figure 2) gives 0 arrests only a **47.2%** probability,
+meaning it assigns a near-equal chance to one or more arrests. Adding a
+covariate brings the stratified model into closer alignment with the
+unified model, raising the probability of 0 arrests to **76.4%**. The
+unified one-year model is more confident from the start: it puts 0
+arrests at **82.2%** without a covariate, and the covariate nudges this
+to only **84%**. Even so, neither one-year model can rule out 1 arrest
+at 95% confidence -- a point we already saw in the wider intervals of
+Figure 1.
+
+The **three-year models** are a different matter entirely. Without
+covariates (top right panel), these models are highly confident that
+Paterson had more than 0 arrests, but they are uncertain about the
+exact count: the distribution is relatively flat from 8 to 15, with
+a substantial tail at 16 or more (arrest counts are top-coded at 16
+for visual clarity). These models confidently rule out 0 and cannot
+confidently rule out as many as 16 missing arrests.
+<!-- /DRIFT -->
 
 ```{r}
 #| label: zero_arrest_counts_draws
@@ -2257,27 +2339,48 @@ grid::grid.draw(civilytics::civilytics_logo(pfull, position = "bottom-left"))
 
 ```
 
-In our first example, we look at how Bayesian prediction models differ from
-frequentist intervals in the case of no observed arrests. The Paterson New Jersey
-school district has `r pretty_count(obsv_focal$total_enroll[1])`
-in our dataset - so having 0 arrests is suspicious.
+<!-- DRIFT: post9-after-fig2 -->
+Adding covariates substantially changes the picture for the three-year
+models. When we tell the model that Paterson reported **0 referrals to
+law enforcement in 2021-22**, the distribution shifts dramatically
+downward: 3 to 4 arrests become the most likely count, and the
+models can no longer rule out only 1 missing arrest. Yet even these
+covariate-adjusted three-year models still rule out 0 arrests with
+95% confidence -- every draw lands above 0. The referral information
+pulls the estimate toward zero, but not all the way there.
 
-In the case of no arrests, the observed interval is constant - from 0 to 3, and shown in gray
-alongside the Bayesian prediction interval in blue for
-each of our 10 models. The models are sorted into single-year specifications
-on the left and three year specifications on the right. We see that the single-year
-models, except for stratfiied model 1, have much narrower intervals than the
-frequentist interval - confirming the advantage of the modeling methodology for increasing
-precision.
+Taken together, Paterson's ten models offer three interpretive
+frameworks:
 
-However, these models still suggest that 0 arrests is the median estimate (the point).
-Here the three year models disagree - the intervals are all wider
-than the frequentist interval and the median estimated arrests is greater than 0.
-In particular models without covariates (Unifed Model 3
-and Stratified Model 3) suggest that more than 10 arrests are most liklely. The
-reason becomes clear when we look at the multiple years of data and see that
-in 15-16 Paterson had 47 arrests reported and in 17-18 it had 11 arrests reported.
+- **Strongly align with the reported data** and improve precision over
+  the frequentist interval (one-year models 1 and 2): if you believe
+  2021-22 is the only relevant information, 0 arrests is the most
+  likely outcome.
+- **Strongly weigh the historic pattern** and expect 10 or more arrests
+  (three-year no-covariate models): if you trust the 2015-16 and
+  2017-18 data, 0 arrests in 2021-22 is essentially impossible.
+- **Find a middle ground** by accounting for referral data (three-year
+  covariate models): the absence of referrals provides genuine evidence
+  that arrests fell, but not necessarily to zero -- 3 to 4 arrests
+  remain the most credible estimate.
 
+Bayesian intervals give analysts the tools to choose the framework most
+appropriate to their application. This flexibility matters especially
+now: demonstrating the value of CRDC data is particularly important
+given concerns that the data collection may not continue under the
+Trump administration.[^post9-2]
+<!-- /DRIFT -->
+
+[^post9-1]: We calculate the arrest rate for the 100 largest districts
+by enrollment, rather than the national average, because the national
+rate is strongly biased toward zero by the large number of small
+districts that report no arrests.
+
+[^post9-2]: The 2023-24 CRDC data collection was expected to be
+completed by summer 2025, with data released in 2026, but there is
+concern the data may not be prepared and released as planned.
+
+:::
 
 ```{r}
 #| label: cleanup
