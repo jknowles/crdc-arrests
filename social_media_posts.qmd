@@ -182,6 +182,14 @@ print_model_name <- function(x, lbreak = FALSE) {
 
 ```
 
+<!-- DRIFT: series-intro-para -->
+We were fortunate to receive a grant from the **American Educational Research Association** and the **National Science Foundation (NSF)** two years ago (and to receive a no-cost extension to complete the work in 2025!). We wrote the grant to use small area estimation strategies to "get the most" from the Civil Rights Data Collection (CRDC) school arrest data. We wanted to share findings from the grant with others and decided on a series of post we'll share over the next few weeks. We'll start with basic descriptive information about arrests (by state, by race, by district) before moving to the "getting the most" piece of the work and then will conclude with some reflections on what will be lost if national data collections like this don't continue.
+<!-- /DRIFT -->
+
+<!-- DRIFT: aera-nsf-disclaimer -->
+For all posts, please know: *This research was supported by a grant from the American Educational Research Association which receives funds for its "AERA Grants Program" from the National Science Foundation under NSF award NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or NSF.*
+<!-- /DRIFT -->
+
 ## Post 1: State and National Totals
 
 ::: {.smpost slug="how-states-stack-up" title="Arrests in schools in 2021-22: How states stack up on student arrests" date="2025-02-01" status="gold" series="1"}
@@ -244,6 +252,13 @@ dist_ref_arr |>
 state_map2 <- inner_join(state_map, state_totals, by = join_by(STUSPS == LEA_STATE))
 ```
 
+<!-- DRIFT: post1-intro-paras -->
+The Civil Rights Data Collection (CRDC) is the only source of data on school-related arrests for all the nation's public schools and districts. The most recent available data, released in January 2025, are for the 2021-22 school year.
+
+Nearly 35,000 students were arrested in "school-related arrests" in 2021-22 (34,846 students). "School-related arrests" are defined as those taking place on school grounds, while students are taking school transportation, or due to a referral by a school official.
+
+How many students were arrested "at school/in a school-related arrest" in each state?
+<!-- /DRIFT -->
 
 ```{r}
 #| label: arrest_chloropleth
@@ -276,6 +291,9 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 
 ```
 
+<!-- DRIFT: post1-rate-intro -->
+Of course, states have vastly different student populations, motivating questions about rates. The national school-related arrest rate in 2021-22 was 0.72 out of every 1,000 students. Which states had higher or lower school-related arrest rates?
+<!-- /DRIFT -->
 
 ```{r}
 #| label: arrest_rate_chloropleth
@@ -305,6 +323,9 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 #rm(state_map2)
 ```
 
+<!-- DRIFT: post1-nnh-intro -->
+Another, perhaps more intuitive approach with small rates is to calculate the "number needed to harm" (NNH) or how many students it "takes" before 1 is arrested. Nationally, 1 out of every 1,395 students was arrested "at school" in 2021-22.^[Corrected from the originally posted "1 in 1,428." This number-needed-to-harm uses CRDC-reported enrollment (48,596,489 students ÷ 34,846 arrests = 1 in 1,395), the exact reciprocal of the 0.72-per-1,000 national rate from the same data. The original 1,428 reflected an external national-enrollment denominator.] In Kansas, 1 out of every 194 students was arrested in schools. In South Dakota, 1 out of every 348 students was arrested.
+<!-- /DRIFT -->
 
 ```{r}
 #| label: state_arrest_nnh_map
@@ -351,6 +372,10 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
 #plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 ```
+
+<!-- DRIFT: post1-closing-para -->
+Part of what motivates this project is the challenges with rates and small Ns. Someone may reasonably think that the elevated arrest rates in South Dakota and Kansas are due at least in part to their much smaller populations (small Ns). While using rates rather than counts provides a sense of scale and standardization, rates' sensitivity to slight differences in counts (and to the denominator) magnifies differences that may not be substantively meaningful (sometimes called the base rate fallacy) and may imply a false precision in reported numbers. By using a combination of descriptive analysis and statistics (coming in future posts), we can more accurately convey true differences in school-based arrests that are consistent with the data collected. One way to help with this is to use multiple years of measurement to accumulate a greater population over which to measure the low incident rate. Our next post will look at how the addition of prior years of data changes, or doesn't change, this picture.
+<!-- /DRIFT -->
 
 :::
 
