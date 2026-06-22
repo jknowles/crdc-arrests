@@ -1,6 +1,8 @@
 *.knit.md
 *.html
 *_files/
+# transient gfm render produced by scripts/export-hugo-posts.sh
+/social_media_posts.md
 /export
 /cache
 /.crdc-cache

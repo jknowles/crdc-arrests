@@ -29,3 +29,7 @@ for d in "${DOCS[@]}"; do
   quarto render "$d"
 done
 echo "Done. HTML alongside each .qmd; figures in export/figures/."
+
+if [ "${EXPORT_HUGO:-0}" = "1" ]; then
+  scripts/export-hugo-posts.sh
+fi
