@@ -56,6 +56,8 @@ write_hugo_bundle <- function(post, out_root, repo_root) {
     # rewrite both ![..](path) and <img src="path"> occurrences of this image
     body <- gsub(post$images[i], dest_name, body, fixed = TRUE)
   }
+  # Strip DRIFT author-scaffolding comments (kept in qmd, must not ship in bundles).
+  body <- gsub("<!--\\s*/?DRIFT.*?-->[ \\t]*\\n?", "", body, perl = TRUE)
   writeLines(paste0(hugo_front_matter(post), body), file.path(dir, "index.md"))
   dir
 }

@@ -1799,7 +1799,7 @@ When 88% of districts report zero arrests, a key question arises: are
 these true zeros, or failures to report?
 
 The table below shows why the question matters. The national average
-arrest rate in 2021-22 was roughly 1 arrest per 1,428 students. For a
+arrest rate in 2021-22 was roughly 1 arrest per 1,395 students. For a
 district with 20,000 or more students, that implies around 14 expected
 arrests. Yet 125 out of 376 large districts (33.2%) reported exactly
 zero arrests -- a share that would be nearly impossible if the national
@@ -1847,7 +1847,6 @@ ft <- flextable(dist_size_summary) |>
     expect_w_arrest_per =     "% districts expected with an arrest"
   ) |>
   add_header_lines("Expected Arrests based on National Arrest Rate") |>
-  #add_header_lines("Three year data on American Indian/Alaska Native Student Arrests") |>
    bg(bg = header_bg, part = "header") |>
   color(color = header_fg, part = "header") |>
   bold(part = "header") |>
@@ -1944,7 +1943,6 @@ ft <- flextable(table_data3) |>
     enroll                    = "Enrollment"
   ) |>
   add_header_lines("Suspiciously Low Reported Arrest Counts") |>
-  #add_header_lines("Three year data on American Indian/Alaska Native Student Arrests") |>
    bg(bg = header_bg, part = "header") |>
   color(color = header_fg, part = "header") |>
   bold(part = "header") |>
