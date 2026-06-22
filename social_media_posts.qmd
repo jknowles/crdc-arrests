@@ -212,7 +212,7 @@ dist_ref_arr <- crdc %>%
   mutate(total_enroll = sum(stu_enroll[RACE != "TOTAL" &
                                          SEX != "TOTAL"]))
 
-state_map <- tigris::states(cb  = TRUE, resolution = "20m") |> tigris::shift_geometry()
+state_map <- tigris::states(cb  = TRUE, resolution = "20m", progress_bar = FALSE) |> tigris::shift_geometry()
 
 dist_ref_arr |>
     ungroup() |>
@@ -226,7 +226,6 @@ dist_ref_arr |>
 
 nat_referral_rate <- nat_totals$referrals / (nat_totals$enrollment / 1000)
 nat_arrest_rate <- nat_totals$arrests / (nat_totals$enrollment / 1000)
-nat_totals
 ```
 
 
