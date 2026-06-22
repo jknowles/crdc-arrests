@@ -13,6 +13,7 @@ knitr:
     dev: ragg_png
     dpi: 300
 execute:
+  freeze: auto
   warning: false
   message: false
   error: false
@@ -183,6 +184,7 @@ print_model_name <- function(x, lbreak = FALSE) {
 
 ## Post 1: State and National Totals
 
+::: {.smpost slug="how-states-stack-up" title="Arrests in schools in 2021-22: How states stack up on student arrests" date="2025-02-01" status="gold" series="1"}
 
 ```{r}
 #| label: calc_nat_totals
@@ -350,7 +352,7 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
 
 ```
 
-
+:::
 
 ## Post 2: Trends
 
