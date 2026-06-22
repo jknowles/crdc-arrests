@@ -52,6 +52,7 @@ library(civilytics)
 source("R/funs.R")
 source("R/spatial_utils.R")
 source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
+source("R/branding.R")  # cv_stamp_logo_png(): Civilytics logo on table PNGs
 
 # Owner convenience for interactive chunk runs: if CRDC_ARTIFACTS is unset and a
 # local artifact store is present, resolve locally instead of hitting hf:// (which
@@ -71,9 +72,6 @@ tydata <- read_stage_df("stages/inputs/three_year_data.parquet")
 rdata  <- read_stage_df("stages/inputs/recent_data.parquet")
 ccd_ty <- read_stage_df("stages/inputs/combined_sch_data.parquet")
 crdc   <- read_stage_df("stages/crdc/full_crdc_data_y2122.parquet")
-
-# Logo overlay helper
-logo_file <- system.file("img", "civilytics-wordmark.png", package = "civilytics")
 
 # Output dimensions (must match ragg_png/knitr fig.width & fig.height)
 fig_w <- 11  # inches
@@ -633,19 +631,9 @@ ragg::agg_png(img_path,
 plot(ft)
 dev.off()
 
-# Composite logo onto saved PNG using magick
-logo  <- magick::image_read(logo_file)
-table_img <- magick::image_read(img_path)
-img_w <- magick::image_info(table_img)$width
-img_h <- magick::image_info(table_img)$height
-logo_w <- round(img_w * 0.15)
-logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
-logo_h <- magick::image_info(logo)$height
-table_img <- magick::image_composite(
-  table_img, logo,
-  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
-)
-magick::image_write(table_img, img_path, format = "png")
+# Stamp the Civilytics logo onto the saved table PNG (matches the plots'
+# civilytics_logo() default: wordmark / light, bottom-right).
+cv_stamp_logo_png(img_path)
 
 # Embed in rendered document
 knitr::include_graphics(img_path)
@@ -847,19 +835,9 @@ ragg::agg_png(img_path,
 plot(ft)
 dev.off()
 
-# Composite logo onto saved PNG using magick
-logo  <- magick::image_read(logo_file)
-table_img <- magick::image_read(img_path)
-img_w <- magick::image_info(table_img)$width
-img_h <- magick::image_info(table_img)$height
-logo_w <- round(img_w * 0.15)
-logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
-logo_h <- magick::image_info(logo)$height
-table_img <- magick::image_composite(
-  table_img, logo,
-  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
-)
-magick::image_write(table_img, img_path, format = "png")
+# Stamp the Civilytics logo onto the saved table PNG (matches the plots'
+# civilytics_logo() default: wordmark / light, bottom-right).
+cv_stamp_logo_png(img_path)
 
 # Embed in rendered document
 knitr::include_graphics(img_path)
@@ -1382,19 +1360,9 @@ ragg::agg_png(img_path,
 plot(ft)
 dev.off()
 
-# Composite logo onto saved PNG using magick
-logo  <- magick::image_read(logo_file)
-table_img <- magick::image_read(img_path)
-img_w <- magick::image_info(table_img)$width
-img_h <- magick::image_info(table_img)$height
-logo_w <- round(img_w * 0.15)
-logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
-logo_h <- magick::image_info(logo)$height
-table_img <- magick::image_composite(
-  table_img, logo,
-  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
-)
-magick::image_write(table_img, img_path, format = "png")
+# Stamp the Civilytics logo onto the saved table PNG (matches the plots'
+# civilytics_logo() default: wordmark / light, bottom-right).
+cv_stamp_logo_png(img_path)
 
 # Embed in rendered document
 knitr::include_graphics(img_path)
@@ -1533,19 +1501,9 @@ ragg::agg_png(img_path,
 plot(ft)
 dev.off()
 
-# Composite logo onto saved PNG using magick
-logo  <- magick::image_read(logo_file)
-table_img <- magick::image_read(img_path)
-img_w <- magick::image_info(table_img)$width
-img_h <- magick::image_info(table_img)$height
-logo_w <- round(img_w * 0.15)
-logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
-logo_h <- magick::image_info(logo)$height
-table_img <- magick::image_composite(
-  table_img, logo,
-  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
-)
-magick::image_write(table_img, img_path, format = "png")
+# Stamp the Civilytics logo onto the saved table PNG (matches the plots'
+# civilytics_logo() default: wordmark / light, bottom-right).
+cv_stamp_logo_png(img_path)
 
 # Embed in rendered document
 knitr::include_graphics(img_path)
@@ -1863,19 +1821,9 @@ ragg::agg_png(img_path,
 plot(ft)
 dev.off()
 
-# Composite logo onto saved PNG using magick
-logo  <- magick::image_read(logo_file)
-table_img <- magick::image_read(img_path)
-img_w <- magick::image_info(table_img)$width
-img_h <- magick::image_info(table_img)$height
-logo_w <- round(img_w * 0.15)
-logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
-logo_h <- magick::image_info(logo)$height
-table_img <- magick::image_composite(
-  table_img, logo,
-  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
-)
-magick::image_write(table_img, img_path, format = "png")
+# Stamp the Civilytics logo onto the saved table PNG (matches the plots'
+# civilytics_logo() default: wordmark / light, bottom-right).
+cv_stamp_logo_png(img_path)
 
 # Embed in rendered document
 knitr::include_graphics(img_path)
@@ -1957,19 +1905,9 @@ ragg::agg_png(img_path,
 plot(ft)
 dev.off()
 
-# Composite logo onto saved PNG using magick
-logo  <- magick::image_read(logo_file)
-table_img <- magick::image_read(img_path)
-img_w <- magick::image_info(table_img)$width
-img_h <- magick::image_info(table_img)$height
-logo_w <- round(img_w * 0.15)
-logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
-logo_h <- magick::image_info(logo)$height
-table_img <- magick::image_composite(
-  table_img, logo,
-  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
-)
-magick::image_write(table_img, img_path, format = "png")
+# Stamp the Civilytics logo onto the saved table PNG (matches the plots'
+# civilytics_logo() default: wordmark / light, bottom-right).
+cv_stamp_logo_png(img_path)
 
 # Embed in rendered document
 knitr::include_graphics(img_path)
