@@ -14,6 +14,7 @@
 open_draws_view <- function() {
   drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
   DBI::dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
+  .crdc_hf_auth(con)  # authenticated HF rate limit when HF_TOKEN is set (no-op otherwise)
   DBI::dbExecute(con, sprintf(
     "CREATE VIEW predicted_draws AS
        SELECT * FROM read_parquet('%s/**/*.parquet', hive_partitioning=true)",
@@ -43,7 +44,9 @@ read_stage_df <- function(rel) {
   drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
   on.exit({DBI::dbDisconnect(con, shutdown = TRUE); duckdb::duckdb_shutdown(drv)})
   DBI::dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
-  DBI::dbGetQuery(con, sprintf("SELECT * FROM read_parquet('%s')", crdc_path(rel)))
+  .crdc_hf_auth(con)  # authenticated HF rate limit when HF_TOKEN is set (no-op otherwise)
+  q <- sprintf("SELECT * FROM read_parquet('%s')", crdc_path(rel))
+  .crdc_with_retry(function() DBI::dbGetQuery(con, q))
 }
 
 #' Attach registry display labels by model_id.

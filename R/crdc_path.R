@@ -27,15 +27,58 @@ crdc_cache_dir <- function() {
   sprintf("https://huggingface.co/datasets/%s/resolve/%s/%s", repo, rev, rel)
 }
 
+# HuggingFace access token from the usual env vars ("" if none set). Treats an
+# empty HF_TOKEN as absent so it falls through to HUGGING_FACE_HUB_TOKEN.
+.crdc_hf_token <- function() {
+  tok <- Sys.getenv("HF_TOKEN", "")
+  if (!nzchar(tok)) tok <- Sys.getenv("HUGGING_FACE_HUB_TOKEN", "")
+  tok
+}
+
+# Authenticate a DuckDB httpfs connection to HuggingFace when a token is present,
+# so hf:// reads/writes use the (much higher) authenticated rate limit instead of
+# the low anonymous limit that triggers HTTP 429 on the bulk parquet mirror.
+# No-op when no token is set; tolerant of older DuckDB without the hf secret type.
+.crdc_hf_auth <- function(con) {
+  token <- .crdc_hf_token()
+  if (nzchar(token)) {
+    try(DBI::dbExecute(con, sprintf(
+      "CREATE OR REPLACE SECRET crdc_hf (TYPE huggingface, TOKEN '%s')",
+      gsub("'", "''", token))), silent = TRUE)
+  }
+  invisible(con)
+}
+
+# Run fn(), retrying on transient HuggingFace rate-limit / HTTP errors with
+# exponential backoff. Re-raises non-retryable errors immediately and the last
+# error after exhausting attempts.
+.crdc_with_retry <- function(fn, tries = 5L, base_wait = 2) {
+  for (i in seq_len(tries)) {
+    out <- tryCatch(fn(), error = function(e) e)
+    if (!inherits(out, "error")) return(out)
+    msg <- conditionMessage(out)
+    retryable <- grepl("429|rate.?limit|HTTP (4|5)[0-9][0-9]|timeout|temporar",
+                       msg, ignore.case = TRUE)
+    if (!retryable || i == tries) stop(out)
+    wait <- base_wait * 2^(i - 1L)
+    message(sprintf("HF request failed (attempt %d/%d): %s\n  retrying in %ds...",
+                    i, tries, msg, wait))
+    Sys.sleep(wait)
+  }
+}
+
 # Mirror the partitioned draws tree to a local dir once, via DuckDB (no new dep).
+# Authenticates with HF_TOKEN when available and retries the heavy COPY on 429.
 .crdc_mirror_parquet <- function(remote, local) {
   drv <- duckdb::duckdb(); con <- DBI::dbConnect(drv)
   on.exit({DBI::dbDisconnect(con, shutdown = TRUE); duckdb::duckdb_shutdown(drv)})
   DBI::dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
-  DBI::dbExecute(con, sprintf(
+  .crdc_hf_auth(con)
+  copy_sql <- sprintf(
     "COPY (SELECT * FROM read_parquet('%s/**/*.parquet', hive_partitioning=true))
        TO '%s' (FORMAT parquet, PARTITION_BY (model_id, YEAR, LEA_STATE), OVERWRITE_OR_IGNORE)",
-    remote, local))
+    remote, local)
+  .crdc_with_retry(function() DBI::dbExecute(con, copy_sql))
   invisible(local)
 }
 
@@ -56,7 +99,11 @@ crdc_path <- function(rel) {
   if (grepl("^parquet(/|$)", rel)) {
     .crdc_mirror_parquet(paste0(base, "/", rel), local)
   } else {
-    utils::download.file(.crdc_http(base, rel), local, mode = "wb")
+    url   <- .crdc_http(base, rel)
+    token <- .crdc_hf_token()
+    hdrs  <- if (nzchar(token)) c(Authorization = paste("Bearer", token)) else NULL
+    .crdc_with_retry(function()
+      utils::download.file(url, local, mode = "wb", quiet = TRUE, headers = hdrs))
   }
   local
 }
