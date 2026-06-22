@@ -1787,6 +1787,27 @@ school arrests. Future posts will make those choices explicit.
 
 ## Post 8 Expected vs Observed Arrests
 
+::: {.smpost slug="misreported-zeros-descriptive" title="Failure to report, or a real difference in policy? Populous districts reporting zero arrests" date="" draft="true" status="draft" series="8"}
+
+<!-- DRIFT: post8-intro -->
+In 2021-22, 2,060 school districts -- just 11.6% of all districts in
+the data -- reported at least one school-based arrest. The most common
+value, by far, is zero. Yet that small share of arresting districts
+enrolled 45% of all students, meaning nearly half of all students
+attended a school where an arrest occurred.
+
+When 88% of districts report zero arrests, a key question arises: are
+these true zeros, or failures to report?
+
+The table below shows why the question matters. The national average
+arrest rate in 2021-22 was roughly 1 arrest per 1,428 students. For a
+district with 20,000 or more students, that implies around 14 expected
+arrests. Yet 125 out of 376 large districts (33.2%) reported exactly
+zero arrests -- a share that would be nearly impossible if the national
+rate applied uniformly to everyone. If arrests followed a binomial
+process at the national rate, we would expect essentially every district
+of this size to report at least one arrest.
+<!-- /DRIFT -->
 
 ```{r}
 #| label: compute-expected-arrests
@@ -1884,8 +1905,105 @@ knitr::include_graphics(img_path)
 
 ```
 
+<!-- DRIFT: post8-suspicious-zeros -->
+This level of zeros is suspicious.
 
+To illustrate what suspicious reporting looks like, consider Paterson
+Public School District in New Jersey, with roughly 18,000 students
+enrolled in grades 7-12. The table below shows Paterson's arrest
+reporting across all three CRDC waves available in these data: 47
+arrests in 2015-16, 11 in 2017-18, and 0 in 2021-22. A district of
+this size, with a documented history of arrests, reporting zero in the
+most recent wave is difficult to explain by policy change alone.
 
+Despite steps taken before, during, and after data collection to ensure
+good data quality ([Office of Civil Rights
+2025](https://www.ed.gov/media/document/crdc-quality-informational-snapshot-january-2025-109165.pdf)),
+data errors exist. The number of reported -- but possibly erroneous --
+zeros poses challenges not just for understanding arrest patterns in
+particular districts, but for our whole understanding of national
+arrest rates.[^post8-1]
+<!-- /DRIFT -->
+
+```{r}
+#| label: big0_example_dist_table
+
+focal_dist <- "3412690"  # Paterson NJ
+
+img_path <- "export/figures/socialmedia-big0_example_dist_table.png"
+
+table_data3 <- tydata |> filter(LEAID == focal_dist) |>
+  group_by(LEA_STATE, LEA_NAME, YEAR) |>
+  summarize(arrests = sum(ARRESTS), enroll = sum(stu_enroll))
+
+ft <- flextable(table_data3) |>
+  set_header_labels(
+    LEA_STATE                = "State",
+    LEA_NAME                 = "District",
+    YEAR                     = "CRDC Wave",
+    arrests                  = "Arrests",
+    enroll                    = "Enrollment"
+  ) |>
+  add_header_lines("Suspiciously Low Reported Arrest Counts") |>
+  #add_header_lines("Three year data on American Indian/Alaska Native Student Arrests") |>
+   bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(size = 10, part = "body") |>
+  #bg(i = seq(2, n_rows + 1, 2), bg = alt_bg, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+  align(j = c("YEAR", "LEA_STATE", "LEA_NAME"), align = "left", part = "body") |>
+  align(j = c("arrests", "enroll"), align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  width(j = "YEAR",                width = 0.8) |>
+  width(j = "LEA_STATE",           width = 0.6)  |>
+  width(j = "LEA_NAME",            width = 2.5)  |>
+  # width(j = "ARRESTS",             width = 0.9)  |>
+  # width(j = "REFERRALS",           width = 0.9)  |>
+  # width(j = "arr_rate",           width = 0.9)  |>
+  # width(j = "stu_enroll",          width = 1.2)  |>
+  # width(j = "total_enroll",        width = 1.2)  |>
+  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection") |>
+  add_footer_lines("Enrollment shown is for grades 7-12.") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Composite logo onto saved PNG using magick
+logo  <- magick::image_read(logo_file)
+table_img <- magick::image_read(img_path)
+img_w <- magick::image_info(table_img)$width
+img_h <- magick::image_info(table_img)$height
+logo_w <- round(img_w * 0.15)
+logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
+logo_h <- magick::image_info(logo)$height
+table_img <- magick::image_composite(
+  table_img, logo,
+  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
+)
+magick::image_write(table_img, img_path, format = "png")
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+```
+
+[^post8-1]: Potentially erroneous zeros skew the distribution of arrest
+rates and reduce the value of summary statistics like the mean, since
+few districts actually sit near that average.
+
+:::
 
 ```{r}
 
@@ -2006,77 +2124,6 @@ p1 <- ggplot(res_pat, aes(x = pred, y = model_label, group = model_label)) +
         axis.text.y = element_text(angle = 90, hjust = -0.5))
 
 grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
-```
-
-```{r}
-
-img_path <- "export/figures/socialmedia-big0_example_dist_table.png"
-
-table_data3 <- tydata |> filter(LEAID == focal_dist) |>
-  group_by(LEA_STATE, LEA_NAME, YEAR) |>
-  summarize(arrests = sum(ARRESTS), enroll = sum(stu_enroll))
-
-ft <- flextable(table_data3) |>
-  set_header_labels(
-    LEA_STATE                = "State",
-    LEA_NAME                 = "District",
-    YEAR                     = "CRDC Wave",
-    arrests                  = "Arrests",
-    enroll                    = "Enrollment"
-  ) |>
-  add_header_lines("Suspiciously Low Reported Arrest Counts") |>
-  #add_header_lines("Three year data on American Indian/Alaska Native Student Arrests") |>
-   bg(bg = header_bg, part = "header") |>
-  color(color = header_fg, part = "header") |>
-  bold(part = "header") |>
-  fontsize(i = 1, size = 14, part = "header") |>
-  fontsize(size = 10, part = "body") |>
-  #bg(i = seq(2, n_rows + 1, 2), bg = alt_bg, part = "body") |>
-  font(fontname = "Arial", part = "all") |>
-  align(j = c("YEAR", "LEA_STATE", "LEA_NAME"), align = "left", part = "body") |>
-  align(j = c("arrests", "enroll"), align = "right", part = "body") |>
-  align(part = "header", align = "center") |>
-  width(j = "YEAR",                width = 0.8) |>
-  width(j = "LEA_STATE",           width = 0.6)  |>
-  width(j = "LEA_NAME",            width = 2.5)  |>
-  # width(j = "ARRESTS",             width = 0.9)  |>
-  # width(j = "REFERRALS",           width = 0.9)  |>
-  # width(j = "arr_rate",           width = 0.9)  |>
-  # width(j = "stu_enroll",          width = 1.2)  |>
-  # width(j = "total_enroll",        width = 1.2)  |>
-  border_outer(part = "all",  border = officer::fp_border(color = "#888888", width = 1)) |>
-  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
-  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection") |>
-  add_footer_lines("Enrollment shown is for grades 7-12.") |>
-  fontsize(size = 9, part = "footer") |>
-  color(color = "#555555", part = "footer") |>
-  set_table_properties(layout = "fixed")
-
-# Export table as PNG
-dims <- flextable_dim(ft)
-ragg::agg_png(img_path,
-  width = dims$width, height = dims$height + 0.4,
-  units = "in", res = 300, scaling = 1
-)
-plot(ft)
-dev.off()
-
-# Composite logo onto saved PNG using magick
-logo  <- magick::image_read(logo_file)
-table_img <- magick::image_read(img_path)
-img_w <- magick::image_info(table_img)$width
-img_h <- magick::image_info(table_img)$height
-logo_w <- round(img_w * 0.15)
-logo   <- magick::image_scale(logo, paste0(logo_w, "x"))
-logo_h <- magick::image_info(logo)$height
-table_img <- magick::image_composite(
-  table_img, logo,
-  offset = paste0("+", img_w - logo_w - 20, "+", img_h - logo_h - 20)
-)
-magick::image_write(table_img, img_path, format = "png")
-
-# Embed in rendered document
-knitr::include_graphics(img_path)
 ```
 
 ```{r}
