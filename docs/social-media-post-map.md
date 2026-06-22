@@ -170,19 +170,17 @@ national rate used for the "naïve" expectation ≈ 0.717/1,000.
 
 ---
 
-## Post 9 — "True" vs misreported zeros: analytic *(draft — has a gap)*
-**Source:** Posts 7-x.docx (part 2) · **Status: prose drafted; one figure missing**
+## Post 9 — "True" vs misreported zeros: analytic *(draft)*
+**Source:** Posts 7-x.docx (part 2) · **Status: prose drafted; all figures present**
 
 | docx | chunk | PNG | status |
 |------|-------|-----|--------|
-| image3 — Fig 1 (Paterson: models vs frequentist interval) | **none** — `plotdf` is prepped at qmd:1613 but never plotted | **missing** | ⚠ **GAP** |
+| image3 — Fig 1 (Paterson: models vs frequentist interval) | `paterson_model_comparison` (added 2026-06-22) | `socialmedia-paterson_model_comparison-1.png` | ✓ |
 | image4 — Fig 2 (all-model histogram for Paterson) | `zero_arrest_counts_draws` | `socialmedia-zero_arrest_counts_draws-1.png` | ✓ |
 
-- ⚠ **Action — render Fig 1.** The qmd computes Paterson's observed/frequentist
-  pointrange data (`obsv_plot`, `model_plot`, `plotdf` near qmd:1576–1622) but stops
-  before drawing the ridge-vs-frequentist comparison the post calls "Figure 1." The
-  AM equivalent already exists — clone `arrests_model_comparison_am` with
-  `focal_dist = 3412690` (Paterson NJ) to produce it. No PNG exists today.
+- Fig 1 (`paterson_model_comparison`) added 2026-06-22 — ridge density vs frequentist
+  pointrange for Paterson NJ (`focal_dist = 3412690`), mirroring
+  `arrests_model_comparison_am`. PNG confirmed: `socialmedia-paterson_model_comparison-1.png` (605 KB).
 - Fig 2 (`zero_arrest_counts_draws`) is the 4-panel posterior histogram; matches the
   post's "every draw plotted as a histogram." Reproducible offline.
 
@@ -209,8 +207,8 @@ students / 1 arrest), and exclude group observations with 0 group enrollment.
 ## Consolidated gaps & TODOs
 
 **Figures**
-- [ ] **Post 9 Fig 1 missing** — add a render of the Paterson model-vs-frequentist
-  comparison (clone `arrests_model_comparison_am`, `focal_dist = 3412690`).
+- [x] **Post 9 Fig 1 missing** — add a render of the Paterson model-vs-frequentist
+  comparison (clone `arrests_model_comparison_am`, `focal_dist = 3412690`). *(Done 2026-06-22)*
 - [ ] Decide on **`sg_summary_arrestNNH`** (NNH by race×sex) — promote into Post 6 or
   mark exploratory.
 - [ ] Decide on **`cov_plot_quintile_total`, `cov_plot_decile_total`** — exploratory

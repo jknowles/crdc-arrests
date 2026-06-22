@@ -1876,6 +1876,50 @@ plotdf <- bind_rows(obsv_plot %>%
 ```
 
 ```{r}
+#| label: paterson_model_comparison
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 12
+#| fig-height: 8
+
+# Figure 1 of Post 9 (Posts 7-x): predicted-arrest density per model vs the
+# frequentist interval for Paterson NJ (focal_dist = 3412690), mirroring
+# arrests_model_comparison_am. dist_draws/obsv_plot are from the prep chunk above.
+res_pat <- dist_draws |>
+  filter(!grepl("_m5", model_id), !grepl("sg_", model_id)) |>
+  group_by(model_id, draw_id) |>
+  summarize(pred = sum(pred), .groups = "drop") |>
+  group_by(model_id) |>
+  mutate(model_time = add_model_time(model_id),
+         model_label = paste0(add_model_time(model_id), "\n", add_model_cov(model_id)))
+
+obsv_pat <- obsv_plot |>
+  tidyr::crossing(model_id = unique(res_pat$model_id)) |>
+  mutate(model_label = paste0(add_model_time(model_id), "\n", add_model_cov(model_id)),
+         model_time  = add_model_time(model_id))
+
+p1 <- ggplot(res_pat, aes(x = pred, y = model_label, group = model_label)) +
+  ggridges::geom_density_ridges(scale = 0.9, rel_min_height = 0.01) +
+  geom_pointrange(data = obsv_pat,
+    aes(y = model_label, x = arrests, xmin = ci_lower, xmax = ci_upper),
+    color = I("#2993fd"), position = position_nudge(y = 0.2)) +
+  scale_y_discrete("Model", limits = rev,
+                   expand = expansion(mult = c(0.1, 0.15))) +
+  facet_wrap(~add_model_time(model_id), ncol = 2, scales = "free") +
+  labs(title = stringr::str_wrap(paste0("Predicted arrests probability density for ",
+        dist_name_for_title), 90),
+       x = "Predicted arrests", y = "Model type",
+       subtitle = stringr::str_wrap("Observed arrests and frequentist interval shown in bright blue pointrange (0 reported arrests).", 90)) +
+  ggridges::theme_ridges(grid = FALSE, font_size = 14) +
+  theme(legend.position = "bottom",
+        panel.grid.major.y = element_line(color = "gray50"),
+        axis.text.y = element_text(angle = 90, hjust = -0.5))
+
+grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
+```
+
+```{r}
 
 img_path <- "export/figures/socialmedia-big0_example_dist_table.png"
 
