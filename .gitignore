@@ -2,6 +2,7 @@
 *.html
 *_files/
 /export
+export/hugo/
 /cache
 /.crdc-cache
 *.xlsx
