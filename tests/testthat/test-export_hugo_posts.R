@@ -27,23 +27,29 @@ test_that("write_hugo_bundle copies figures and rewrites links", {
   expect_false(grepl("export/figures", idx))
 })
 
-test_that("write_hugo_bundle strips DRIFT markers but preserves prose", {
+test_that("write_hugo_bundle strips POST-PROSE (and legacy DRIFT) markers but preserves prose", {
   tmp <- withr::local_tempdir()
   repo <- withr::local_tempdir()
-  body_with_drift <- paste0(
-    "<!-- DRIFT: x -->\n",
+  body_with_markers <- paste0(
+    "<!-- POST-PROSE: x -->\n",
     "Text.\n",
+    "<!-- /POST-PROSE -->\n",
+    "Middle.\n",
+    "<!-- DRIFT: legacy -->\n",   # legacy name still stripped
+    "Legacy text.\n",
     "<!-- /DRIFT -->\n",
-    "After drift."
+    "After markers."
   )
-  p <- list(slug="drift-test", title="Drift Test", date="2025-01-01",
+  p <- list(slug="marker-test", title="Marker Test", date="2025-01-01",
             status="gold", series="1", draft=FALSE,
-            body=body_with_drift, images=character())
+            body=body_with_markers, images=character())
   dir <- write_hugo_bundle(p, out_root = tmp, repo_root = repo)
   idx <- paste(readLines(file.path(dir, "index.md")), collapse = "\n")
+  expect_false(grepl("POST-PROSE", idx))
   expect_false(grepl("DRIFT", idx))
-  expect_true(grepl("Text\\.", idx))   # prose preserved
-  expect_true(grepl("After drift", idx))
+  expect_true(grepl("Text\\.", idx))         # prose preserved
+  expect_true(grepl("Legacy text", idx))     # legacy-wrapped prose preserved
+  expect_true(grepl("After markers", idx))
 })
 
 test_that("parse_smposts splits posts and pulls metadata + images", {
