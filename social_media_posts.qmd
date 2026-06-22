@@ -2382,6 +2382,32 @@ concern the data may not be prepared and released as planned.
 
 :::
 
+::: {.smpost slug="estimating-rare-events" title="Estimating rare events in fixed populations: lessons from other fields" date="" draft="true" status="draft" series="10"}
+
+<!-- DRIFT: Post 10 — Estimating rare events in fixed populations: methodology, comparisons, and future directions -->
+
+School arrests are relatively rare, which makes measuring them precisely challenging: reliable rate estimates require either large student populations or statistical borrowing from related units. Yet each school district's population is fixed — you cannot simply run more "trials." This creates a dilemma: for many student groups and many districts, disparities in this rare but consequential school action are statistically invisible.
+
+Fortunately, estimating event rates in fixed population units has a long statistical tradition. The U.S. Census Bureau's Small Area Income and Poverty Estimates (SAIPE) program is perhaps the best-known example, using model-based methods to produce reliable poverty estimates for counties and school districts too small for direct survey estimates. Public-health researchers have applied the same logic to measure variation in outcomes like obesity and tobacco use across small geographic areas. Bayesian hierarchical models of rare events have been used in domains as varied as oil-spill risk and accidental fishery bycatch. The common thread: borrow statistical strength across units so that even data-sparse units get useful estimates.
+
+Our work applies this tradition to school arrest data from the Civil Rights Data Collection (CRDC). We show that model-based approaches yield more precise arrest-rate estimates than naive rates — precision that enables more meaningful comparisons among districts, between student groups, and across time. Demonstrating the value of these methods matters particularly now, given concerns that the CRDC data collection may not continue to be prepared and released as planned.[^post10-1]
+
+**Two ways to read the CRDC.** There is a conceptual tension in how to interpret CRDC arrest data. One reading treats the data as a *population*: the CRDC is designed to be a census of all public schools, so the numbers are what they are — to compare two years, subtract. The other treats the data as a *measurement*: because nonresponse and reporting errors introduce noise independent of real changes in schools, we need to understand measurement precision before concluding that a change is real rather than artifactual. Our modeling framework is explicitly grounded in the measurement view: we estimate underlying arrest rates and their uncertainty rather than taking reported counts at face value.
+
+**Methodological notes.** Our models are restricted to schools enrolling students in grade 7 or above; elementary-age students are rarely arrested, and including very young grades would push the model toward structural zeros in uninformative ways. We further restrict to districts enrolling at least 30 students total[^post10-2] and exclude any district–student-group observation where the group's enrollment is recorded as zero.
+
+**Why some comparisons are startling — and what they invite.** One of the most striking features of the data is how dramatically nearby districts can differ. Mobile County Schools (AL) reported 309 arrests from a student population of 56,521. Jefferson County Schools, which covers much of the Birmingham metropolitan area, reported just 1 arrest from 35,963 students. These districts are neighbors in the same state. Are their discipline policies that different? Did one under-report? Did something change between collection cycles? Comparisons like this — between a central-city district, a county system, and the charter school sector operating in the same metro area — are among the most actionable analyses the CRDC makes possible, and among the hardest to pursue without a tool that surfaces them automatically.
+
+**Where we want to take this.** The analyses in this series are a proof of concept; the ambition is larger. We would like to build a publicly accessible web application — or an API and AI-assisted interface — that allows journalists, advocates, researchers, and district leaders to query arrest-rate estimates for any district, compare neighboring districts within a metropolitan area, and trace trends across the multiple CRDC collection cycles. Adding prior collection years would let us say, for a given school district, how arrest rates have changed over the past decade — and whether apparent changes exceed what we would expect from measurement noise alone. That kind of longitudinal, model-informed view of school discipline is currently unavailable at scale. We are actively seeking funding and partners to make it a reality.
+
+<!-- /DRIFT -->
+
+[^post10-1]: The 2023-24 CRDC data collection was expected to be completed by summer 2025 with data released in 2026, but there is concern that the data may not be prepared and released as planned.
+
+[^post10-2]: This filter removes 308 districts representing 4,693 students (<0.01% of enrollment) and only 1 arrest.
+
+:::
+
 ```{r}
 #| label: cleanup
 #| include: false
