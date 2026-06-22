@@ -890,13 +890,49 @@ knitr::include_graphics(img_path)
 
 :::
 
+::: {.smpost slug="coefficient-of-variation" title="Basic facts — coefficient of variation" date="2025-03-01" status="gold" series="5"}
+
+<!-- DRIFT: post5-cov-blockquote -->
+> The coefficient of variation is a standardized metric for the relative
+> precision of a measurement. The more imprecise a measure is, the more
+> difficult it is to attribute differences among observations to true
+> underlying differences as opposed to variation resulting from
+> measurement alone. In the case of arrest rates, the limitations of
+> time (a single school year) and population (the district enrollment)
+> mean that the arrest rate as captured by the Civil Rights Data
+> Collection (CRDC) may be limited in its ability to describe true
+> differences in arrest patterns.
+>
+> We can see this three ways in the figure below.
+>
+> First, the coefficients of variation are higher for arrests than
+> referrals -- school-based referrals to law enforcement are more
+> frequent than school-based arrests, so there is less dispersion around
+> their measurement.
+>
+> Second, the CV decreases for both referrals and arrests as the student
+> enrollment decile increases (i.e., as districts are larger), but does
+> so much more consistently for referrals.
+>
+> Third, student groups with smaller populations such as American Indian
+> and Black students generally have less precise arrest rates than their
+> counterparts in larger student groups.
+>
+> These disparities in precision were one of the initial motivators for
+> us to look into statistical methods to improve the precision of arrest
+> rates and allow for more meaningful district-student group-level
+>
+> comparisons.
+<!-- /DRIFT -->
+
 ```{r}
 #| label: cov_plot_quintile_total
 #| echo: false
 #| warning: false
 #| message: false
 #| fig-width: 9
-
+#| eval: false
+# exploratory: superseded by cov_plot_decile_byraceeth (see docs/social-media-post-map.md)
 
 #dist_ref_arr
 
@@ -973,6 +1009,8 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 #| warning: false
 #| message: false
 #| fig-width: 9
+#| eval: false
+# exploratory: superseded by cov_plot_decile_byraceeth (see docs/social-media-post-map.md)
 
 total_enroll_decile <- quantile(
   tabdf$total_enroll[tabdf$SEX == "TOTAL" & tabdf$RACE == "TOTAL"],
@@ -1102,6 +1140,14 @@ grid::grid.draw(civilytics::civilytics_logo(pw, position = "bottom-right"))
 
 ```
 
+<!-- DRIFT: post5-cov-closing-note -->
+Another note: You may also notice that, for arrests, there is an uptick
+in the coefficient of variation for the largest districts. In a future
+post we will look at one potential source for this increased variance:
+underreporting of student arrests.
+<!-- /DRIFT -->
+
+:::
 
 ## Arrests by race
 
