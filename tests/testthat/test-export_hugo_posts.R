@@ -49,3 +49,24 @@ test_that("parse_smposts splits posts and pulls metadata + images", {
   expect_true(posts[[2]]$draft)
   expect_equal(posts[[2]]$slug, "beta")
 })
+
+test_that("export_hugo_posts writes one bundle per post from a markdown file", {
+  repo <- withr::local_tempdir()
+  dir.create(file.path(repo, "export/figures"), recursive = TRUE)
+  writeBin(as.raw(c(0x89,0x50)), file.path(repo, "export/figures/socialmedia-x-1.png"))
+  md <- paste(
+    '<div class="smpost" slug="alpha" title="A" date="2025-02-01" status="gold" series="1">',
+    'Body ![m](export/figures/socialmedia-x-1.png)',
+    '</div>',
+    '<div class="smpost" slug="beta" title="B" date="" status="draft" series="7" draft="true">',
+    'Beta body, no image.',
+    '</div>', sep = "\n")
+  md_path <- file.path(repo, "social_media_posts.md")
+  writeLines(md, md_path)
+  out <- file.path(repo, "export/hugo/posts")
+  dirs <- export_hugo_posts(md_path, out_root = out, repo_root = repo)
+  expect_length(dirs, 2)
+  expect_true(file.exists(file.path(out, "alpha", "index.md")))
+  expect_true(file.exists(file.path(out, "alpha", "figure-1.png")))
+  expect_true(file.exists(file.path(out, "beta", "index.md")))
+})

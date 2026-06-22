@@ -59,3 +59,9 @@ write_hugo_bundle <- function(post, out_root, repo_root) {
   writeLines(paste0(hugo_front_matter(post), body), file.path(dir, "index.md"))
   dir
 }
+
+export_hugo_posts <- function(md_path, out_root = "export/hugo/posts", repo_root = ".") {
+  md <- paste(readLines(md_path, warn = FALSE), collapse = "\n")
+  posts <- parse_smposts(md)
+  vapply(posts, write_hugo_bundle, character(1), out_root = out_root, repo_root = repo_root)
+}
