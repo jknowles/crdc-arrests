@@ -53,6 +53,14 @@ source("R/funs.R")
 source("R/spatial_utils.R")
 source("R/crdc_path.R"); source("R/model_registry.R"); source("R/paper_figures.R")
 
+# Owner convenience for interactive chunk runs: if CRDC_ARTIFACTS is unset and a
+# local artifact store is present, resolve locally instead of hitting hf:// (which
+# rate-limits, HTTP 429). A new user without a local "export/" still gets the hf://
+# default. The render scripts set CRDC_ARTIFACTS=export explicitly.
+if (Sys.getenv("CRDC_ARTIFACTS") == "" && dir.exists("export/parquet")) {
+  Sys.setenv(CRDC_ARTIFACTS = "export")
+}
+
 # predicted_draws VIEW over the PUBLISHED draws parquet (CRDC_ARTIFACTS selects
 # local "export" for the owner, hf:// for a new user). Existing
 # get_prediction_summary(con, ...) calls work unchanged.
@@ -77,35 +85,6 @@ logo_w_in <- 1.5   # how wide you want the logo
 logo_h_in <- 0.375  # match your logo's aspect ratio (~4:1)
 margin_in <- 0.05  # gap from edge
 
-# add_logo_overlay <- function(p,
-#                               side = "right",
-#                               vertical = "bottom",
-#                              fig_w    = 12,
-#                              fig_h    = 8,
-#                              logo_w_in = 1.5,
-#                              logo_h_in = 0.375,
-#                              margin_in = 0.15) {
-#   logo_grob <- png::readPNG(logo_file) |> grid::rasterGrob(interpolate = TRUE)
-
-#   # Convert inches → plot fractions
-#   w <- logo_w_in / fig_w
-#   h <- logo_h_in / fig_h
-#   if ( side == "right") {
-#     x <- 1 - w - (margin_in / fig_w)   # right-anchored
-#   } else {
-#     x <- 0.05
-#  }
-#      if(vertical == "bottom") {
-#     y <- 0 #(margin_in / fig_h)
-#   } else {
-#     y <- 1 - (margin_in / fig_h)
-#   }
-
-#   cowplot::ggdraw(p) +
-#     cowplot::draw_grob(logo_grob, x = x, y = y, width = w, height = h)
-# }
-
-# Add colors
 color_fill_values <- c("WH" = "#c92d0e", "BL" = "#020684",
                         "AM" = "#ff8f43",
                        "TOTAL" = "#909090ff", "HI" = "#0791b6")
