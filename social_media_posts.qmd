@@ -1040,8 +1040,8 @@ p1 <- ggplot(plotdf[plotdf$RACE %in% c("AM","BL", "WH", "TOTAL", "HI"),],
   geom_point(size = 4) +
   scale_color_manual(values = color_fill_values2) +
   scale_y_continuous(labels = scales::label_percent(big.mark = ","),
-  breaks = c(0, 5, 10, 15, 20, 30, 40),
-  limits = c(0, 40), expand = expansion(mult = c(0, 0.1))) +
+  breaks = c(0, 5, 10, 15, 20, 30),
+  limits = c(0, 30), expand = expansion(mult = c(0, 0.1))) +
   civilytics::theme_civilytics(font_size = 12) +
   theme(legend.position = "bottom",
   axis.title.x = element_text(margin = margin(t = 15))) +
@@ -1063,8 +1063,8 @@ p2 <- ggplot(plotdf[plotdf$RACE %in% c("AM", "BL", "WH", "TOTAL", "HI"),],
   geom_point(size = 4) +
   scale_color_manual(values = color_fill_values2) +
   scale_y_continuous(labels = scales::label_percent(big.mark = ","),
-  breaks = c(0, 5, 10, 15, 20, 30, 40),
-  limits = c(0, 40), expand = expansion(mult = c(0, 0.1)))  +
+  breaks = c(0, 5, 10, 15, 20, 30),
+  limits = c(0, 30), expand = expansion(mult = c(0, 0.1)))  +
   civilytics::theme_civilytics(font_size = 12) +
   theme(legend.position = "bottom",
   axis.title.x = element_text(margin = margin(t = 15)))  +
@@ -1541,13 +1541,13 @@ the figure below shows this frequentist interval. It does not overlap 0:
 using only the 2021-22 enrollment and arrest data, we can rule out zero
 arrests.
 
-But that frequentist interval is wide and uses only a single year. The
+But that frequentist interval is wide and uses only a single year of observed data. The
 panel figure below shows multiple model estimates for Sioux Falls side by
 side, ranging from a simple single-year, no-covariate model (top left) to
 a richer model incorporating all three waves of CRDC data plus referrals
 to law enforcement as a covariate and accounting for state and student
 group effects (bottom right). Each panel shows the full probability
-distribution of predicted arrests; the colored region is the 95% highest
+distribution of predicted arrests in gray; the colored region is the 95% highest
 posterior density interval.
 
 Two patterns emerge clearly. First, adding more years of data (moving
@@ -1837,9 +1837,14 @@ To illustrate what suspicious reporting looks like, consider Paterson
 Public School District in New Jersey, with roughly 18,000 students
 enrolled in grades 7-12. The table below shows Paterson's arrest
 reporting across all three CRDC waves available in these data: 47
-arrests in 2015-16, 11 in 2017-18, and 0 in 2021-22. A district of
+arrests in 2015-16, 11 in 2017-18, and 0 in 2021-22.
+
+A district of
 this size, with a documented history of arrests, reporting zero in the
-most recent wave is difficult to explain by policy change alone.
+most recent wave is a case where we want to assess was there a policy change
+against arrests, stopping them completely, or a reporting error. Using data and
+statistics alone we will not be able to distinguish, but we can, with a statistical
+model, improve our estimate.
 
 Despite steps taken before, during, and after data collection to ensure
 good data quality ([Office of Civil Rights
@@ -2014,13 +2019,89 @@ with the largest student enrollments -- 1.15 per 1,000.[^post9-1] If
 we assume all of the zeros are misreported and apply this rate to actual
 enrollment, we would naïvely expect 2,645 arrests across these 100
 districts. We know reality lies somewhere between zero and that ceiling.
-What the models tell us clearly is this: across all ten specifications,
-the probability that any one of these 100 large districts truly had zero
-arrests is less than 2.5% -- meaning zero is outside the 95% prediction
-interval for every model. Accounting for prior years of data, **as many
-as 1,794 and at least 751 arrests are missing from the 2021-22 CRDC**
-in just these 100 districts.
+What the models agree on is the floor: across all ten specifications,
+zero falls outside the 95% prediction interval for every one of these
+districts -- whatever the true count is, it is almost certainly not zero.
+How far above zero depends on how much history you let the models use
+(see the table below). If you take prior collection years into account,
+the models put the missing arrests across these 100 districts at between
+**753 and 1,787** -- well short of the naive 2,645, but a large number
+unaccounted for. If you look at the current year alone, the count is much
+lower, between **16 and 171** -- but under no model is it zero.
 <!-- /POST-PROSE -->
+
+```{r}
+#| label: big0_missing_arrests_table
+
+img_path <- "export/figures/socialmedia-big0_missing_arrests_table.png"
+
+# Naive ceiling: mean of per-district arrest rates among the 100 largest
+# districts (big100), applied to the zero-reporting districts' enrollment (big0).
+naive_rate <- mean(big100$total_arrests / big100$total_enroll * 1000)
+naive <- round(sum(big0$total_enroll) * naive_rate / 1000)
+
+# Per-model predicted total arrests across the 100 zero-reporting districts.
+big0_draws <- get_prediction_draws(con, LEAID = big0$LEAID, YEAR = "21-22")
+missing_tab <- big0_draws |>
+  group_by(model_id, draw_id) |>
+  summarize(tot = sum(pred), .groups = "drop") |>
+  group_by(model_id) |>
+  summarize(med = median(tot),
+            lo = quantile(tot, 0.025),
+            hi = quantile(tot, 0.975), .groups = "drop") |>
+  left_join(crdc_model_registry(), by = c("model_id" = "id")) |>
+  mutate(grp = factor(group, levels = c("unified", "stratified")),
+         order_spec = match(spec, c("m1", "m2", "m3", "m4", "m5")),
+         Model = label,
+         Data = ifelse(spec %in% c("m1", "m2"), "Recent year only", "Three CRDC waves"),
+         Predicted = round(med),
+         Interval = sprintf("%d - %d", round(lo), round(hi))) |>
+  arrange(grp, order_spec) |>
+  select(Model, Data, Predicted, Interval)
+
+ft <- flextable(missing_tab) |>
+  add_header_lines(sprintf("Reported in CRDC: 0          Naive ceiling (%.2f per 1,000): %s",
+                           naive_rate, format(naive, big.mark = ","))) |>
+  add_header_lines("Estimated arrests missing from 100 large districts reporting zero (2021-22)") |>
+  set_header_labels(Model = "Model", Data = "Data used",
+                    Predicted = "Predicted arrests", Interval = "95% interval") |>
+  bg(bg = header_bg, part = "header") |>
+  color(color = header_fg, part = "header") |>
+  bold(part = "header") |>
+  fontsize(i = 1, size = 14, part = "header") |>
+  fontsize(i = 2, size = 11, part = "header") |>
+  fontsize(size = 10, part = "body") |>
+  font(fontname = "Arial", part = "all") |>
+  align(j = c("Model", "Data"), align = "left", part = "body") |>
+  align(j = c("Predicted", "Interval"), align = "right", part = "body") |>
+  align(part = "header", align = "center") |>
+  width(j = "Model", width = 1.5) |>
+  width(j = "Data", width = 1.7) |>
+  width(j = "Predicted", width = 1.4) |>
+  width(j = "Interval", width = 1.3) |>
+  border_outer(part = "all", border = officer::fp_border(color = "#888888", width = 1)) |>
+  border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
+  add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection; Civilytics Bayesian models.") |>
+  add_footer_lines("Recent-year models shrink toward the reported zero; three-wave models borrow strength from prior collections. Median predicted arrests with 95% prediction interval.") |>
+  fontsize(size = 9, part = "footer") |>
+  color(color = "#555555", part = "footer") |>
+  set_table_properties(layout = "fixed")
+
+# Export table as PNG
+dims <- flextable_dim(ft)
+ragg::agg_png(img_path,
+  width = dims$width, height = dims$height + 0.4,
+  units = "in", res = 300, scaling = 1
+)
+plot(ft)
+dev.off()
+
+# Stamp the Civilytics logo onto the saved table PNG.
+cv_stamp_logo_png(img_path)
+
+# Embed in rendered document
+knitr::include_graphics(img_path)
+```
 
 <!-- POST-PROSE: post9-paterson-fig1 -->
 To understand how the models reach this conclusion, we examine Paterson
@@ -2042,7 +2123,8 @@ intervals that are **narrower** than the frequentist interval,
 demonstrating one of the core advantages of the Bayesian approach:
 better precision in sparse-data cases. The three-year models tell a
 different story. Their intervals are all wider than the frequentist
-interval, and their median predicted arrest counts are greater than
+interval (note the change in scale on the x-axis in the right column),
+and their median predicted arrest counts are greater than
 zero. Models without covariates suggest more than 10 arrests are most
 likely. The reason is the prior information encoded from 2015-16 and
 2017-18: the three-year models remember Paterson's history and expect
@@ -2263,7 +2345,7 @@ covariate-adjusted three-year models still rule out 0 arrests with
 95% confidence -- every draw lands above 0. The referral information
 pulls the estimate toward zero, but not all the way there.
 
-Taken together, Paterson's ten models offer three interpretive
+Taken together, our ten models of arrests offer three interpretive
 frameworks:
 
 - **Strongly align with the reported data** and improve precision over
@@ -2310,15 +2392,90 @@ Our work applies this tradition to school arrest data from the Civil Rights Data
 
 **Methodological notes.** Our models are restricted to schools enrolling students in grade 7 or above; elementary-age students are rarely arrested, and including very young grades would push the model toward structural zeros in uninformative ways. We further restrict to districts enrolling at least 30 students total[^post10-2] and exclude any district–student-group observation where the group's enrollment is recorded as zero.
 
-**Why some comparisons are startling — and what they invite.** One of the most striking features of the data is how dramatically nearby districts can differ. Mobile County Schools (AL) reported 309 arrests from a student population of 56,521. Jefferson County Schools, which covers much of the Birmingham metropolitan area, reported just 1 arrest from 35,963 students. These districts are neighbors in the same state. Are their discipline policies that different? Did one under-report? Did something change between collection cycles? Comparisons like this — between a central-city district, a county system, and the charter school sector operating in the same metro area — are among the most actionable analyses the CRDC makes possible, and among the hardest to pursue without a tool that surfaces them automatically.
+**Why some comparisons are startling — and what they invite.** One of the most striking features of the data is how dramatically nearby districts can differ. Mobile County Schools (AL) reported 140 arrests from a student population of 52,475. Jefferson County Schools, which covers much of the Birmingham metropolitan area, reported just 1 arrest from 36,405 students. These districts are neighbors in the same state. Are their discipline policies that different? Did one under-report? Did something change between collection cycles? Comparisons like this — between a central-city district, a county system, and the charter school sector operating in the same metro area — are among the most actionable analyses the CRDC makes possible, and among the hardest to pursue without a tool that surfaces them automatically.
 
-**Where we want to take this.** The analyses in this series are a proof of concept; the ambition is larger. We would like to build a publicly accessible web application — or an API and AI-assisted interface — that allows journalists, advocates, researchers, and district leaders to query arrest-rate estimates for any district, compare neighboring districts within a metropolitan area, and trace trends across the multiple CRDC collection cycles. Adding prior collection years would let us say, for a given school district, how arrest rates have changed over the past decade — and whether apparent changes exceed what we would expect from measurement noise alone. That kind of longitudinal, model-informed view of school discipline is currently unavailable at scale. We are actively seeking funding and partners to make it a reality.
+**Where we want to take this.** Part of this is already built. The cleaned data and the model-based estimates already live behind a public API — you can pull Mobile County's estimates, the same district from the comparison above, with a single request:
+
+```
+GET https://crdc-api.civilytics.org/api/v1/estimates/0102370?year=21-22&model=unified_m2
+```
+
+That returns Mobile County's modeled arrest-rate estimates — broken out by student group, each with a credible interval — for any of the three collection years and any of the ten models. What we still want to build is the layer that makes this usable for non-programmers: a publicly accessible web application and an AI-assisted interface that let journalists, advocates, researchers, and district leaders query any district, compare neighbors within a metropolitan area, and trace trends across the multiple CRDC collection cycles without writing a line of code. Adding prior collection years would let us say, for a given school district, how arrest rates have changed over the past decade — and whether apparent changes exceed what we would expect from measurement noise alone. That kind of longitudinal, model-informed view of school discipline is still unavailable at scale, and we are actively seeking funding and partners to extend it.
 
 <!-- /POST-PROSE -->
 
 [^post10-1]: The 2023-24 CRDC data collection was expected to be completed by summer 2025 with data released in 2026, but there is concern that the data may not be prepared and released as planned.
 
 [^post10-2]: This filter removes 308 districts representing 4,693 students (<0.01% of enrollment) and only 1 arrest.
+
+:::
+
+::: {.smpost slug="open-corrected-data" title="Stop reinventing the wheel: open, corrected, longitudinally aligned CRDC arrest data" date="" draft="true" status="draft" series="11"}
+
+<!-- POST-PROSE: post11-intro -->
+The Civil Rights Data Collection is one of the richest sources of information on
+school discipline in the country — and one of the most underused, because it is
+genuinely hard to work with. Almost everyone who analyzes the CRDC begins by
+re-cleaning it from scratch. The corrections one team makes are rarely written
+down and almost never shared back, so the next team repeats the work — and risks
+repeating the same mistakes.
+<!-- /POST-PROSE -->
+
+<!-- POST-PROSE: post11-skip-codes -->
+None of this is to say the raw data is easy to handle. The collection encodes
+suppressed, skipped, and not-applicable values as reserved negative numbers whose
+conventions shift between collection years — treat a code like `-9` as a real count
+and a handful of districts become national outliers. But this kind of mechanical
+decoding is table stakes: the serious repackagers already get it right. The problems
+that *aren't* solved lie deeper.
+<!-- /POST-PROSE -->
+
+<!-- POST-PROSE: post11-repackagers -->
+A few organizations re-publish the CRDC in friendlier formats — the Urban
+Institute's Education Data Portal is the best known.[^post11-1] These are genuinely
+valuable for *access*, and they handle the mechanical cleaning well. But by design
+they stop there. They serve the reported numbers essentially as-is, and they publish
+CRDC and the Common Core of Data as separate products — leaving each user to re-link
+them, re-align the years, and decide for themselves whether a suspicious count is
+real. Access to the same unexamined numbers is not the same as making the data
+usable.
+<!-- /POST-PROSE -->
+
+<!-- POST-PROSE: post11-our-approach -->
+Two things set this project apart. **First, we did the integration work once, and
+carefully.** We aligned the three CRDC collections longitudinally — reconciling
+district identifiers and names that drift across years and putting enrollment
+denominators on a comparable footing — and we joined every school to its Common Core
+of Data record, so each count carries the geography, grade span, and enrollment
+needed to place it, filter it, and compare it. The major portals leave both of those
+jobs to their users. **Second — and this is the heart of the project — we add a
+measurement-error model on top of the cleaned data.** Rather than treat each reported
+count as the truth, we estimate every district's underlying arrest rate as a
+*distribution*, with the uncertainty made explicit: a single arrest among 36,000
+students and a true rate of zero are no longer forced to look identical. We fit ten
+specifications, not one — five to the whole collection and five separately by student
+group, with and without referral information and on single-year and multi-year
+samples — so a user can see whether a comparison holds up across modeling choices or
+rests on one fragile assumption.
+<!-- /POST-PROSE -->
+
+<!-- POST-PROSE: post11-open -->
+And we give it back in a form people can build on. The cleaned, longitudinally
+aligned data — full district and student-group counts across all three collections —
+is published as an open dataset on Hugging Face, so anyone can pull corrected,
+comparable CRDC arrest numbers straight into their own work. And a live API puts the
+modeling within reach: for any district, student group, and collection year it
+returns both the reported count and the modeled estimate with credible intervals,
+backed by the full posterior draws from all ten models for bulk users who want the
+distributions directly. A researcher, journalist, or district leader can ask whether
+a district's apparent change is real or just noise, and compare neighbors on a common
+footing, without first rebuilding the cleaning, the alignment, or the models.
+Corrections and uncertainty estimates for public data should be shared
+infrastructure, not something every project quietly rebuilds in isolation — and, like
+the collection itself, that investment only pays off if it is allowed to continue.
+<!-- /POST-PROSE -->
+
+[^post11-1]: Urban Institute, Education Data Portal — <https://educationdata.urban.org/>.
 
 :::
 
