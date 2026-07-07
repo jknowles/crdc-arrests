@@ -1,5 +1,6 @@
 *.knit.md
 *.html
+!docs/api/site/*.html
 *_files/
 # transient gfm render produced by scripts/export-hugo-posts.sh
 /social_media_posts.md

@@ -5,6 +5,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
+  /* palette — canonical, from the site's _tokens.css */
   --cv-paper:    #FAF7F2;
   --cv-paper-2:  #F2EDE4;
   --cv-paper-3:  #E6DFD1;
@@ -16,9 +17,9 @@
   --cv-ink-4:    #8C97AB;
   --cv-navy-600: #22406A;
   --cv-navy-700: #1A2E4A;
-  --cv-accent:           #C25311;
-  --cv-accent-text:      #A04400;
-  --cv-accent-text-dark: #E07840;
+  --cv-accent:           #C25311;  /* display: buttons, pulsemark, decorative */
+  --cv-accent-text:      #A04400;  /* accent text on light (WCAG AA) */
+  --cv-accent-text-dark: #E07840;  /* accent text on dark (WCAG AA) */
   --cv-accent-hover:     #923D00;
 
   --cv-font-display: 'Libre Franklin', 'Franklin Gothic', 'Inter', system-ui, sans-serif;
@@ -26,6 +27,7 @@
   --cv-font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   --cv-font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
+  /* 8pt spacing scale */
   --space-1:.5rem; --space-2:1rem; --space-3:1.5rem; --space-4:2rem;
   --space-5:3rem; --space-6:4rem; --space-7:6rem;
 
@@ -51,13 +53,13 @@ a:hover { color: var(--cv-navy-700); text-decoration-thickness:2px; }
 code, .mono { font-family: var(--cv-font-mono); font-feature-settings:"tnum" 1,"zero" 1; }
 :focus-visible { outline: 2px solid var(--cv-accent); outline-offset: 2px; }
 
+/* === signature editorial primitives (from the site) === */
 .cv-eyebrow {
   font-family: var(--cv-font-sans); font-size:.75rem; font-weight:600;
   text-transform:uppercase; letter-spacing:.08em; color: var(--cv-accent-text);
   display:inline-flex; align-items:center; gap:.5rem; margin-bottom:.75rem;
 }
 .cv-eyebrow::before { content:""; display:inline-block; width:24px; height:2px; background: var(--cv-accent); }
-
 /* === docs-site additions (crdc-arrests API docs) === */
 .cv-wrap { max-width: 60rem; margin: 0 auto; padding: 0 var(--space-3); }
 .cv-header {
