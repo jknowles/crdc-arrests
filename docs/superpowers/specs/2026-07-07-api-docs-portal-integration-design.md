@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-07
 **Author:** Jared Knowles (Civilytics) w/ Claude
-**Status:** Draft for review
+**Status:** Implemented 2026-07-07
 **Repos touched:** `crdc-arrests` (this repo) and `ShinyAppHost`
 (`/home/jared/Nextcloud/Civilytics/Code/Civilytics/ShinyAppHost`)
 
