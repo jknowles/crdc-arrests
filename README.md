@@ -298,7 +298,10 @@ Model results are published so you don't have to re-run the pipeline:
 - **API:** `https://crdc-api.civilytics.org/api/v1/` — district & state estimates
   (point + 50/80/95% credible intervals). See `api/llms.txt` and the OpenAPI spec
   at `/api/v1/openapi.json`.
+- **Docs:** https://pages.civilytics.org/crdc-arrests/ — overview + data
+  dictionary (or read them in-repo: [docs/api/index.md](docs/api/index.md),
+  [docs/api/data-dictionary.md](docs/api/data-dictionary.md)).
 - **Bulk draws:** partitioned Parquet on Hugging Face
   (`civilytics/crdc-school-arrest-rates`), queryable shard-by-shard with DuckDB.
 - **Build it yourself:** the `api_db` and `draws_parquet` targets produce the
-  summary DuckDB and Parquet from `tar_make()`. See `docs/api/data-dictionary.md`.
+  summary DuckDB and Parquet from `tar_make()`.
