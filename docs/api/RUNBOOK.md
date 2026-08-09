@@ -35,9 +35,15 @@ default model `unified_m2`. Remotes: `origin` dual-pushes to GitHub
   resolves via the existing DNS-only `*.civilytics.org` wildcard.
 - [x] `curl https://crdc-api.civilytics.org/api/v1/health` → 200, confirmed
   2026-07-07.
-- Deferred (Gitea issue #1, only if traffic grows): a dedicated proxied
-  Cloudflare A record + Cache Rule + rate-limit for edge caching. Not needed
-  at current traffic.
+- [x] Cloudflare edge caching (Gitea issue #1), live 2026-08-09: dedicated
+  proxied `crdc-api` A record (overrides the DNS-only wildcard for just this
+  host); zone SSL/TLS mode confirmed Full (strict); Cache Rule
+  `crdc-api.civilytics.org/api/*` → respect origin `Cache-Control`.
+  `/health` stays uncached via `no-store`.
+- [x] Error responses fixed to carry `Cache-Control: no-store` instead of the
+  immutable success header (Gitea issue #4) — required before the Cache Rule
+  above was safe to enable, since Cloudflare honours origin directives and
+  would otherwise pin 404s/500s at the edge for a year.
 
 ## E. Docs published to Gitea Pages
 - [x] `docs/api/` (index.md + data-dictionary.md) published to

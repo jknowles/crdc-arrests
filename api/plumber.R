@@ -12,6 +12,20 @@ reg.finalizer(environment(), function(e) api_disconnect(.CON), onexit = TRUE)
 #*   via Hugging Face. Cite: Knowles & Miller 2025.
 #* @apiVersion v1
 
+# res$setHeader() appends rather than replaces (plumber does
+# self$headers <- c(self$headers, he)), so overriding a header already set by
+# an earlier filter requires dropping the old value first.
+drop_header <- function(res, name) {
+  h <- res$headers
+  if (!is.null(h) && length(h)) res$headers <- h[names(h) != name]
+  invisible(NULL)
+}
+
+set_no_store <- function(res) {
+  drop_header(res, "Cache-Control")
+  res$setHeader("Cache-Control", "no-store")
+}
+
 # Global error handler -> 400 for validation errors, 500 otherwise (no internal
 # leak). A `@filter` wrapping forward() in tryCatch does NOT catch errors thrown
 # inside endpoint handlers (plumber routes those to the error handler set here),
@@ -22,12 +36,21 @@ function(pr) {
     # null="null" matches the endpoints' @serializer so `data` renders as JSON
     # null (not {}), keeping error envelopes consistent with success envelopes.
     res$serializer <- plumber::serializer_unboxed_json(null = "null")
+    set_no_store(res)
     if (inherits(err, "api_bad_request")) {
       res$status <- 400L
       return(err_envelope(conditionMessage(err)))
     }
     res$status <- 500L
     err_envelope("Internal server error.")
+  }) |> plumber::pr_set_404(function(req, res) {
+    # Unmatched routes still run through the cacheHeaders filter (it applies
+    # before routing), so they arrive here already stamped immutable -- never
+    # reaching pr_set_error means that stamp is otherwise never corrected.
+    res$serializer <- plumber::serializer_unboxed_json(null = "null")
+    res$status <- 404L
+    set_no_store(res)
+    err_envelope("404 - Resource not found.")
   })
 }
 
