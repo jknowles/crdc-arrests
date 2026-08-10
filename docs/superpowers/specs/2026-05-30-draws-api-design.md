@@ -268,9 +268,15 @@ deployed from this repo via a Gitea Action.** Routed at the **subdomain
   A **templated `.example`** ships in the repo; the real conf is rendered from
   Gitea vars at deploy (or kept in the private infra repo).
 - **Cloudflare (free):** DNS record for `crdc-api` (orange-cloud → edge cache);
-  Cache Rule making the JSON cacheable; immutable headers
-  `Cache-Control: public, max-age=31536000, immutable` (versioned by
-  `data_release`); rate-limiting. Purge cache on each new `data_release`.
+  Cache Rule making the JSON cacheable; rate-limiting. Purge cache on each new
+  `data_release`.
+  **Superseded 2026-08-10:** this originally specified
+  `Cache-Control: public, max-age=31536000, immutable`. Sending a one-year
+  `immutable` TTL to *browsers* made any bad response unrecoverable — when CORS
+  headers were added, every client that had already fetched a URL kept the
+  headerless copy pinned for a year with no revalidation. The long TTL now lives
+  only at the edge, which we can purge: `public, max-age=600, s-maxage=31536000`.
+  See `CACHE_STATIC` in `api/plumber.R`.
 - **Host-load mitigation:** indexed query over 2.27 M rows ≈ low-ms on a fraction
   of a core; pagination/`limit` caps + query timeout bound cost; edge cache
   absorbs popular traffic; Cloudflare/SWAG rate-limit blunts scrapers.

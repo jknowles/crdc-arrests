@@ -26,6 +26,16 @@ set_no_store <- function(res) {
   res$setHeader("Cache-Control", "no-store")
 }
 
+# Success responses are static per data_release, so they should cache hard --
+# but the long TTL belongs at the CDN (s-maxage), not in browsers (max-age).
+# A response cached at the edge can be purged in seconds; one cached in a
+# visitor's browser cannot be recalled at all. This previously read
+# `max-age=31536000, immutable`, which pinned every response in every client
+# for a year with no revalidation -- so responses served during the window
+# before CORS headers were added stayed permanently un-fixable from the server
+# side. Cloudflare honors s-maxage for edge TTL, so CDN hit rates are unchanged.
+CACHE_STATIC <- "public, max-age=600, s-maxage=31536000"
+
 # Global error handler -> 400 for validation errors, 500 otherwise (no internal
 # leak). A `@filter` wrapping forward() in tryCatch does NOT catch errors thrown
 # inside endpoint handlers (plumber routes those to the error handler set here),
@@ -45,8 +55,9 @@ function(pr) {
     err_envelope("Internal server error.")
   }) |> plumber::pr_set_404(function(req, res) {
     # Unmatched routes still run through the cacheHeaders filter (it applies
-    # before routing), so they arrive here already stamped immutable -- never
-    # reaching pr_set_error means that stamp is otherwise never corrected.
+    # before routing), so they arrive here already stamped with the long-lived
+    # CACHE_STATIC value -- never reaching pr_set_error means that stamp is
+    # otherwise never corrected.
     res$serializer <- plumber::serializer_unboxed_json(null = "null")
     res$status <- 404L
     set_no_store(res)
@@ -62,7 +73,8 @@ function(req, res) {
   # so a permissive CORS policy is safe. See: docs/extensions.md for rationale.
   res$setHeader("Access-Control-Allow-Origin", "*")
   res$setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
-  res$setHeader("Access-Control-Allow-Headers", "*" )
+  res$setHeader("Access-Control-Allow-Headers", "*")
+  res$setHeader("Access-Control-Max-Age", "86400")
 
   # Handle CORS preflight requests (OPTIONS) before routing to endpoints.
   if (toupper(req$REQUEST_METHOD) == "OPTIONS") {
@@ -73,7 +85,7 @@ function(req, res) {
   if (grepl("/health$", req$PATH_INFO)) {
     res$setHeader("Cache-Control", "no-store")
   } else {
-    res$setHeader("Cache-Control", "public, max-age=31536000, immutable")
+    res$setHeader("Cache-Control", CACHE_STATIC)
   }
   plumber::forward()
 }
