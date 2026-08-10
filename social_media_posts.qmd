@@ -278,7 +278,18 @@ p1 <- ggplot(data = state_map2, aes(fill = arrests)) +
 
 
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-arrest_chloropleth.png"
+
+ragg::agg_png(img_path, width = 11, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 
 ```
 
@@ -307,7 +318,18 @@ p1 <- ggplot(data = state_map2, aes( fill = arrest_rate)) +
         legend.text = element_text(size = 8))
 
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-arrest_rate_chloropleth.png"
+
+ragg::agg_png(img_path, width = 11, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 #plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
@@ -351,13 +373,28 @@ p1 <- ggplot(data = state_map2, aes( fill = arrest_nnh)) +
   fill = "NNH") +
   theme_void() +
   theme(
-    #plot.margin = rep(unit(6, "pt"), 4),
+    # theme_void() leaves almost no bottom margin, so the caption's descenders
+    # landed in the literal last pixel row (measured: lowest ink at row 2099 of
+    # 2100). The sibling map chunks use theme_civilytics_map() and clear the
+    # edge by 40px; reserve comparable space here rather than switch themes.
+        plot.margin = margin(t = 6, r = 6, b = 14, l = 6, unit = "pt"),
         plot.background = element_rect(fill = "#FAFAF7", color = NA),
         legend.position.inside = c(0.9, 0.32),
         legend.position = "inside",
         legend.text = element_text(size = 8))
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-state_arrest_nnh_map.png"
+
+ragg::agg_png(img_path, width = 11, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-left")
+
+knitr::include_graphics(img_path)
 
 #add_logo_overlay(p1, fig_w = 11, fig_h = 7, side = "left")
 #plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
@@ -418,7 +455,18 @@ p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
   caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22, 2017-18, and 2015-16") +
   civilytics::theme_civilytics_dark_map()
 
-grid::grid.draw(civilytics::civilytics_logo(p1, variant = "dark", position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-national_trend.png"
+
+ragg::agg_png(img_path, width = 11, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, variant = "dark", position = "bottom-right")
+
+knitr::include_graphics(img_path)
 
 
 ```
@@ -440,7 +488,18 @@ p1 <- ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/100
   civilytics::theme_civilytics(font_size =14)
 
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-national_arrest_rate_trend.png"
+
+ragg::agg_png(img_path, width = 11, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 #plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
@@ -490,7 +549,18 @@ caption = "Source: U.S. Department of Education Civil Rights Data Collection, 20
   civilytics::theme_civilytics(font_size =14)
 
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-select_state_arrest_trend.png"
+
+ragg::agg_png(img_path, width = 11, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 #plot(civilytics::add_logo(p1, civilytics::make_logo_grob(), margin_param = -12))
 
 
@@ -975,7 +1045,18 @@ p1 <- ggplot(plotdf[plotdf$RACE== "TOTAL",],
        title = "CV for Arrest Rates by Total Enrollment",
        y = "CV (% scale)")
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-cov_plot_quintile_total.png"
+
+ragg::agg_png(img_path, width = 9, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 
 ```
 
@@ -1039,7 +1120,18 @@ p1 <- ggplot(plotdf[plotdf$RACE == "TOTAL",],
        caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22",
        y = "CV (% scale)")
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-cov_plot_decile_total.png"
+
+ragg::agg_png(img_path, width = 9, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 
 
 ```
@@ -1185,7 +1277,18 @@ pw <- ggplot(nat_sg_totals |> mutate(SEX = ifelse(SEX == "M", "Male students", "
                     labels = scales::comma) +
   theme(legend.position = "bottom", axis.ticks.x = element_blank())
 
-grid::grid.draw(civilytics::civilytics_logo(pw, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-sg_summary_arrestNNH.png"
+
+ragg::agg_png(img_path, width = 9, height = 7, units = "in", res = 300)
+print(pw)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 
 
 
@@ -1269,7 +1372,18 @@ p1 <- dist_ref_arr %>%
   theme(legend.position = "inside",
     legend.position.inside = c(0.8, 0.2))
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-arrests_concentration_by_sg.png"
+
+ragg::agg_png(img_path, width = 8, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 ```
 
 
@@ -1746,7 +1860,18 @@ p1 <- ggplot(result, aes(x = pred, y = model_label, group = model_label)) +
     panel.grid.major.y = element_line(color = "gray50"),
     axis.text.y = element_text(angle = 90, hjust = -0.5))
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
+# Logo stamped onto the saved PNG rather than composed into the grob via
+# civilytics_logo()/grid.draw(): that path reflows the plot to make room for a
+# logo band, which pushed the source caption off the bottom of the canvas.
+img_path <- "export/figures/socialmedia-arrests_model_comparison_am.png"
+
+ragg::agg_png(img_path, width = 12, height = 8, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-left")
+
+knitr::include_graphics(img_path)
 
 ```
 

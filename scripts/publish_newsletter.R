@@ -104,30 +104,30 @@ AUTHORS <- c("jared-knowles", "hannah-miller")
 # identical avoids two different descriptions of one image on the same site.
 ALT_TEXT <- c(
   # -- how-states-stack-up (all three reused) --
-  "socialmedia-arrest_chloropleth-1.png" = paste(
+  "socialmedia-arrest_chloropleth.png" = paste(
     "Choropleth map showing school-based arrests by state for the 2021-22 school",
     "year. Texas had the highest number of arrests at 5,387, while Maine reported",
     "only three."),
-  "socialmedia-arrest_rate_chloropleth-1.png" = paste(
+  "socialmedia-arrest_rate_chloropleth.png" = paste(
     "This choropleth map displays arrest rates per 1,000 students enrolled by state",
     "for the 2021-22 school year. Kansas had the highest arrest rate, with",
     "approximately one in every 194 students arrested or 5.15 per 1,000."),
-  "socialmedia-state_arrest_nnh_map-1.png" = paste(
+  "socialmedia-state_arrest_nnh_map.png" = paste(
     "This choropleth map displays arrests per student by state, using data from the",
     "Civil Rights Data Collection. The most significant finding is that 1 in every",
     "194 students in Kansas was arrested."),
 
   # -- arrests-declining-everywhere (first two reused) --
-  "socialmedia-national_trend-1.png" = paste(
+  "socialmedia-national_trend.png" = paste(
     "This line graph, displaying data from the Civil Rights Data Collection (CRDC)",
     "between 2015-16 and 2021-22, shows a national decline in total arrests from",
     "62,020 to 34,846. Arrests have steadily decreased over the CRDC waves examined."),
-  "socialmedia-national_arrest_rate_trend-1.png" = paste(
+  "socialmedia-national_arrest_rate_trend.png" = paste(
     "This line graph illustrates arrest rate trends across CRDC waves, plotting",
     "arrests per 1,000 students from 2015-16 to 2021-22. Arrest rates have steadily",
     "decreased, falling from 1.23 arrests per 1,000 students in 2015-16 to 0.72",
     "arrests per 1,000 students in 2021-22."),
-  "socialmedia-select_state_arrest_trend-1.png" = paste(
+  "socialmedia-select_state_arrest_trend.png" = paste(
     "Line chart of total school-based arrests in California and Kansas across the",
     "2015-16, 2017-18, and 2021-22 CRDC waves. California falls steadily from 3,424",
     "to 2,151 to 1,563, while Kansas holds near 500 for two waves, 521 then 565,",
@@ -163,7 +163,7 @@ ALT_TEXT <- c(
     "and the arrest panel ticks back up in the largest districts."),
 
   # -- arrest-rates-by-race (reused) --
-  "socialmedia-arrests_concentration_by_sg-1.png" = paste(
+  "socialmedia-arrests_concentration_by_sg.png" = paste(
     "Line graph showing cumulative arrest rates by race/ethnicity, plotted as a",
     "percentage of all arrests against the percentage of national student population.",
     "Black students experience arrest rates significantly higher than other groups,",
@@ -184,7 +184,7 @@ ALT_TEXT <- c(
     "Indian enrollment holds flat or falls: Zuni rises from 9 to 24 to 67, Derby from",
     "0 to 2 to 28, and Douglas County and Sioux Falls report their first arrests, 15",
     "and 13, after two waves of zero."),
-  "socialmedia-arrests_model_comparison_am-1.png" = paste(
+  "socialmedia-arrests_model_comparison_am.png" = paste(
     "Four density plots of predicted American Indian student arrests for Sioux Falls",
     "School District 49-5 in South Dakota, arranged as one-year models on the left and",
     "three-year models on the right, each shown without and with covariates. A bright",
