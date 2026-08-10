@@ -54,9 +54,22 @@ function(pr) {
   })
 }
 
-#* Immutable cache headers (responses are static per data_release)
+#* CORS + cache headers (responses are static per data_release)
 #* @filter cacheHeaders
 function(req, res) {
+  # Allow browser-based clients (e.g., git-pages demo app) to fetch from the API.
+  # The CRDC API is read-only and does not handle sensitive user data in requests,
+  # so a permissive CORS policy is safe. See: docs/extensions.md for rationale.
+  res$setHeader("Access-Control-Allow-Origin", "*")
+  res$setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
+  res$setHeader("Access-Control-Allow-Headers", "*" )
+
+  # Handle CORS preflight requests (OPTIONS) before routing to endpoints.
+  if (toupper(req$REQUEST_METHOD) == "OPTIONS") {
+    res$status <- 204L
+    return(list())
+  }
+
   if (grepl("/health$", req$PATH_INFO)) {
     res$setHeader("Cache-Control", "no-store")
   } else {
