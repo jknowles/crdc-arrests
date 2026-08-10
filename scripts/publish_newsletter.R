@@ -77,11 +77,21 @@ POST_META <- list(
   "estimating-rare-events" = list(
     summary = "How statisticians estimate rare events in small, fixed populations -- from Census poverty estimates to oil-spill risk -- and what applying that tradition to CRDC school arrests reveals.",
     tags = c("education", "policing", "data")
-  ),
-  "open-corrected-data" = list(
-    summary = "We're publishing the cleaned, longitudinally-aligned CRDC arrest data and the ten-model uncertainty estimates behind it as open infrastructure -- so the next researcher doesn't have to redo the cleaning, alignment, and modeling from scratch.",
-    tags = c("education", "policing", "data", "collaboration")
   )
+
+  # "open-corrected-data" is deliberately WITHHELD, not deleted. Its prose stays
+  # in social_media_posts.qmd and its .smpost div is untouched; a post with no
+  # entry in this list is reported under "Skipped (no POST_META entry)" and is
+  # never written to a bundle. It no longer fits the spirit of the series and
+  # its ideas have been superseded elsewhere at Civilytics.
+  #
+  # To restore it: uncomment the entry below and add a comma to the
+  # "estimating-rare-events" entry above. Nothing else is needed.
+  #
+  # ,"open-corrected-data" = list(
+  #   summary = "We're publishing the cleaned, longitudinally-aligned CRDC arrest data and the ten-model uncertainty estimates behind it as open infrastructure -- so the next researcher doesn't have to redo the cleaning, alignment, and modeling from scratch.",
+  #   tags = c("education", "policing", "data", "collaboration")
+  # )
 )
 
 AUTHORS <- c("jared-knowles", "hannah-miller")
