@@ -535,8 +535,8 @@ render_frontmatter <- function(attrs, meta) {
 #' full clone just to answer "has this shipped".
 slug_is_live <- function(bare_repo_dir, slug) {
   path <- sprintf("content/newsletter/%s/index.md", slug)
-  ok <- system2("git", c("-C", bare_repo_dir, "cat-file", "-e",
-                          sprintf("origin/main:%s", path)),
+  ok <- system2("git", shQuote(c("-C", bare_repo_dir, "cat-file", "-e",
+                                 sprintf("origin/main:%s", path))),
                 stdout = FALSE, stderr = FALSE)
   ok == 0
 }
@@ -565,9 +565,15 @@ main <- function() {
   # Ephemeral clone -- see the file header for why this is a fresh clone
   # (not a worktree of the maintainer's personal homepage_test checkout).
   clone_dir <- tempfile("homepage-test-publish-")
+  # shQuote() every argument: system2() pastes command and args into a single
+  # string and hands it to system(), which runs it through /bin/sh. Unquoted
+  # shell metacharacters are therefore interpreted, not passed through -- the
+  # parenthesised slug list in the commit message below died with
+  # `sh: 1: Syntax error: "(" unexpected`. system2() quotes the command but
+  # never the arguments; that is the caller's job.
   run <- function(cmd, args, dir = clone_dir) {
     message("Running: git ", paste(c(cmd, args), collapse = " "))
-    status <- system2("git", c(if (!is.null(dir)) c("-C", dir), cmd, args))
+    status <- system2("git", shQuote(c(if (!is.null(dir)) c("-C", dir), cmd, args)))
     if (status != 0) stop("git command failed (status ", status, ")")
   }
 
@@ -575,8 +581,8 @@ main <- function() {
     dir.create(clone_dir)
     on.exit(unlink(clone_dir, recursive = TRUE), add = TRUE)
     message("Cloning homepage_test (branch dev)...")
-    status <- system2("git", c("clone", "--branch", "dev", "--single-branch",
-                                HOMEPAGE_REMOTE, clone_dir))
+    status <- system2("git", shQuote(c("clone", "--branch", "dev", "--single-branch",
+                                       HOMEPAGE_REMOTE, clone_dir)))
     if (status != 0) stop("git clone failed")
     run("fetch", c("origin", "main"))
   }
@@ -657,13 +663,17 @@ main <- function() {
   }
 
   run("add", c("-A"))
-  unchanged <- system2("git", c("-C", clone_dir, "diff", "--cached", "--quiet")) == 0
+  unchanged <- system2("git", shQuote(c("-C", clone_dir, "diff", "--cached", "--quiet"))) == 0
   if (unchanged) {
     message("No content changes to publish.")
     return(invisible())
   }
-  run("commit", c("-m", sprintf("feat(newsletter): publish CRDC arrests posts (%s)",
-                                 paste(changed, collapse = ", "))))
+  # Short subject, slugs in the body: git joins repeated -m as paragraphs. The
+  # old single-line form put all 11 slugs in the subject, which made for a
+  # ~400-character summary line in the site's history.
+  run("commit", c("-m", sprintf("feat(newsletter): publish %d CRDC arrests post%s",
+                                length(changed), if (length(changed) == 1) "" else "s"),
+                  "-m", paste(sprintf("- %s", changed), collapse = "\n")))
   run("push", c("origin", "dev"))
   message(sprintf(
     "Published %d post(s) to staging: %s",
