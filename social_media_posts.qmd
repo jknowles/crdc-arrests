@@ -2335,9 +2335,22 @@ it to persist.
 # both land there) instead of 2 -- into overlapping axis labels.
 img_path <- "export/figures/socialmedia-paterson_model_comparison.png"
 
+# title_wrap is measured off a render, not derived from the theme object. Two
+# things make the obvious calculation wrong here:
+#   1. theme_ridges(font_size = 24) does not mean the title is 24pt -- calibrating
+#      shape_string() against the rendered subtitle puts the real sizes near
+#      22pt, so reading $plot.title$size off the theme overestimates the budget.
+#   2. The title is aligned to the *panel*, not the plot. It starts 415px in,
+#      because the flipped y-axis labels occupy the left edge. Usable width is
+#      therefore 2485px (8.28in), not the 9.5in that canvas-minus-margins implies.
+# Against that real budget, wrap=56 gives 2 lines with headroom at both 22pt and
+# 24pt. The unwrapped 79-character title ran ~3in past the right edge.
+#
+# None of this was visible until showtext was disabled: showtext had been drawing
+# every glyph at roughly a third of its requested size, so the title fit.
 p1 <- wp_fig_district_intervals(con, rdata, "3412690",
-  "Observed arrests are 0, frequentist interval given by the rule of 3.",
-  title_wrap = 90, grid = FALSE)
+  "Observed arrests are 0.\nFrequentist interval given by the rule of 3.",
+  title_wrap = 56, grid = FALSE)
 
 ragg::agg_png(img_path, width = 10, height = 10, units = "in", res = 300)
 print(p1)
