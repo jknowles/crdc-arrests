@@ -637,6 +637,20 @@ main <- function() {
 
     bundle_dir <- file.path(clone_dir, "content", "newsletter", slug)
     dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)
+
+    # Drop figures this post no longer references. Without this, renaming a
+    # chunk (or dropping knitr's "-1" suffix) leaves the old PNG behind forever
+    # -- dead weight in a repo with no LFS, and a second copy of a figure that
+    # is supposed to have exactly one. Scoped to socialmedia-*.png so nothing
+    # else in the bundle is touched.
+    keep <- basename(image_paths)
+    stale <- setdiff(list.files(bundle_dir, pattern = "^socialmedia-.*\\.png$"), keep)
+    if (length(stale)) {
+      message(sprintf("  pruning %d stale figure(s) from %s: %s",
+                      length(stale), slug, paste(stale, collapse = ", ")))
+      unlink(file.path(bundle_dir, stale))
+    }
+
     writeLines(bundle_md, file.path(bundle_dir, "index.md"))
     for (p in image_paths) {
       src <- p # already repo-relative to crdc-arrests' working directory
