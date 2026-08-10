@@ -2590,8 +2590,93 @@ Our work applies this tradition to school arrest data from the Civil Rights Data
 
 **Methodological notes.** Our models are restricted to schools enrolling students in grade 7 or above; elementary-age students are rarely arrested, and including very young grades would push the model toward structural zeros in uninformative ways. We further restrict to districts enrolling at least 30 students total[^post10-2] and exclude any district–student-group observation where the group's enrollment is recorded as zero.
 
-**Why some comparisons are startling — and what they invite.** One of the most striking features of the data is how dramatically nearby districts can differ. Mobile County Schools (AL) reported 140 arrests from a student population of 52,475. Jefferson County Schools, which covers much of the Birmingham metropolitan area, reported just 1 arrest from 36,405 students. These districts are neighbors in the same state. Are their discipline policies that different? Did one under-report? Did something change between collection cycles? Comparisons like this — between a central-city district, a county system, and the charter school sector operating in the same metro area — are among the most actionable analyses the CRDC makes possible, and among the hardest to pursue without a tool that surfaces them automatically.
+**Why some comparisons are startling — and what they invite.** One of the most striking features of the data is how dramatically nearby districts can differ. Mobile County Schools (AL) reported 139 arrests among the 25,745 students it enrolls in grades 7-12. Jefferson County Schools, which covers much of the Birmingham metropolitan area, reported just 1 arrest among 20,837 students in those same grades. These districts are neighbors in the same state. Are their discipline policies that different? Did one under-report? Did something change between collection cycles? Comparisons like this — between a central-city district, a county system, and the charter school sector operating in the same metro area — are among the most actionable analyses the CRDC makes possible, and among the hardest to pursue without a tool that surfaces them automatically.
 
+<!-- /POST-PROSE -->
+
+```{r}
+#| label: rare_events_ridges
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 11
+#| fig-height: 7
+
+# Post 10's only figure. Shows the Mobile/Jefferson comparison named in the
+# prose above as posterior distributions rather than point estimates, so the
+# post's two threads land in one picture: the districts really do separate, and
+# the smaller student groups have posteriors wide enough that their apparent
+# gaps are not resolvable.
+#
+# One model (unified_m2) rather than all ten -- it is the model the API example
+# further down calls by name, so a reader who follows that URL gets numbers that
+# match this figure.
+ridge_ids <- c("0102370", "0101920")
+RACE_LAB <- c(AM = "American Indian/\nAlaska Native", BL = "Black",
+              HI = "Hispanic", WH = "White")
+
+ridge_enroll <- rdata |>
+  filter(LEAID %in% ridge_ids, RACE %in% names(RACE_LAB)) |>
+  group_by(LEAID, LEA_NAME, RACE) |>
+  summarize(arrests = sum(ARRESTS), enroll = sum(stu_enroll), .groups = "drop")
+
+ridge_draws <- get_prediction_draws(con, YEAR = "21-22", LEAID = ridge_ids) |>
+  # model_id in the draws table carries the "_mod" suffix (crdc_model_registry()).
+  # Filtering on the bare "unified_m2" silently matches nothing and renders an
+  # empty figure -- the observed diamonds still draw, so it looks plausible.
+  filter(model_id == "unified_m2_mod", RACE %in% names(RACE_LAB)) |>
+  group_by(LEAID, RACE, draw_id) |>
+  summarize(pred = sum(pred), .groups = "drop") |>
+  left_join(ridge_enroll, by = c("LEAID", "RACE")) |>
+  mutate(rate = pred / enroll * 1000,
+         race_lab = factor(RACE_LAB[RACE], levels = rev(RACE_LAB)),
+         dist = factor(LEA_NAME, levels = c("Mobile County", "Jefferson County")))
+
+# Naive observed rate, to sit on top of each ridge as the point estimate the
+# modelling is meant to improve on.
+ridge_obs <- ridge_enroll |>
+  mutate(rate = arrests / enroll * 1000,
+         race_lab = factor(RACE_LAB[RACE], levels = rev(RACE_LAB)),
+         dist = factor(LEA_NAME, levels = c("Mobile County", "Jefferson County")))
+
+p1 <- ggplot(ridge_draws, aes(x = rate, y = race_lab, fill = dist)) +
+  # binline, not a kernel density: these posteriors are discrete and small --
+  # Jefferson's groups take only 2 to 5 distinct integer values, nearly all
+  # zero. Smoothing a spike at zero produces a blob that bleeds below zero and
+  # invents spread the data does not contain. Same reason the Paterson draws
+  # figure uses binline.
+  ggridges::geom_density_ridges(stat = "binline", binwidth = 0.25,
+                                alpha = 0.65, colour = "white", scale = 0.95,
+                                draw_baseline = FALSE) +
+  geom_point(data = ridge_obs, aes(x = rate, y = race_lab, colour = dist),
+             shape = 18, size = 3.5, show.legend = FALSE,
+             position = position_nudge(y = -0.08)) +
+  scale_fill_manual(values = c("Mobile County" = "#c92d0e",
+                               "Jefferson County" = "#0791b6")) +
+  scale_colour_manual(values = c("Mobile County" = "#8f1f09",
+                                 "Jefferson County" = "#04647e")) +
+  scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(title = stringr::str_wrap(
+         "Two neighboring Alabama districts, modeled arrest rates", 55),
+       subtitle = "Posterior predicted arrests per 1,000 students in grades 7-12, unified model 2.\nDiamonds mark each district's reported rate.",
+       x = "Predicted arrests per 1,000 students", y = "", fill = "",
+       caption = "Source: U.S. Department of Education Civil Rights Data Collection, 2021-22") +
+  civilytics::theme_civilytics(font_size = 13) +
+  theme(legend.position = "bottom",
+        plot.margin = margin(t = 10, r = 16, b = 14, l = 10, unit = "pt"))
+
+img_path <- "export/figures/socialmedia-rare_events_ridges.png"
+
+ragg::agg_png(img_path, width = 11, height = 7, units = "in", res = 300)
+print(p1)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
+```
+
+<!-- POST-PROSE: post10-where-next -->
 **Where we want to take this.** Part of this is already built. The cleaned data and the model-based estimates already live behind a public API — you can pull Mobile County's estimates, the same district from the comparison above, with a single request:
 
 ```

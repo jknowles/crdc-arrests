@@ -232,6 +232,17 @@ ALT_TEXT <- c(
     "frequentist rule-of-three interval in gray. The one-year models center on zero,",
     "while every three-year model centers above it, near 11 or 12 arrests without",
     "covariates and near 3 or 4 with them."),
+  # -- estimating-rare-events --
+  "socialmedia-rare_events_ridges.png" = paste(
+    "Ridge plot comparing posterior predicted school arrest rates per 1,000 students",
+    "in Mobile County and Jefferson County, Alabama, with one row per student group",
+    "and a diamond marking each district's reported rate. Mobile's distribution for",
+    "Black students centers near 8 arrests per 1,000 and does not come close to",
+    "Jefferson's, which sits at zero. For American Indian and Hispanic students",
+    "Mobile's distributions are wide and spiky, because only a few hundred students",
+    "are enrolled and each additional arrest moves the rate sharply, so those gaps",
+    "reach down toward Jefferson's and stay unresolved."),
+
   "socialmedia-zero_arrest_counts_draws.png" = paste(
     "Four panels of histograms showing all 500 posterior draws of predicted arrests",
     "for Paterson, one panel per combination of one-year or three-year data and",
