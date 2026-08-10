@@ -40,6 +40,19 @@ library(duckdb)
 library(knitr)
 library(civilytics)
 
+# civilytics's .onLoad calls civilytics_load_fonts(), which runs
+# showtext_auto() as a side effect of library(civilytics). showtext then draws
+# glyphs at its own 96 dpi while the device lays out at res = 300, so every
+# label comes out at roughly a third of its requested size inside full-size
+# line boxes. In the table PNGs that put 10pt body text on screen at ~5 CSS
+# pixels once the site scaled the image into its 1100px content column.
+#
+# Turn it off explicitly -- wrapping the loader in try() does not help, because
+# showtext_auto() has already run by then. ragg + systemfonts resolve the brand
+# fonts on their own: "Inter" matches the installed Civilytics face, while a
+# bogus family falls back to Noto, so a silent fallback would be detectable.
+showtext::showtext_auto(FALSE)
+
 ```
 
  ## Read Data
