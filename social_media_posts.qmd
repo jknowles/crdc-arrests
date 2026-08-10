@@ -163,8 +163,10 @@ print_model_name <- function(x, lbreak = FALSE) {
 We were fortunate to receive a grant from the **American Educational Research Association** and the **National Science Foundation (NSF)** two years ago (and to receive a no-cost extension to complete the work in 2025!). We wrote the grant to use small area estimation strategies to "get the most" from the Civil Rights Data Collection (CRDC) school arrest data. We wanted to share findings from the grant with others and decided on a series of post we'll share over the next few weeks. We'll start with basic descriptive information about arrests (by state, by race, by district) before moving to the "getting the most" piece of the work and then will conclude with some reflections on what will be lost if national data collections like this don't continue.
 <!-- /POST-PROSE -->
 
+For all posts, please know:
+
 <!-- POST-PROSE: aera-nsf-disclaimer -->
-For all posts, please know: *This research was supported by a grant from the American Educational Research Association which receives funds for its "AERA Grants Program" from the National Science Foundation under NSF award NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or NSF.*
+*This research was supported by a grant from the American Educational Research Association which receives funds for its "AERA Grants Program" from the National Science Foundation under NSF award NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or NSF.*
 <!-- /POST-PROSE -->
 
 ## Post 1: State and National Totals
@@ -300,7 +302,7 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 ```
 
 <!-- POST-PROSE: post1-nnh-intro -->
-Another, perhaps more intuitive approach with small rates is to calculate the "number needed to harm" (NNH) or how many students it "takes" before 1 is arrested. Nationally, 1 out of every 1,395 students was arrested "at school" in 2021-22.^[Corrected from the originally posted "1 in 1,428." This number-needed-to-harm uses CRDC-reported enrollment (48,596,489 students ÷ 34,846 arrests = 1 in 1,395), the exact reciprocal of the 0.72-per-1,000 national rate from the same data. The original 1,428 reflected an external national-enrollment denominator.] In Kansas, 1 out of every 194 students was arrested in schools. In South Dakota, 1 out of every 348 students was arrested.
+Another, perhaps more intuitive approach with small rates is to calculate the "number needed to harm" (NNH) or how many students it "takes" before 1 is arrested. Nationally, 1 out of every 1,395 students was arrested "at school" in 2021-22.[^post1-1] In Kansas, 1 out of every 194 students was arrested in schools. In South Dakota, 1 out of every 348 students was arrested.
 <!-- /POST-PROSE -->
 
 ```{r}
@@ -350,8 +352,10 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
 ```
 
 <!-- POST-PROSE: post1-closing-para -->
-Part of what motivates this project is the challenges with rates and small Ns. Someone may reasonably think that the elevated arrest rates in South Dakota and Kansas are due at least in part to their much smaller populations (small Ns). While using rates rather than counts provides a sense of scale and standardization, rates' sensitivity to slight differences in counts (and to the denominator) magnifies differences that may not be substantively meaningful (sometimes called the base rate fallacy) and may imply a false precision in reported numbers. By using a combination of descriptive analysis and statistics (coming in future posts), we can more accurately convey true differences in school-based arrests that are consistent with the data collected. One way to help with this is to use multiple years of measurement to accumulate a greater population over which to measure the low incident rate. Our next post will look at how the addition of prior years of data changes, or doesn't change, this picture.
+Part of what motivates this project is the challenges with rates and small Ns. Someone may reasonably think that the elevated arrest rates in South Dakota and Kansas are due at least in part to their much smaller populations (small Ns). While using rates rather than counts provides a sense of scale and standardization, rates' sensitivity to slight differences in counts (and to the denominator) magnifies differences that may not be substantively meaningful (sometimes called the base rate fallacy) and may imply a false precision in reported numbers. By using a combination of descriptive analysis and statistics (coming in future posts), we can more accurately convey true differences in school-based arrests that are consistent with the data collected. One way to help with this is to use multiple years of measurement to accumulate a greater population over which to measure the low incident rate. Our next post will look at [how the addition of prior years of data changes, or doesn't change, this picture](/newsletter/arrests-declining-everywhere/).
 <!-- /POST-PROSE -->
+
+[^post1-1]: Corrected from the originally posted "1 in 1,428." This number-needed-to-harm uses CRDC-reported enrollment (48,596,489 students ÷ 34,846 arrests = 1 in 1,395), the exact reciprocal of the 0.72-per-1,000 national rate from the same data. The original 1,428 reflected an external national-enrollment denominator.
 
 :::
 
@@ -430,7 +434,7 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 ```
 
 <!-- POST-PROSE: post2-ks-ca-intro -->
-A big part of why we wanted to look at multiple years of data is not just to understand trends but because it's easy to dismiss one year of data as a fluke, a possible data error, or simply not reliable. For example, looking at multiple years of data allows us to ask whether Kansas just had more school-related arrests than California in 2021-22 (despite having a student population 1/12^th^ the size of CA) or if this is a consistent pattern across years?
+A big part of why we wanted to look at multiple years of data is not just to understand trends but because it's easy to dismiss one year of data as a fluke, a possible data error, or simply not reliable. For example, looking at multiple years of data allows us to ask whether Kansas just had more school-related arrests than California in 2021-22 (despite having a student population 1/12<sup>th</sup> the size of CA) or if this is a consistent pattern across years?
 
 In 2021-22 Kansas (allegedly) had 2,413 school-related arrests compared to 565 in 2017-18 and 521 in 2015-16.
 
@@ -483,7 +487,9 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 Taken together, the data indicate that Kansas does have a "higher than expected" school-based arrest rate and perhaps a more punitive approach to discipline than many states -- but that there were likely one or more data errors in Kansas's data for 2021-22.
 <!-- /POST-PROSE -->
 
+<!-- POST-PROSE: post2-kansas-heading -->
 ### Looking into Kansas
+<!-- /POST-PROSE -->
 
 ```{r}
 #| label: kansas_lea
@@ -669,13 +675,14 @@ The table highlights at least four things:
 
 Some people might next ask: What are the top 20 districts by arrest
 rates? Others might assume those are all very small districts (this is
-true) but we will show in one of our next posts that we may still be
-able to learn some things from districts with the highest arrest rates.
+true) but we will show in [our next post, on the districts with the
+highest arrest rates](/newsletter/highest-arrest-rates/), that we may
+still be able to learn some things from them.
 
 Other people may immediately ask: what are the demographics of these
 districts? (or more bluntly: Do these districts primarily serve students
 historically arrested at the highest rates?) We will also address this
-in one of our next posts.
+in [a later post on arrest rates by race](/newsletter/arrest-rates-by-race/).
 <!-- /POST-PROSE -->
 
 :::
@@ -734,9 +741,9 @@ The data also show:
     districts in the top 20 have \<300 students. Inherently, smaller
     districts will have greater variation in their rates.
 
-> Tomorrow, we'll look more systematically at how enrollment size and
-> arrest rates are related and how we can use the coefficient of
-> variation, a measure of precision, to quantify this.
+> Next week, we'll look more systematically at [how enrollment size and
+> arrest rates are related, and how we can use the coefficient of
+> variation, a measure of precision, to quantify this](/newsletter/coefficient-of-variation/).
 <!-- /POST-PROSE -->
 
 ```{r}
@@ -1092,15 +1099,29 @@ pw <- pw + plot_annotation(title = "Coefficient of Variation by District Total E
   theme(legend.position = "bottom", axis.text.x = element_text(angle = -20),
         panel.grid.major.y = element_line(color = "gray80"))
 
-grid::grid.draw(civilytics::civilytics_logo(pw, position = "bottom-right"))
+# Logo is stamped onto the saved PNG (cv_stamp_logo_png()), not composed into
+# the grob via civilytics_logo()/grid.draw(): that path routes a patchwork
+# through gridExtra::arrangeGrob() -> ggplotGrob() -> ggplot_build(), which
+# builds only the LAST plot of the composition. It silently dropped the
+# Arrests panel (p1) and the plot_annotation() title, shipping a figure that
+# showed Referrals alone while the prose discussed both. Same reason the
+# paterson_model_comparison chunk below saves and stamps.
+img_path <- "export/figures/socialmedia-cov_plot_decile_byraceeth.png"
 
+ragg::agg_png(img_path, width = 9, height = 7, units = "in", res = 300)
+print(pw)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-right")
+
+knitr::include_graphics(img_path)
 ```
 
 <!-- POST-PROSE: post5-cov-closing-note -->
 Another note: You may also notice that, for arrests, there is an uptick
 in the coefficient of variation for the largest districts. In a future
-post we will look at one potential source for this increased variance:
-underreporting of student arrests.
+post we will look at [one potential source for this increased variance:
+underreporting of student arrests](/newsletter/misreported-zeros-descriptive/).
 <!-- /POST-PROSE -->
 
 :::
@@ -1241,10 +1262,10 @@ grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-right"))
 
 :::
 
-::: {.smpost slug="american-indian-arrests-models" title="A closer look: American Indian student arrests and what models tell us" date="" draft="true" status="draft" series="7"}
+::: {.smpost slug="american-indian-arrests-models" title="A closer look: American Indian student arrests and what models tell us" date="2026-08-06" draft="true" status="draft" series="7"}
 
 <!-- POST-PROSE: post7-intro -->
-Post 6 ended with a striking fact: more than half of all American
+[Our post on arrest rates by race](/newsletter/arrest-rates-by-race/) ended with a striking fact: more than half of all American
 Indian/Alaska Native student arrests in 2021-22 were concentrated in
 just 7 school districts. Nationwide, 529 American Indian students were
 reported arrested -- a small number, but one that is geographically
@@ -1521,10 +1542,11 @@ years. These 7 districts are moving opposite to the national trend.
 
 Descriptive patterns can only take us so far. What we really want to know
 is: how *plausible* are these values? How likely are they to reflect the
-true arrest totals versus data quality issues? One direct approach would
-be to contact the districts. But with dozens of districts reporting
-elevated arrests for small student groups, we also want statistical
-tools that help us evaluate plausibility at scale. That's where
+true arrest totals as opposed to being data quality or measurement issues? One direct approach would
+be to contact the districts. If you are working locally, this can be a great option!
+But at a national scale to investigate
+elevated arrests for small student groups across many districts, we also want statistical
+tools that help us evaluate plausibility. That's where
 statistical models come in.
 <!-- /POST-PROSE -->
 
@@ -1553,8 +1575,7 @@ posterior density interval.
 Two patterns emerge clearly. First, adding more years of data (moving
 from column 1 to column 2) *depresses* the estimate -- models that
 incorporate prior waves where arrests were zero assign more probability
-mass to low counts, making 0 more plausible in 2021-22 than the raw data
-suggest. Second, adding covariates (moving from row 1 to row 2)
+mass to low counts, making 0 more plausible in 2021-22 than the simple binomial interval suggests. Second, adding covariates (moving from row 1 to row 2)
 *increases* the estimated plausible range -- covariates like referrals
 add evidence that some arrests did occur, pushing estimates upward.
 
@@ -1566,7 +1587,9 @@ only a few values have meaningful probability, the smoothed density shows
 sharp peaks.
 
 Which set of estimates is most trustworthy? Why do models diverge, and
-what should we do when they do? We'll unpack that in future posts.[^post7-1]
+what should we do when they do? We'll unpack that in future posts on
+[a single district's reported zero](/newsletter/misreported-zeros-analytic/)
+and on [how other fields estimate rare events](/newsletter/estimating-rare-events/).[^post7-1]
 <!-- /POST-PROSE -->
 
 ```{r}
@@ -1723,7 +1746,7 @@ school arrests. Future posts will make those choices explicit.
 
 ## Post 8 Expected vs Observed Arrests
 
-::: {.smpost slug="misreported-zeros-descriptive" title="Failure to report, or a real difference in policy? Populous districts reporting zero arrests" date="" draft="true" status="draft" series="8"}
+::: {.smpost slug="misreported-zeros-descriptive" title="Failure to report, or a real difference in policy? Populous districts reporting zero arrests" date="2026-08-07" draft="true" status="draft" series="8"}
 
 <!-- POST-PROSE: post8-intro -->
 In 2021-22, 2,060 school districts -- just 11.6% of all districts in
@@ -1741,7 +1764,7 @@ district with 20,000 or more students, that implies around 14 expected
 arrests. Yet 125 out of 376 large districts (33.2%) reported exactly
 zero arrests -- a share that would be nearly impossible if the national
 rate applied uniformly to everyone. If arrests followed a binomial
-process at the national rate, we would expect essentially every district
+process with the national rate, we would expect essentially every district
 of this size to report at least one arrest.
 <!-- /POST-PROSE -->
 
@@ -1831,22 +1854,18 @@ knitr::include_graphics(img_path)
 ```
 
 <!-- POST-PROSE: post8-suspicious-zeros -->
-This level of zeros is suspicious.
+We term this level of zeros as being suspicious.
 
-To illustrate what suspicious reporting looks like, consider Paterson
+Why suspicious? Consider Paterson
 Public School District in New Jersey, with roughly 18,000 students
 enrolled in grades 7-12. The table below shows Paterson's arrest
 reporting across all three CRDC waves available in these data: 47
-arrests in 2015-16, 11 in 2017-18, and 0 in 2021-22.
+arrests in 2015-16, 11 in 2017-18, and 0 in 2021-22. A simple review of these
+three values would support two possible conclusions: the district truly had 0
+arrests in 2021-22 breaking from its past pattern, or the district had a reporting
+error in 2021-22 and the 0 is wrong.
 
-A district of
-this size, with a documented history of arrests, reporting zero in the
-most recent wave is a case where we want to assess was there a policy change
-against arrests, stopping them completely, or a reporting error. Using data and
-statistics alone we will not be able to distinguish, but we can, with a statistical
-model, improve our estimate.
-
-Despite steps taken before, during, and after data collection to ensure
+Paterson isn't alone - an unusually high number of large districts report 0 arrests. Despite steps taken before, during, and after data collection to ensure
 good data quality ([Office of Civil Rights
 2025](https://www.ed.gov/media/document/crdc-quality-informational-snapshot-january-2025-109165.pdf)),
 data errors exist. The number of reported -- but possibly erroneous --
@@ -1922,9 +1941,18 @@ knitr::include_graphics(img_path)
 rates and reduce the value of summary statistics like the mean, since
 few districts actually sit near that average.
 
+
+<!-- POST-PROSE: post8-closing-para -->
+We'd like to be able to assess whether there was a policy change
+against arrests, stopping them completely, or a reporting error. Using data and
+statistics alone we will not be able to distinguish, but we can, with a statistical
+model, assign probabilities to both. Our next post will show [how we can do just
+that for one district that reported zero arrests](/newsletter/misreported-zeros-analytic/).
+<!-- /POST-PROSE -->
+
 :::
 
-::: {.smpost slug="misreported-zeros-analytic" title="What ten models say about Paterson's zero arrests" date="" draft="true" status="draft" series="9"}
+::: {.smpost slug="misreported-zeros-analytic" title="What ten models say about Paterson's zero arrests" date="2026-08-08" draft="true" status="draft" series="9"}
 
 ```{r}
 
@@ -2004,13 +2032,17 @@ plotdf <- bind_rows(obsv_plot %>%
 ```
 
 <!-- POST-PROSE: post9-intro -->
-Post 8 documented the scale of suspicious zeros in the CRDC: 125 of 376
+[Our previous post on districts reporting zero arrests](/newsletter/misreported-zeros-descriptive/) documented the scale of suspicious zeros in the CRDC: 125 of 376
 large districts (those with 20,000 or more students) reported exactly
 zero school-based arrests in 2021-22, a share that is statistically
 implausible if the national arrest rate applied uniformly. This post
 goes further, asking: how many arrests are likely missing from these
 zero-reporting districts, and what do ten Bayesian models tell us when
 we zoom in on a single case?
+
+Why ten models? Because we are uncertain about the best way to model arrests using
+the available data. Each model makes a different choice about how much CRDC history to pool (one recent wave vs. three) and whether to account for referrals to law enforcement, and each is fit two ways — once treating all student groups together, once fitting each group separately. We show all ten rather than pick a winner, because they carefully represent a set of assumptions we can make using the
+available data and their disagreement and overlap provides useful information about how confident we should be in any single estimate.
 
 We selected the 100 largest districts that reported zero total arrests.
 For these districts we calculate a "naïve" expected number of arrests
@@ -2054,16 +2086,28 @@ missing_tab <- big0_draws |>
          order_spec = match(spec, c("m1", "m2", "m3", "m4", "m5")),
          Model = label,
          Data = ifelse(spec %in% c("m1", "m2"), "Recent year only", "Three CRDC waves"),
+         # Covariate structure, read off the brms formulas in _targets.R. Every
+         # one of the ten models carries the same state + district grouping
+         # effects -- (1 | LEA_STATE) + (1 | LEAID) -- so grouping is not a
+         # distinguishing category; what varies is the fixed covariates layered
+         # on top. m3/m4/m5 additionally carry YEAR, but that is the one- vs
+         # three-wave contrast already shown in the Data column.
+         Covariates = dplyr::case_when(
+           spec %in% c("m1", "m3") ~ "None (grouping only)",
+           spec %in% c("m2", "m4") ~ "Referral rate",
+           spec == "m5"            ~ "Referral rate + total referrals"
+         ),
          Predicted = round(med),
          Interval = sprintf("%d - %d", round(lo), round(hi))) |>
   arrange(grp, order_spec) |>
-  select(Model, Data, Predicted, Interval)
+  select(Model, Data, Covariates, Predicted, Interval)
 
 ft <- flextable(missing_tab) |>
   add_header_lines(sprintf("Reported in CRDC: 0          Naive ceiling (%.2f per 1,000): %s",
                            naive_rate, format(naive, big.mark = ","))) |>
   add_header_lines("Estimated arrests missing from 100 large districts reporting zero (2021-22)") |>
   set_header_labels(Model = "Model", Data = "Data used",
+                    Covariates = "Covariates",
                     Predicted = "Predicted arrests", Interval = "95% interval") |>
   bg(bg = header_bg, part = "header") |>
   color(color = header_fg, part = "header") |>
@@ -2072,17 +2116,19 @@ ft <- flextable(missing_tab) |>
   fontsize(i = 2, size = 11, part = "header") |>
   fontsize(size = 10, part = "body") |>
   font(fontname = "Arial", part = "all") |>
-  align(j = c("Model", "Data"), align = "left", part = "body") |>
+  align(j = c("Model", "Data", "Covariates"), align = "left", part = "body") |>
   align(j = c("Predicted", "Interval"), align = "right", part = "body") |>
   align(part = "header", align = "center") |>
   width(j = "Model", width = 1.5) |>
   width(j = "Data", width = 1.7) |>
+  width(j = "Covariates", width = 2.2) |>
   width(j = "Predicted", width = 1.4) |>
   width(j = "Interval", width = 1.3) |>
   border_outer(part = "all", border = officer::fp_border(color = "#888888", width = 1)) |>
   border_inner_h(part = "body", border = officer::fp_border(color = "#cccccc", width = 0.5)) |>
   add_footer_lines("Source: U.S. Department of Education Civil Rights Data Collection; Civilytics Bayesian models.") |>
   add_footer_lines("Recent-year models shrink toward the reported zero; three-wave models borrow strength from prior collections. Median predicted arrests with 95% prediction interval.") |>
+  add_footer_lines("All models include state and district grouping effects; the covariate column shows the fixed effects added on top.") |>
   fontsize(size = 9, part = "footer") |>
   color(color = "#555555", part = "footer") |>
   set_table_properties(layout = "fixed")
@@ -2104,7 +2150,8 @@ knitr::include_graphics(img_path)
 ```
 
 <!-- POST-PROSE: post9-paterson-fig1 -->
-To understand how the models reach this conclusion, we examine Paterson
+To understand how the models reach this conclusion, we return to the example
+of Paterson
 Public School District in New Jersey in detail. Paterson enrolls
 18,310 students, making 0 arrests deeply suspicious. Paterson also has
 a useful historical record: 47 reported arrests in 2015-16, declining to
@@ -2113,9 +2160,9 @@ three-year models something to work with.
 
 Figure 1 shows how each of our ten models compares to the standard
 frequentist interval. The frequentist interval for Paterson (shown in
-blue) runs from 0 to 3 -- a constant value in the case of no observed
-arrests. Each panel shows the full posterior density alongside that
-frequentist benchmark. Models are split into one-year specifications
+gray) runs from 0 to 3 -- a constant value in the case of no observed
+arrests. Each panel shows the posterior 95% interval in blue alongside the
+frequentist benchmark. Model predictions are split into one-year specifications
 (left panel) and three-year specifications (right panel).
 
 The one-year models -- except for stratified model 1 -- produce
@@ -2123,8 +2170,7 @@ intervals that are **narrower** than the frequentist interval,
 demonstrating one of the core advantages of the Bayesian approach:
 better precision in sparse-data cases. The three-year models tell a
 different story. Their intervals are all wider than the frequentist
-interval (note the change in scale on the x-axis in the right column),
-and their median predicted arrest counts are greater than
+interval and their median predicted arrest counts are greater than
 zero. Models without covariates suggest more than 10 arrests are most
 likely. The reason is the prior information encoded from 2015-16 and
 2017-18: the three-year models remember Paterson's history and expect
@@ -2136,43 +2182,32 @@ it to persist.
 #| echo: false
 #| warning: false
 #| message: false
-#| fig-width: 12
-#| fig-height: 8
+#| fig-width: 10
+#| fig-height: 10
 
-# Figure 1 of Post 9 (Posts 7-x): predicted-arrest density per model vs the
-# frequentist interval for Paterson NJ (focal_dist = 3412690), mirroring
-# arrests_model_comparison_am. dist_draws/obsv_plot are from the prep chunk above.
-res_pat <- dist_draws |>
-  filter(!grepl("_m5", model_id), !grepl("sg_", model_id)) |>
-  group_by(model_id, draw_id) |>
-  summarize(pred = sum(pred), .groups = "drop") |>
-  group_by(model_id) |>
-  mutate(model_time = add_model_time(model_id),
-         model_label = paste0(add_model_time(model_id), "\n", add_model_cov(model_id)))
+# Figure 1 of Post 9: predicted-arrest 95% interval per model vs the
+# frequentist interval for Paterson NJ (focal_dist = 3412690). Reuses the
+# white paper's Fig 2 (wp_fig_district_intervals(), R/paper_figures.R) so the
+# social post and the white paper describe the same figure the same way.
+#
+# Logo is stamped onto the saved PNG (cv_stamp_logo_png()), not composed into
+# the ggplot grob via civilytics_logo()/grid.draw(): that path shrinks the
+# plot ~7% to make room for the logo band, which is enough to collapse the
+# "Covariate x Three year" facet -- the one cell with 4 model rows (m4 and m5
+# both land there) instead of 2 -- into overlapping axis labels.
+img_path <- "export/figures/socialmedia-paterson_model_comparison.png"
 
-obsv_pat <- obsv_plot |>
-  tidyr::crossing(model_id = unique(res_pat$model_id)) |>
-  mutate(model_label = paste0(add_model_time(model_id), "\n", add_model_cov(model_id)),
-         model_time  = add_model_time(model_id))
+p1 <- wp_fig_district_intervals(con, rdata, "3412690",
+  "Observed arrests are 0, frequentist interval given by the rule of 3.",
+  title_wrap = 90, grid = FALSE)
 
-p1 <- ggplot(res_pat, aes(x = pred, y = model_label, group = model_label)) +
-  ggridges::geom_density_ridges(scale = 0.9, rel_min_height = 0.01) +
-  geom_pointrange(data = obsv_pat,
-    aes(y = model_label, x = arrests, xmin = ci_lower, xmax = ci_upper),
-    color = I("#2993fd"), position = position_nudge(y = 0.2)) +
-  scale_y_discrete("Model", limits = rev,
-                   expand = expansion(mult = c(0.1, 0.15))) +
-  facet_wrap(~add_model_time(model_id), ncol = 2, scales = "free") +
-  labs(title = stringr::str_wrap(paste0("Predicted arrests probability density for ",
-        dist_name_for_title), 90),
-       x = "Predicted arrests", y = "Model type",
-       subtitle = stringr::str_wrap("Observed arrests and frequentist interval shown in bright blue pointrange (0 reported arrests).", 90)) +
-  ggridges::theme_ridges(grid = FALSE, font_size = 14) +
-  theme(legend.position = "bottom",
-        panel.grid.major.y = element_line(color = "gray50"),
-        axis.text.y = element_text(angle = 90, hjust = -0.5))
+ragg::agg_png(img_path, width = 10, height = 10, units = "in", res = 300)
+print(p1)
+dev.off()
 
-grid::grid.draw(civilytics::civilytics_logo(p1, position = "bottom-left"))
+cv_stamp_logo_png(img_path, position = "bottom-left")
+
+knitr::include_graphics(img_path)
 ```
 
 <!-- POST-PROSE: post9-between-figs -->
@@ -2185,13 +2220,13 @@ are nearly identical.
 
 The **one-year models** agree that 0 is the single most likely count
 for Paterson, but they disagree on how likely. The stratified model
-(top left of Figure 2) gives 0 arrests only a **47.2%** probability,
+(top left of Figure 2) gives 0 arrests only a **50.6%** probability,
 meaning it assigns a near-equal chance to one or more arrests. Adding a
 covariate brings the stratified model into closer alignment with the
-unified model, raising the probability of 0 arrests to **76.4%**. The
+unified model, raising the probability of 0 arrests to **71.8%**. The
 unified one-year model is more confident from the start: it puts 0
-arrests at **82.2%** without a covariate, and the covariate nudges this
-to only **84%**. Even so, neither one-year model can rule out 1 arrest
+arrests at **80.4%** without a covariate, and the covariate raises this
+further to **87.6%**. Even so, neither one-year model can rule out 1 arrest
 at 95% confidence -- a point we already saw in the wider intervals of
 Figure 1.
 
@@ -2331,8 +2366,20 @@ pfull <- p2+ p1 + p4 + p3  + plot_annotation(
   subtitle = 'Frequency of predicted arrests from 500 draws of posterior for each model'
 )
 
-grid::grid.draw(civilytics::civilytics_logo(pfull, position = "bottom-left"))
+# Saved and stamped rather than composed via civilytics_logo()/grid.draw():
+# that path builds only the last plot of a patchwork (see the
+# cov_plot_decile_byraceeth chunk), which reduced this 2x2 grid to the
+# "Three year / Covariates" cell alone -- dropping the three panels the
+# surrounding prose walks through by position ("top left", "top right").
+img_path <- "export/figures/socialmedia-zero_arrest_counts_draws.png"
 
+ragg::agg_png(img_path, width = 12, height = 10, units = "in", res = 300)
+print(pfull)
+dev.off()
+
+cv_stamp_logo_png(img_path, position = "bottom-left")
+
+knitr::include_graphics(img_path)
 ```
 
 <!-- POST-PROSE: post9-after-fig2 -->
@@ -2378,7 +2425,7 @@ concern the data may not be prepared and released as planned.
 
 :::
 
-::: {.smpost slug="estimating-rare-events" title="Estimating rare events in fixed populations: lessons from other fields" date="" draft="true" status="draft" series="10"}
+::: {.smpost slug="estimating-rare-events" title="Estimating rare events in fixed populations: lessons from other fields" date="2026-08-09" draft="true" status="draft" series="10"}
 
 <!-- POST-PROSE: Post 10 — Estimating rare events in fixed populations: methodology, comparisons, and future directions -->
 
@@ -2410,7 +2457,7 @@ That returns Mobile County's modeled arrest-rate estimates — broken out by stu
 
 :::
 
-::: {.smpost slug="open-corrected-data" title="Stop reinventing the wheel: open, corrected, longitudinally aligned CRDC arrest data" date="" draft="true" status="draft" series="11"}
+::: {.smpost slug="open-corrected-data" title="Stop reinventing the wheel: open, corrected, longitudinally aligned CRDC arrest data" date="2026-08-10" draft="true" status="draft" series="11"}
 
 <!-- POST-PROSE: post11-intro -->
 The Civil Rights Data Collection is one of the richest sources of information on
