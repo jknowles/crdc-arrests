@@ -4,6 +4,15 @@
 *_files/
 # transient gfm render produced by scripts/export-hugo-posts.sh
 /social_media_posts.md
+# white paper render outputs, consumed by scripts/publish_white_paper.R and then
+# copied into the site bundle. Same treatment as the newsletter intermediate
+# above: regenerate with `quarto render white_paper.qmd --to pdf --to hugo-md`
+# rather than committing them. (.tex is kept on disk by `keep-tex: true` so
+# LaTeX errors stay diagnosable.)
+/white_paper.md
+/supplement.md
+/white_paper.pdf
+/white_paper.tex
 /export
 /cache
 /.crdc-cache
@@ -20,3 +29,18 @@ renv/library/
 renv/local/
 renv/cellar/
 renv/staging/
+
+# Playwright MCP verification artifacts (screenshots, console logs, page snapshots)
+/.playwright-mcp/
+
+# Deployment tooling for the Civilytics website (homepage_test bridge, Hugo
+# post export, API-docs publish) plus the paper-render bridges. Kept on disk so
+# publishing still works locally; deliberately not published. scripts/mathml.lua
+# is NOT here -- it is a pandoc rendering filter the tracked .qmd files declare,
+# so a public clone needs it to render `--to hugo-md`.
+/scripts/publish_newsletter.R
+/scripts/publish_docs.R
+/scripts/export-hugo-posts.sh
+/scripts/publish_white_paper.R
+/scripts/publish_supplement.R
+/scripts/check_paper_figures.R

@@ -31,5 +31,12 @@ done
 echo "Done. HTML alongside each .qmd; figures in export/figures/."
 
 if [ "${EXPORT_HUGO:-0}" = "1" ]; then
-  scripts/export-hugo-posts.sh
+  # Site-deployment tooling, not published with this repo. Degrade with a clear
+  # message rather than a "no such file" from the shell.
+  if [ -x scripts/export-hugo-posts.sh ]; then
+    scripts/export-hugo-posts.sh
+  else
+    echo "EXPORT_HUGO=1, but scripts/export-hugo-posts.sh is not present." >&2
+    echo "It is Civilytics site-deployment tooling and is not part of the public repo." >&2
+  fi
 fi

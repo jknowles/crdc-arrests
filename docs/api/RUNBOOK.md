@@ -46,10 +46,11 @@ default model `unified_m2`. Remotes: `origin` dual-pushes to GitHub
   would otherwise pin 404s/500s at the edge for a year.
 
 ## E. Docs published to Gitea Pages
-- [x] `docs/api/` (index.md + data-dictionary.md) published to
-  `pages.civilytics.org/crdc-arrests` via `Rscript scripts/publish_docs.R`
-  (branded, repeatable; see `docs/api/site/`) — superseding the original
-  one-off manual `pandoc` invocation.
+- [x] `docs/api/` (index.md + data-dictionary.md) rendered through the branded
+  template in `docs/api/site/` and published to
+  `civilytics.org/crdc-arrests` (branded, repeatable) — superseding the
+  original one-off manual `pandoc` invocation. The publish step itself is
+  Civilytics site-deployment tooling and is not part of this repo.
 - [x] Landing page links resolve: API base, Swagger, llms.txt, HF dataset,
   data dictionary. Confirmed 2026-07-07
   (`https://pages.civilytics.org/crdc-arrests/` → 200).
@@ -83,5 +84,5 @@ If the models are re-run and a new `data_release` is cut:
    changed.
 5. Push to `main` → Gitea Action redeploys `crdc-api`; re-run the step F
    checks.
-6. If `docs/api/*.md` changed (new `data_release`, schema changes):
-   `Rscript scripts/publish_docs.R`.
+6. If `docs/api/*.md` changed (new `data_release`, schema changes): re-publish
+   the docs site.

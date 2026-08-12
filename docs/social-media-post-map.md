@@ -243,7 +243,8 @@ Do not mix denominators across the two when reproducing numbers.
 
 ## Publishing (Hugo bundles)
 
-`scripts/export-hugo-posts.sh` renders `social_media_posts.qmd` to GitHub-Flavored
+The export step (Civilytics site-deployment tooling, not part of this repo)
+renders `social_media_posts.qmd` to GitHub-Flavored
 Markdown and splits the output into one Hugo page bundle per post under
 `export/hugo/posts/<slug>/index.md`, with co-located figures at
 `export/hugo/posts/<slug>/figure-N.png`. Each bundle's front matter carries

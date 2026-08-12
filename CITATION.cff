@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: "If you use these estimates, this pipeline, or the published dataset, please cite the work below."
+title: "Equity Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the CRDC School Arrest Data"
+abstract: >-
+  Bayesian small-area estimates of school-based arrest rates from the US
+  Department of Education's Civil Rights Data Collection (2015-16, 2017-18, and
+  2021-22). School-based arrests are rare and unevenly reported: the most common
+  district count is zero, and a classical confidence interval around a rare rate
+  is too wide to compare districts with. We fit ten Bayesian hierarchical
+  specifications and show that small area estimation narrows those intervals
+  substantially while improving coverage, making it possible to say which
+  differences between student groups, places, and years are real. This
+  repository contains the full pipeline together with the published API and
+  open dataset.
+type: software
+authors:
+  - family-names: Knowles
+    given-names: Jared E.
+    affiliation: Civilytics Consulting
+  - family-names: Miller
+    given-names: Hannah
+    affiliation: Civilytics Consulting
+repository-code: "https://github.com/jknowles/crdc-arrests"
+url: "https://www.civilytics.com/portfolio/equity-analysis-at-a-large-scale/"
+license: GPL-3.0-or-later
+date-released: "2025-09-01"
+version: "2025.1"
+keywords:
+  - Bayesian hierarchical models
+  - small area estimation
+  - school discipline
+  - school-based arrests
+  - Civil Rights Data Collection
+  - education policy
+  - reproducible research
+references:
+  - type: data
+    title: "Civil Rights Data Collection"
+    authors:
+      - name: "U.S. Department of Education, Office for Civil Rights"
+    notes: "Source data for all estimates in this repository."
+    url: "https://civilrightsdata.ed.gov/"
+  - type: generic
+    title: "CRDC School Arrest Rates (modelled estimates)"
+    authors:
+      - name: "Civilytics Consulting"
+    notes: "Published dataset of posterior draws and summaries."
+    url: "https://huggingface.co/datasets/civilytics/crdc-school-arrest-rates"

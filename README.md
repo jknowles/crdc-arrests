@@ -1,38 +1,41 @@
-# Equity Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the CRDC School Arrest Data
+# Equity Analysis at a Large Scale
 
----
+**Using Small Area Estimation to Get the Most from the CRDC School Arrest Data**
 
-This repository contains the code and data to reproduce small area estimates of
-school-based arrest rates from US Department of Education Civil Rights Data
-Collection public datasets.
+Bayesian small-area estimates of school-based arrest rates from the US Department
+of Education's Civil Rights Data Collection (2015-16, 2017-18, and 2021-22). This
+repository holds the whole pipeline — data preparation, models, posterior draws,
+and the published data products.
+
+School-based arrests are rare and unevenly reported: the most common district
+count is zero, and a classical interval around a rare rate is too wide to compare
+districts with. Modelling those rates hierarchically narrows the intervals enough
+to make comparisons between student groups, places, and years meaningful.
+
+[Jared E. Knowles](https://www.civilytics.com/about/people/jared-knowles/) — President, Civilytics Consulting
+[Hannah Miller](https://www.civilytics.com/about/people/hannah-miller/) — Senior Partner, Civilytics Consulting
+
+## Use the estimates without running anything
+
+| | |
+|---|---|
+| **Paper** | <https://www.civilytics.com/portfolio/equity-analysis-at-a-large-scale/> — the full report, with supplementary materials |
+| **API** | <https://crdc-api.civilytics.org/api/v1/> — district and state estimates with 50/80/95% credible intervals |
+| **Documentation** | <https://www.civilytics.org/crdc-arrests/> — overview and data dictionary |
+| **District explorer** | <https://www.civilytics.org/crdc-demo/> — compare districts and student groups interactively |
+| **Bulk data** | [`civilytics/crdc-school-arrest-rates`](https://huggingface.co/datasets/civilytics/crdc-school-arrest-rates) — partitioned Parquet on Hugging Face |
+
+Everything below is for re-running or extending the analysis itself.
 
 ## Table of Contents
 
-- [Abstract](#abstact)
+- [Abstract](#abstract)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
-- [Usage](#installation)
+- [Usage](#usage)
 - [Key Targets & Outputs](#key-targets--outputs)
 - [Troubleshooting & Common Errors](#troubleshooting--common-errors)
-- [Suggested Citation](#citation)
-
-
----
-
-[Jared E. Knowles](https://www.civilytics.com/people/jared/) - President, Civilytics Consulting
-[Hannah Miller](https://www.civilytics.com/people/hannah/) - Senior Partner, Civilytics Consulting
-
----
-
----
-
-Jared Knowles and Hannah Miller. 2025. "Equity Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the CRDC School Arrest Data." Available online at: https://www.civilytics.com/k12ed/school-based-arrest-rate-estimates/
-
-This research was supported by a grant from the American Educational Research Association which receives funds for its "AERA Grants Program" from the National Science Foundation under NSF award NSF-DRL #1749275. Opinions reflect those of the author and do not necessarily reflect those AERA or NSF.
----
-
-[Preprint](https://www.civilytics.com/k12ed/school-based-arrest-rate-estimates/)
-
+- [Suggested Citation](#suggested-citation)
 
 ## Abstract
 
@@ -44,7 +47,7 @@ From the final report:
 ## Repository Structure
 
 The project is organized around a **modeling-pipeline core** plus **three subsystems**
-built on top of it (full plan in [`docs/superpowers/specs/ROADMAP.md`](docs/superpowers/specs/ROADMAP.md)):
+built on top of it:
 
 1. **Draws API** — a public data product (live API + Hugging Face dataset) so people use the estimates without re-running the models.
 2. **Pipeline reproducibility** — environment capture so a new user can `tar_make()` from source.
@@ -83,9 +86,7 @@ theme/  latex/  typst/  assets/   Brand theme files + logos (referenced by _bran
 inst/                   Paper source (Word .docx, .bib) — git-ignored EXCEPT *.bib
 docs/data-stages.md     Provenance map: each published stage artifact → its pipeline stage
 
-  ── Documentation & specs ─────────────────────────────────────────────────
-docs/superpowers/specs/   One design spec per subsystem + ROADMAP.md
-docs/superpowers/plans/   Implementation plans
+  ── Documentation ─────────────────────────────────────────────────────────
 docs/models.md            Model specifications & sample-restriction notes
 docs/hf-dataset-card.md   Hugging Face dataset card for the published data product
 
@@ -111,7 +112,7 @@ Each `.qmd` reads **published artifacts** through `crdc_path()` — set
 (new user) — and never touches the `_targets/` store, so it renders standalone
 (`quarto render`). The same docs are also `cue="never"` render targets in
 `_targets.R`. See [`docs/data-stages.md`](docs/data-stages.md) and
-[Reproduce the published artifacts](#reproduce-the-published-artifacts-no-7run).
+[Reproduce the published artifacts](#reproduce-the-published-artifacts-no-7day-run).
 
 
 ## Prerequisites
@@ -167,7 +168,7 @@ obtain the three required waves of CRDC data (2015-16, 2017-18, and 2021-22).
 Note that the file locations may have changed since publication. Report issues
 with accessing the download as issues on this repository so it can be updated.
 
-### Install depencencies
+### Install dependencies
 
 After installing the R packages required above you need to set up CmdStan to
 fit the models effectively. The CmdStan setup varies slightly depending on
@@ -276,9 +277,16 @@ All pipeline logs are written to `_targets/meta/` and can be inspected with `tai
 
 ## Suggested Citation
 
-Jared Knowles and Hannah Miller. 2025. "Equity Analysis at a Large Scale: Using Small Area Estimation to Get the Most from the CRDC School Arrest Data." Available online at: https://www.civilytics.com/k12ed/school-based-arrest-rate-estimates/
+> Knowles, J. E., & Miller, H. (2025). *Equity Analysis at a Large Scale: Using
+> Small Area Estimation to Get the Most from the CRDC School Arrest Data*.
+> Civilytics Consulting.
+> https://www.civilytics.com/portfolio/equity-analysis-at-a-large-scale/
 
-When using this pipeline, please cite the Civil Rights Data Collection:
+GitHub reads [`CITATION.cff`](CITATION.cff) in this repository, so the
+**"Cite this repository"** button in the sidebar will give you APA or BibTeX
+directly.
+
+When using this pipeline, please also cite the Civil Rights Data Collection:
 
 > U.S. Department of Education, Office for Civil Rights. (Year). *Civil Rights Data Collection*. Washington, DC.
 
@@ -293,15 +301,14 @@ NSF.
 
 ## API & Data Product
 
-Model results are published so you don't have to re-run the pipeline:
+The links at the top of this README are the published products. A few details
+that don't fit in that table:
 
-- **API:** `https://crdc-api.civilytics.org/api/v1/` — district & state estimates
-  (point + 50/80/95% credible intervals). See `api/llms.txt` and the OpenAPI spec
-  at `/api/v1/openapi.json`.
-- **Docs:** https://pages.civilytics.org/crdc-arrests/ — overview + data
-  dictionary (or read them in-repo: [docs/api/index.md](docs/api/index.md),
-  [docs/api/data-dictionary.md](docs/api/data-dictionary.md)).
-- **Bulk draws:** partitioned Parquet on Hugging Face
-  (`civilytics/crdc-school-arrest-rates`), queryable shard-by-shard with DuckDB.
+- **API:** machine-readable description in `api/llms.txt`, OpenAPI spec at
+  `/api/v1/openapi.json`.
+- **Docs:** also readable in-repo — [docs/api/index.md](docs/api/index.md) and
+  [docs/api/data-dictionary.md](docs/api/data-dictionary.md).
+- **Bulk draws:** the Hugging Face Parquet is partitioned, so it is queryable
+  shard-by-shard with DuckDB rather than as one download.
 - **Build it yourself:** the `api_db` and `draws_parquet` targets produce the
   summary DuckDB and Parquet from `tar_make()`.
