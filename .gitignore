@@ -38,6 +38,15 @@ renv/staging/
 # publishing still works locally; deliberately not published. scripts/mathml.lua
 # is NOT here -- it is a pandoc rendering filter the tracked .qmd files declare,
 # so a public clone needs it to render `--to hugo-md`.
+#
+# 2026-08-22: the three bridges that write INTO homepage_test
+# (publish_newsletter.R, publish_white_paper.R, publish_supplement.R) are now
+# version-controlled THERE -- homepage_test is private, and it already owns its
+# other content importers (scripts/migrate_newsletter, scripts/import_publications).
+# The paths below are symlinks into that checkout, so they stay ignored here and
+# there is one canonical copy rather than two that drift. Run them from this
+# repo as usual (renv applies), or from homepage_test with --source=<this repo>.
+# publish_docs.R and export-hugo-posts.sh did NOT move: they publish elsewhere.
 /scripts/publish_newsletter.R
 /scripts/publish_docs.R
 /scripts/export-hugo-posts.sh
