@@ -1401,7 +1401,7 @@ knitr::include_graphics(img_path)
 
 :::
 
-::: {.smpost slug="american-indian-arrests-models" title="A closer look: American Indian student arrests and what models tell us" date="2026-08-06" draft="true" status="draft" series="7"}
+::: {.smpost slug="american-indian-arrests-models" title="A closer look: American Indian student arrests and what models tell us" date="2026-08-24T09:00:00-04:00" draft="true" status="draft" series="7"}
 
 <!-- POST-PROSE: post7-intro -->
 [Our post on arrest rates by race](/newsletter/arrest-rates-by-race/) ended with a striking fact: more than half of all American
@@ -1896,7 +1896,7 @@ school arrests. Future posts will make those choices explicit.
 
 ## Post 8 Expected vs Observed Arrests
 
-::: {.smpost slug="misreported-zeros-descriptive" title="Failure to report, or a real difference in policy? Populous districts reporting zero arrests" date="2026-08-07" draft="true" status="draft" series="8"}
+::: {.smpost slug="misreported-zeros-descriptive" title="Failure to report, or a real difference in policy? Populous districts reporting zero arrests" date="2026-08-31T09:00:00-04:00" draft="true" status="draft" series="8"}
 
 <!-- POST-PROSE: post8-intro -->
 In 2021-22, 2,060 school districts -- just 11.6% of all districts in
@@ -2102,7 +2102,7 @@ that for one district that reported zero arrests](/newsletter/misreported-zeros-
 
 :::
 
-::: {.smpost slug="misreported-zeros-analytic" title="What ten models say about Paterson's zero arrests" date="2026-08-08" draft="true" status="draft" series="9"}
+::: {.smpost slug="misreported-zeros-analytic" title="What ten models say about Paterson's zero arrests" date="2026-09-08T09:00:00-04:00" draft="true" status="draft" series="9"}
 
 ```{r}
 
@@ -2588,9 +2588,11 @@ concern the data may not be prepared and released as planned.
 
 :::
 
-::: {.smpost slug="estimating-rare-events" title="Estimating rare events in fixed populations: lessons from other fields" date="2026-08-09" draft="true" status="draft" series="10"}
+::: {.smpost slug="estimating-rare-events" title="Estimating rare events in fixed populations: lessons from other fields" date="2026-09-14T09:00:00-04:00" draft="true" status="draft" series="10"}
 
 <!-- POST-PROSE: Post 10 — Estimating rare events in fixed populations: methodology, comparisons, and future directions -->
+
+### Why model at all?
 
 School arrests are relatively rare, which makes measuring them precisely challenging: reliable rate estimates require either large student populations or statistical borrowing from related units. Yet each school district's population is fixed — you cannot simply run more "trials." This creates a dilemma: for many student groups and many districts, disparities in this rare but consequential school action are statistically invisible.
 
@@ -2602,7 +2604,7 @@ Our work applies this tradition to school arrest data from the Civil Rights Data
 
 **Methodological notes.** Our models are restricted to schools enrolling students in grade 7 or above; elementary-age students are rarely arrested, and including very young grades would push the model toward structural zeros in uninformative ways. We further restrict to districts enrolling at least 30 students total[^post10-2] and exclude any district–student-group observation where the group's enrollment is recorded as zero.
 
-**Why some comparisons are startling — and what they invite.** One of the most striking features of the data is how dramatically nearby districts can differ. Mobile County Schools (AL) reported 139 arrests among the 25,745 students it enrolls in grades 7-12. Jefferson County Schools, which covers much of the Birmingham metropolitan area, reported just 1 arrest among 20,837 students in those same grades. These districts are neighbors in the same state. Are their discipline policies that different? Did one under-report? Did something change between collection cycles? Comparisons like this — between a central-city district, a county system, and the charter school sector operating in the same metro area — are among the most actionable analyses the CRDC makes possible, and among the hardest to pursue without a tool that surfaces them automatically.
+**The power of comparison.** One of the most striking features of the data is how dramatically nearby districts can differ. Mobile County Schools (AL) reported 139 arrests among the 25,745 students it enrolls in grades 7-12. Jefferson County Schools, which covers much of the Birmingham metropolitan area, reported just 1 arrest among 20,837 students in those same grades. These districts are neighbors in the same state. Are their discipline policies that different? Did one under-report? Did something change between collection cycles? Comparisons like this, or comparisons between a central-city district, a county system, and the charter school sector operating in the same metro area — are among the most actionable analyses the CRDC makes possible, and among the hardest to make when the data are rare, sparse, and noisy.
 
 <!-- /POST-PROSE -->
 
@@ -2689,13 +2691,22 @@ knitr::include_graphics(img_path)
 ```
 
 <!-- POST-PROSE: post10-where-next -->
-**Where we want to take this.** Part of this is already built. The cleaned data and the model-based estimates already live behind a public API — you can pull Mobile County's estimates, the same district from the comparison above, with a single request:
+**Where we want to take this.** We want you to use it! We've turned the cleaned data and the estimates from our Bayesian models into a bulk download file and a live public API — you can pull Mobile County's estimates, the same district from the comparison above, with a single request:
 
 ```
 GET https://crdc-api.civilytics.org/api/v1/estimates/0102370?year=21-22&model=unified_m2
 ```
 
-That returns Mobile County's modeled arrest-rate estimates — broken out by student group, each with a credible interval — for any of the three collection years and any of the ten models. What we still want to build is the layer that makes this usable for non-programmers: a publicly accessible web application and an AI-assisted interface that let journalists, advocates, researchers, and district leaders query any district, compare neighbors within a metropolitan area, and trace trends across the multiple CRDC collection cycles without writing a line of code. Adding prior collection years would let us say, for a given school district, how arrest rates have changed over the past decade — and whether apparent changes exceed what we would expect from measurement noise alone. That kind of longitudinal, model-informed view of school discipline is still unavailable at scale, and we are actively seeking funding and partners to extend it.
+That returns Mobile County's modeled arrest-rate estimates — broken out by student group, each with a credible interval — for any of the three collection years and any of the ten models. What we still want to build is the layer that makes this usable for non-programmers: a publicly accessible web application and an AI-assisted interface that let journalists, advocates, researchers, and district leaders query any district, compare neighbors within a metropolitan area, and trace trends across the multiple CRDC collection cycles without writing a line of code.
+
+We want to continue to improve this by expanding this method to additional covariates, disaggregating by student disability, incorporating more prior waves of collections, and continuing to improve the API and interfaces to the data. We want to make it much easier for users to quickly find and compare rates among districts and student groups of interest to them. To that end we are actively seeking funding, collaborators, and users to support this work and help us refine it.
+
+As an example, we have built this demo that allows you to interactively explore the model results for a single school district, so you can explore what the models estimate about Mobile, AL on your own.
+
+<!-- CTA: Explore Mobile County, AL -->
+https://civilytics.org/crdc-demo/?leaid=0102370&state=AL
+
+Finally, this project has helped us learn a lot about how to do reproducible public data analysis and make it extensible and accessible. We already have our second API on the way making US Census of Governments data on government finance much easier to use. Stay tuned and please share our work to help us keep building!
 
 <!-- /POST-PROSE -->
 
