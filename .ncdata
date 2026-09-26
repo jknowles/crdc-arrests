@@ -1,0 +1,8 @@
+# Untracked data paths, linked from the synced data home by `ncdata link`.
+# See README "Getting the data" if you are working without ncdata.
+# _targets/meta stays in git (the targets default); only the object store syncs.
+home = civilytics:Code/Civilytics/crdc-arrests
+export
+tmp
+_targets/objects
+_targets/workspaces
