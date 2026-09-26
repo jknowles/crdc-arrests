@@ -13,6 +13,15 @@ format:
     toc-location: right
     toc-depth: 3
     embed-resources: true
+  hugo-md:
+    # Web output for civilytics.com. Shortcodes are left untouched by this
+    # writer, which is what scripts/publish_supplement.R relies on.
+    #
+    # mathml.lua pre-renders the document's LaTeX expressions to MathML, same
+    # as white_paper.qmd -- see that file's format.hugo-md note for the
+    # rationale against vendoring KaTeX.
+    filters:
+      - scripts/mathml.lua
 execute:
   echo: false
   warning: false
@@ -161,7 +170,8 @@ otherwise, and so differ from the single-wave 2021-22 figures in the paper.
 ## Basic Data Structure
 
 ```{r}
-#| label: data-structure
+#| label: tbl-data-preview
+#| tbl-cap: "First six rows of the combined CRDC analysis dataset"
 # Basic structure and dimensions
 cat("Data dimensions:", nrow(combined_data), "rows,", ncol(combined_data), "columns\n\n")
 
@@ -175,7 +185,8 @@ head(combined_data) |> kable()
 ## Summary Statistics by Year
 
 ```{r}
-#| label: year-summary
+#| label: tbl-year-summary
+#| tbl-cap: "Observation counts and mean enrollment, arrests, and referrals by CRDC collection year"
 # Summary statistics by year
 year_summary <- combined_data |>
   group_by(YEAR) |>
@@ -198,7 +209,11 @@ year_summary |> knitr::kable(digits = 2)
 ### Summary Plot of Trends
 
 ```{r}
-#| label: national-arrest-trend-plots
+#| label: fig-national-arrest-count-trend
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Total CRDC-reported school-related arrests nationwide across the three collection waves (2015-16, 2017-18, 2021-22)"
 
 year_summary <- combined_data |>
   group_by(YEAR) |>
@@ -219,6 +234,14 @@ ggplot(year_summary, aes(x = YEAR, y = total_arrests)) +
   scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
   labs(x = "School Year", y = "CRDC Arrests", title = "Arrest Trends Across CRDC Collections") +
   civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE)
+```
+
+```{r}
+#| label: fig-national-arrest-rate-trend
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "National arrest rate per 1,000 students across the three CRDC collection waves"
 
 ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/1000))) +
   geom_point() +
@@ -226,19 +249,16 @@ ggplot(year_summary, aes(x = YEAR, y = total_arrests/(total_enrollment/1000))) +
   scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
   labs(x = "School Year", y = "CRDC Arrests per 1,000", title = "Arrest Rate Trends Across CRDC Collections") +
   civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE)
-
-
-
-
 ```
 
 ## State Variation Summing over 3 years
 
 ```{r}
-#| label: state_map_arrest_rate
+#| label: fig-state-arrest-rate-map
 #| echo: false
 #| warning: false
 #| message: false
+#| fig-cap: "Total school-related arrests per 1,000 students by state, summed across all three CRDC waves"
 
 state_summary <- combined_data |>
   group_by(LEA_STATE) |>
@@ -261,7 +281,8 @@ state_map2 <- inner_join(state_map, state_summary, by = join_by(STUSPS == LEA_ST
 
 ggplot(data = state_map2, aes( fill = arrest_rate)) +
   geom_sf() +
-  geom_sf_label(aes(label = round(arrest_rate, 1))) +
+  ggrepel::geom_label_repel(aes(label = round(arrest_rate, 1), geometry = geometry), stat = "sf_coordinates",
+    size = 3, seed = 42, max.overlaps = 30, label.padding = 0.15, segment.size = 0.3) +
   scale_fill_distiller(palette = "YlOrRd", direction = 1) +
   labs(title = "Arrests per 1,000 for all students by state") +
   theme_void()
@@ -273,13 +294,15 @@ ggplot(data = state_map2, aes( fill = arrest_rate)) +
 
 
 ```{r}
-#| label: state_map_arrestsnnh
+#| label: fig-state-arrest-nnh-map
 #| echo: false
 #| warning: false
 #| message: false
+#| fig-cap: "Students per arrested student (NNH) by state, summed across all three CRDC waves"
 ggplot(data = state_map2, aes( fill = arrest_nnh)) +
   geom_sf() +
-  geom_sf_label(aes(label = civilytics::pretty_count(round(arrest_nnh, 0)))) +
+  ggrepel::geom_label_repel(aes(label = civilytics::pretty_count(round(arrest_nnh, 0)), geometry = geometry), stat = "sf_coordinates",
+    size = 3, seed = 42, max.overlaps = 30, label.padding = 0.15, segment.size = 0.3) +
   scale_fill_distiller(palette = "YlOrRd", direction = -1,
   breaks = c(50000, 8000, 3000, 1000, 500),
   trans = "log", labels = scales::comma) +
@@ -297,7 +320,8 @@ totals and per-1,000 rates reported in `white_paper.qmd`; they are not the same
 figures and should not be read as such.
 
 ```{r}
-#| label: race-sex-distribution
+#| label: tbl-race-sex-distribution
+#| tbl-cap: "Arrest counts, enrollment, and arrest rates by race and sex, pooled across all three CRDC waves"
 # Distribution across race and sex categories
 race_sex_summary <- combined_data |>
   filter(RACE != "TOTAL", SEX != "TOTAL") |>
@@ -318,7 +342,11 @@ race_sex_summary |> knitr::kable(digits = 3)
 
 
 ```{r}
-#| label: nnh_arrest_counts_3yr
+#| label: fig-nnh-arrest-counts
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Students per arrested student (NNH) by race and sex, pooled across all three CRDC waves"
 
 ggplot(race_sex_summary |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
   aes(x = crdc_race_recode(RACE), y = 1000 / arrest_rate,
@@ -339,7 +367,12 @@ ggplot(race_sex_summary |> filter(RACE %in% c("AM", "WH", "HI", "BL"))) +
 ### Trends by group
 
 ```{r}
-#| label: race-sex-arrestratetrends
+#| label: fig-race-sex-nnh-trend
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Students per arrested student (NNH) by race and sex across the three CRDC waves"
+
 race_sex_trends <- combined_data |>
   filter(RACE != "TOTAL", SEX != "TOTAL") |>
   group_by(YEAR, RACE, SEX) |>
@@ -362,9 +395,9 @@ ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
     scale_color_manual(values = color_fill_values2) +
   geom_point() +
   geom_line() +
-  geom_text(aes(label = civilytics::pretty_count(round(1000/arrest_rate,0)),
+  ggrepel::geom_text_repel(aes(label = civilytics::pretty_count(round(1000/arrest_rate,0)),
                 color = NULL),
-              vjust = -0.25, show.legend = FALSE) +
+              size = 3.2, seed = 42, show.legend = FALSE) +
   facet_wrap(~SEX) +
   civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
   labs(x = "", y = "NNH (Arrests)", color = "Race:") +
@@ -372,7 +405,14 @@ ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
                     limits = c(0, 4000),
                     labels = scales::comma) +
   theme(legend.position = "bottom", axis.ticks.x = element_blank())
+```
 
+```{r}
+#| label: fig-race-sex-rate-trend
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Arrest rate per 1,000 students by race and sex across the three CRDC waves"
 
 ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
   mutate(group_var = paste(RACE, SEX, sep = "_"))) +
@@ -381,9 +421,9 @@ ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
     scale_color_manual(values = color_fill_values2) +
   geom_point() +
   geom_line() +
-  geom_text(aes(label = civilytics::pretty_count(round(arrest_rate, 2)),
+  ggrepel::geom_text_repel(aes(label = civilytics::pretty_count(round(arrest_rate, 2)),
                 color = NULL),
-              vjust = -0.25, show.legend = FALSE) +
+              size = 3.2, seed = 42, show.legend = FALSE) +
   facet_wrap(~SEX) +
   civilytics::theme_civilytics(font_size = 14, paper_bg = FALSE) +
   labs(x = "", y = "Arrests per 1,000", color = "Race:") +
@@ -391,15 +431,17 @@ ggplot(race_sex_trends |> filter(RACE %in% c("AM", "WH", "HI", "BL")) |>
                     limits = c(0, 4),
                     labels = scales::comma) +
   theme(legend.position = "bottom", axis.ticks.x = element_blank())
-
-
 ```
 
 
 ## State Trends
 
 ```{r}
-#| label: state-trend-comparison
+#| label: fig-state-trend-comparison
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Total school-related arrests over time for Kansas and California"
 
 state_trend_summary <- combined_data |>
   filter(LEA_STATE %in% c("KS", "CA")) |>
@@ -476,7 +518,8 @@ combined_data |>
 ### Rankings over time
 
 ```{r}
-#| label: lea-arrest-count-leaderboard
+#| label: tbl-lea-arrest-count-leaderboard
+#| tbl-cap: "The 20 districts with the most total arrests in 2021-22, with enrollment, arrest rate, and prior-wave arrest counts"
 
 combined_data |>
 #  filter(total_enroll > 0) |>
@@ -520,7 +563,8 @@ combined_data |>
 ### Rankings of arrest rates
 
 ```{r}
-#| label: lea-arrest-rate-leaderboard
+#| label: tbl-lea-arrest-rate-leaderboard
+#| tbl-cap: "The 20 districts with the highest arrest rate in 2021-22, with enrollment, arrest counts, and prior-wave arrest rates"
 
 combined_data |>
 #  filter(total_enroll > 0) |>
@@ -668,7 +712,8 @@ dist_size_summary <- dist_ref_arr %>%
 ```
 
 ```{r}
-#| label: display-expected-arrests
+#| label: tbl-expected-arrests-by-size
+#| tbl-cap: "Observed and expected districts with at least one arrest, by district size"
 
 dist_size_summary |> knitr::kable()
 ```
@@ -697,7 +742,7 @@ concentration_plot_data <- dist_ref_arr %>%
 ```
 
 ```{r}
-#| label: plot-concentration
+#| label: fig-plot-concentration
 #| fig-cap: "Share of total arrests by cumulative district enrollment"
 #| fig-width: 10
 #| fig-height: 6
@@ -727,7 +772,8 @@ ggsave("export/figures/arrest_concentration_by_district_enrollment.png",
 ### Enrollment by Arrest Status
 
 ```{r}
-#| label: compute-enrollment-by-arrest
+#| label: tbl-enrollment-by-arrest-status
+#| tbl-cap: "Share of national student enrollment in districts with and without any reported arrest"
 
 enrollment_by_arrest <- dist_ref_arr %>%
   ungroup %>%
@@ -760,7 +806,8 @@ section_504_summary <- sch_ref %>%
 ```
 
 ```{r}
-#| label: display-504-data
+#| label: tbl-section-504-summary
+#| tbl-cap: "Summary of Section 504 disability status among law enforcement referrals"
 
 section_504_summary |> knitr::kable()
 ```
@@ -824,7 +871,8 @@ enrollment_504_summary <- enrollment %>%
 ```
 
 ```{r}
-#| label: display-504-enrollment
+#| label: tbl-section-504-enrollment
+#| tbl-cap: "Total Section 504-eligible student enrollment"
 
 enrollment_504_summary |> knitr::kable()
 ```
@@ -858,7 +906,8 @@ grade_restriction_summary <- gr_data |>
 ```
 
 ```{r}
-#| label: display-grade-restrictions
+#| label: tbl-grade-restriction-impact
+#| tbl-cap: "Enrollment, arrests, and referrals by whether a school offers grade 7 or above"
 
 grade_restriction_summary |> knitr::kable()
 ```
@@ -900,7 +949,8 @@ ccd_match_summary <- crdc |>
 ```
 
 ```{r}
-#| label: display-ccd-match-summary
+#| label: tbl-ccd-match-summary
+#| tbl-cap: "Enrollment, arrests, and referrals by whether a school matched to CCD geographic data"
 
 ccd_match_summary |> knitr::kable()
 ```
@@ -934,7 +984,8 @@ enrollment_threshold_summary <- thr_data |>
 ```
 
 ```{r}
-#| label: display-enrollment-thresholds
+#| label: tbl-enrollment-threshold-impact
+#| tbl-cap: "Districts, enrollment, arrests, and referrals by whether a district falls below the minimum-enrollment threshold"
 
 enrollment_threshold_summary |> knitr::kable()
 ```
@@ -1078,7 +1129,8 @@ cases separately.
 
 
 ```{r}
-#| label: constant-proportions
+#| label: tbl-constant-fitted-proportions
+#| tbl-cap: "Share of model fitted values that are constant across posterior draws"
 
 table(fitted_constant = plotdf$fitted_constant) |> prop.table() |> knitr::kable()
 
@@ -1127,7 +1179,8 @@ nonconstant_summary <- plotdf |>
 ```
 
 ```{r}
-#| label: display-nonconstant-summary
+#| label: tbl-nonconstant-model-performance
+#| tbl-cap: "Model performance metrics by model and year, excluding constant predictions"
 
 nonconstant_summary |> knitr::kable()
 ```
@@ -1191,7 +1244,8 @@ big100_summary <- plotdf |>
 ```
 
 ```{r}
-#| label: display-big100-summary
+#| label: tbl-big100-performance
+#| tbl-cap: "Model performance for the 100 largest-enrollment districts by model and year"
 
 big100_summary |> knitr::kable()
 ```
@@ -1210,7 +1264,8 @@ Here we compute the model statistics.
 ### Unified Models
 
 ```{r}
-#| label: compute-nat-model-stats
+#| label: tbl-unified-model-stats
+#| tbl-cap: "Sampler configuration and convergence diagnostics for the unified models"
 
 # Unified-model stats from the published diagnostics artifact (precomputed
 # calculate_model_stats(); labels via the model registry).
@@ -1249,7 +1304,8 @@ read_stage_df("stages/diagnostics/model_stats.parquet") |>
 ### HMC Diagnostics
 
 ```{r}
-#| label: hmc-diagnostics
+#| label: tbl-hmc-diagnostics
+#| tbl-cap: "HMC sampler diagnostics for the unified models"
 
 # Live unified-model HMC diagnostics when the fits are available locally/cached
 # (stages/models/unified_m#.qs2); otherwise show the published diagnostics table.
@@ -1368,7 +1424,8 @@ state_performance <- state_plotdf |>
 ```
 
 ```{r}
-#| label: display-state-performance
+#| label: tbl-state-model-performance
+#| tbl-cap: "State-level model performance metrics by model and year"
 
 state_performance |> knitr::kable()
 ```
@@ -1445,12 +1502,13 @@ When we pool all of our models together, we are left with a 50% chance one
 of the Baltimore's has a greater arrest rate than the other (inset, bottom left).
 
 ```{r}
-#| label: baltimorecityandcountydifferences
+#| label: fig-baltimore-city-county-diff
 #| echo: false
 #| warning: false
 #| message: false
 #| fig-width: 10
 #| fig-height: 10
+#| fig-cap: "Modeled arrest rate probability densities for Baltimore City and Baltimore County, with the pooled estimated difference between them"
 
 obsv_plot <-  obsv_focal |>
   rowwise() |>
@@ -1488,7 +1546,7 @@ p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x)
     coord_cartesian(clip = "off") +
     theme_ridges(grid = FALSE, font_size = 14) +
     labs(x = "Arrest rate per 1,000",
-    title = stringr::str_wrap(paste0("Model estimated difference (", "\u0394", ") between Baltimore City and Baltimore County student arrest rates in 21-22"), 120),
+    title = stringr::str_wrap(paste0("Model estimated difference (", "\u0394", ") between Baltimore City and Baltimore County student arrest rates in 21-22"), 70),
     subtitle = "No difference shown as red vertical line.",
     y = "",
     ) +
@@ -1512,7 +1570,7 @@ p1 <- ggplot(plot_draws,
     guides(color = guide_none()) +
     scale_color_manual(values = c("#D55E0050", "#0072B250"), labels = function(x) stringr::str_wrap(tools::toTitleCase(tolower(x)), 80)) +
     scale_fill_manual(values = c("#D55E0050", "#0072B250"), labels = function(x) stringr::str_wrap(tools::toTitleCase(tolower(x)), 80)) +
-    labs(title = stringr::str_wrap(paste0("Arrest rate probability density for ", dist_name_for_title[1], " and ", dist_name_for_title[2]), 120),
+    labs(title = stringr::str_wrap(paste0("Arrest rate probability density for ", dist_name_for_title[1], " and ", dist_name_for_title[2]), 70),
     x = "Arrest rate per 1,000", y = "Model type", fill = "", color = "") +
     coord_cartesian(clip = "off") +
     theme_ridges(grid = FALSE, font_size = 14) +
@@ -1533,8 +1591,8 @@ p3 <- ggplot(diff_b,
     scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
             guide = guide_none()) +
     geom_text(data = annotate_df,
-        size = 2.5,
-        position = position_nudge(y = 1.2, x = -2.25),
+        size = 1.8,
+        position = position_nudge(y = 1.2, x = -2.6),
     aes(y = model_id, x = diffv, label = paste0("Pr(", "\u0394", "> 0): ", pretty_per(diff_per)))) +
     coord_cartesian(clip = "off") +
     theme_ridges(grid = FALSE, font_size = 10) +
@@ -1559,12 +1617,13 @@ To better understand what is going on we can use our models to make temporal
 comparisons in Baltimore County - what does the trend look like.
 
 ```{r}
-#| label: baltimorecountytrend
+#| label: fig-baltimore-county-trend
 #| echo: false
 #| warning: false
 #| message: false
 #| fig-width: 10
 #| fig-height: 10
+#| fig-cap: "Modeled arrest rate probability densities for Baltimore County over time, with the estimated difference between 2017-18 and 2021-22"
 
 # Temporal for Baltimore County
 
@@ -1606,7 +1665,7 @@ p1 <- ggplot(plot_draws ,
     guides(fill = guide_none()) +
     scale_color_brewer(palette = "Blues", direction = 1) +
     scale_fill_brewer(palette = "Blues", direction = 1) +
-    labs(title = stringr::str_wrap(paste0("Arrest rate probability density for ", dist_name_for_title[1], " over time"), 120),
+    labs(title = stringr::str_wrap(paste0("Arrest rate probability density for ", dist_name_for_title[1], " over time"), 70),
   subtitle = "Observed value shown by point",
     x = "Arrest rate per 1,000", y ="", fill = "", color = "") +
     coord_cartesian(clip = "off") +
@@ -1641,21 +1700,22 @@ p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x)
     coord_cartesian(clip = "off") +
     theme_ridges(grid = FALSE, font_size = 14) +
     labs(x = "Arrest rate per 1,000",
-    title = stringr::str_wrap(paste0("Model estimated difference (", "\u0394", ") between ", dist_name_for_title, " and 2021-22 and 2017-18"), 120),
+    title = stringr::str_wrap(paste0("Model estimated difference (", "\u0394", ") between ", dist_name_for_title, " and 2021-22 and 2017-18"), 70),
     subtitle = "No difference shown as red vertical line.",
     y = "",
     ) +
       facet_wrap(~add_model_time(model_id), scales = "free_y") +
-    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, hjust = -0.5))
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, size = 10, hjust = -0.5))
 
 
 p3 <- ggplot(obsv_plot, aes(x = YEAR, y = enroll, group = LEA_NAME, color = LEA_NAME)) +
   geom_point() + geom_line() +
-  scale_color_manual(values = c("#d55c00ff", "#0071b2f6"), labels = function(x) stringr::str_wrap(tools::toTitleCase(tolower(x)), 50)) +
-  scale_y_continuous("Enrollment", labels = scales::comma, limits = c(0,NA)) +
+  scale_color_manual(values = c("#d55c00ff", "#0071b2f6"),
+    labels = function(x) gsub(" Public Schools", "", tools::toTitleCase(tolower(x)))) +
+  scale_y_continuous(NULL, labels = scales::comma, limits = c(0,NA)) +
   guides(color = guide_legend(nrow = 2, override.aes = list(linetype = c(0, 0)))) +
 
-  civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE) +
+  civilytics::theme_civilytics(font_size = 9, paper_bg = FALSE) +
   labs(color = "", x = "CRDC Year", title = "Reported enrollment") +
   theme(legend.position = "bottom")
 
@@ -1697,12 +1757,13 @@ obsv_plot <- obsv_focal |>
 
 
 ```{r}
-#| label: browardsmallgroups
+#| label: fig-broward-small-groups
 #| echo: false
 #| warning: false
 #| message: false
 #| fig-width: 10
 #| fig-height: 10
+#| fig-cap: "Modeled arrest rate probability densities for Hispanic and White female students in Broward, with the pooled estimated difference between them"
 
 p1 <- ggplot(plot_draws, aes(x = (pred/(stu_enroll/1000)),
       color= RACE, fill = RACE, y = model_id)) +
@@ -1733,7 +1794,7 @@ p1 <- ggplot(plot_draws, aes(x = (pred/(stu_enroll/1000)),
     subtitle = "Female students only.") +
     coord_cartesian(clip = "off") +
     theme_ridges(grid = FALSE, font_size = 14) +
-    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, hjust = -0.5))
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, size = 10, hjust = -0.5))
 
 diff_a <- plot_draws |>
   group_by(model_id, draw_id) |>
@@ -1768,7 +1829,7 @@ p2 <- ggplot(diff_a, aes(x = (diffv * 1000),  y = model_id, fill = after_stat(x)
     subtitle = "No difference shown as red vertical line.",
     y = "",
     )+
-    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, hjust = -0.5))
+    theme(legend.position = "bottom", axis.text.y = element_text(angle = 90, size = 10, hjust = -0.5))
 
 
 
@@ -1858,12 +1919,13 @@ rm(state_draws); gc()
 
 
 ```{r}
-#| label: plotstates
+#| label: fig-plotstates
 #| echo: false
 #| warning: false
 #| message: false
 #| fig-width: 10
 #| fig-height: 10
+#| fig-cap: "Modeled state-level arrest rate estimates for 2021-22 under two model specifications, compared to observed frequentist intervals"
  ggplot(plot_draws |> filter(model_id %in% c("unified_m3_mod", "stratified_m2_mod")),
         aes(x = arr_rate, y = LEA_STATE, fill = model_id)) +
     geom_density_ridges(scale = 1.5, rel_min_height = 0.01, alpha = 3/5, bandwidth = 0.1) +

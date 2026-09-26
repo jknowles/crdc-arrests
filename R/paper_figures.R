@@ -67,11 +67,31 @@ cv_apply_branding <- function(logo = TRUE,
                               height_frac = 0.06) {
   position <- match.arg(position); type <- match.arg(type)
   # Transparent backgrounds for every figure (paper_bg = FALSE drops the theme's
-  # cream paper fill); font_size = 20 enlarges the patchwork plot_annotation text
-  # (overall title / subtitle / caption) which the per-builder theme_ridges() does
-  # NOT control. The transparent device canvas makes the theme_ridges panels (blank
-  # background) render transparent rather than white.
-  ggplot2::theme_set(civilytics::theme_civilytics(font_size = 20, paper_bg = FALSE))
+  # cream paper fill). font_size here controls the patchwork plot_annotation text
+  # (overall title / subtitle / caption), which the per-builder theme_ridges()
+  # does NOT reach. The transparent device canvas makes the theme_ridges panels
+  # (blank background) render transparent rather than white.
+  #
+  # 12, not the original 20: see the showtext note below. Every size constant in
+  # this file was chosen while showtext drew glyphs at half the requested size,
+  # so the as-written values render at roughly double their intended size once
+  # showtext is off -- which clipped the title on all eight figures and collided
+  # the rotated y-axis labels. Sizes were re-tuned against
+  # scripts/check_paper_figures.R for legibility at both delivery sizes: ~5.5in
+  # wide in the PDF (the binding constraint) and ~800px on the web.
+  ggplot2::theme_set(civilytics::theme_civilytics(font_size = 12, paper_bg = FALSE))
+  # Turn showtext OFF -- explicitly, and only after the theme_civilytics() call
+  # above, because that call is what loads the civilytics namespace and its
+  # .onLoad enables showtext as a side effect.
+  #
+  # showtext draws glyphs at its own 96 dpi while the device lays out line boxes
+  # at the device dpi, so text sits at roughly half size inside full-size lines.
+  # It reads as "the captions are double-spaced" and no amount of `lineheight`
+  # fixes it, because lineheight scales the box, not the mismatch. Measured on
+  # the white-paper figures: baseline-gap / glyph-height was 3.56-3.82 against a
+  # healthy 1.1-1.4. We render through ragg_png below, which resolves the brand
+  # fonts via systemfonts, so showtext buys us nothing here.
+  if (requireNamespace("showtext", quietly = TRUE)) showtext::showtext_auto(FALSE)
   knitr::opts_chunk$set(dev = "ragg_png", dev.args = list(background = "transparent"))
   if (!isTRUE(logo)) return(invisible(FALSE))
   if (!requireNamespace("magick", quietly = TRUE)) {
@@ -123,6 +143,76 @@ cv_apply_branding <- function(logo = TRUE,
 # Internal helpers (model classification, palettes, Agresti-Coull) mirror
 # supplement.qmd's inline copies so white_paper renders standalone.
 # ---------------------------------------------------------------------------
+
+# --- Figure provenance ------------------------------------------------------
+# Every white-paper figure carries its own title, subtitle, note, and source
+# BAKED INTO THE PNG rather than supplied as HTML alongside it. That is a
+# deliberate call: these charts get downloaded, screenshotted, and re-shared, and
+# a chart that travels without its source is a chart that can be misattributed.
+# The cost is that the text is pixels -- so the web publish path (see
+# scripts/publish_white_paper.R) is required to carry the same information in
+# descriptive alt text for screen readers.
+
+#' Standing source line for figures built from the 2021-22 CRDC wave.
+#' Spelled out in full: a chart that gets downloaded and re-shared needs to name
+#' the agency, not just the acronym. It measures ~8.2in at caption size against
+#' a 9.5in usable canvas, so it sits on one line.
+CRDC_SOURCE <- paste0(
+  "U.S. Department of Education, Civil Rights Data Collection, 2021-22; ",
+  "Civilytics modeled estimates.")
+
+#' Wrap `txt` to the widest character budget whose longest line still fits
+#' `max_in` inches, measured in the font and size the figure actually renders in.
+#'
+#' A character count is a width assertion written in the wrong unit: it holds for
+#' exactly one font at one size. The first version of this used str_wrap(., 120)
+#' and the standing source line came out 10.9in wide inside a 10in canvas --
+#' clipped mid-word at the right edge. Bisect on a real measurement instead.
+#'
+#' family = "" is deliberate: the builders style themselves with
+#' ggridges::theme_ridges(), which sets the text family to "", so the figures
+#' render in the device default (Noto Sans here) rather than the Civilytics
+#' brand face. Measuring in "" therefore measures what is actually drawn. See
+#' the note on cv_apply_branding() about that fallback.
+.wp_wrap_fit <- function(txt, max_in, size, family = "") {
+  fits <- function(n) {
+    lines <- strsplit(stringr::str_wrap(txt, n), "\n", fixed = TRUE)[[1]]
+    m <- systemfonts::shape_string(lines, family = family, size = size, res = 300)
+    max(m$metrics$width) / 300 <= max_in
+  }
+  hi <- nchar(txt)
+  if (fits(hi)) return(txt)                      # already fits on one line
+  lo <- 10L
+  while (lo < hi) {                              # largest budget that still fits
+    mid <- (lo + hi + 1L) %/% 2L
+    if (fits(mid)) lo <- mid else hi <- mid - 1L
+  }
+  stringr::str_wrap(txt, lo)
+}
+
+#' Compose a figure caption: an optional "Note:" line, then the standing
+#' "Source:" line, each wrapped to fit the canvas.
+#'
+#' `max_in` defaults to 9.5 -- a 10in figure less its margins, which is the
+#' narrowest canvas in the paper. The two 12in figures get a slightly narrower
+#' caption than they strictly need, which is invisible; the reverse (a caption
+#' tuned for 12in on a 10in canvas) clips.
+wp_caption <- function(note = NULL, source = CRDC_SOURCE, max_in = 9.5, size = 12) {
+  paste(c(
+    if (!is.null(note)) .wp_wrap_fit(paste0("Note: ", note), max_in, size),
+    .wp_wrap_fit(paste0("Source: ", source), max_in, size)
+  ), collapse = "\n")
+}
+
+#' Caption styling, shared so all eight figures render provenance identically.
+#' plot.caption.position = "plot" left-aligns to the canvas edge rather than the
+#' panel, which is what makes it read as a footer instead of an axis annotation.
+wp_caption_theme <- function(size = 12) {
+  ggplot2::theme(
+    plot.caption = ggplot2::element_text(size = size, hjust = 0, lineheight = 0.95,
+                                         colour = "grey25"),
+    plot.caption.position = "plot")
+}
 
 #' Agresti-Coull approximate interval for a rare-event rate. Returns
 #' c(ci_upper, ci_lower, sd, phat_se, phat) (matches supplement.qmd).
@@ -214,10 +304,14 @@ wp_fig_district_intervals <- function(con, rdata, focal_dist, subtitle,
     ggplot2::coord_flip() +
     ggplot2::labs(title = stringr::str_wrap(
       paste0("Predicted arrests 95% interval for ", dist_name), title_wrap),
-      y = "Predicted arrests", x = "Model type", color = "", subtitle = subtitle) +
-    ggridges::theme_ridges(grid = grid, font_size = 24) +
+      y = "Predicted arrests", x = "Model type", color = "", subtitle = subtitle,
+      # The figure-specific note is already carried by `subtitle` (passed per
+      # district from the qmd), so the caption is the source line alone.
+      caption = wp_caption()) +
+    ggridges::theme_ridges(grid = grid, font_size = 14) +
     ggplot2::theme(legend.position = "bottom",
-      axis.text.y = ggplot2::element_text(angle = 90, hjust = 0.25))
+      axis.text.y = ggplot2::element_text(angle = 90, hjust = 0.25)) +
+    wp_caption_theme()
 }
 
 # One binline-ridge panel for the zero-arrest distribution figure.
@@ -240,11 +334,11 @@ wp_fig_district_intervals <- function(con, rdata, focal_dist, subtitle,
         y = group + (0.9 * ggplot2::after_stat(count / max(count))),
         label = ifelse(ggplot2::after_stat(count) > 25,
                        pretty_per(ggplot2::after_stat(count / ndraws)), "")),
-      nudge_y = 0, vjust = -0.25, size = 6, color = "black", binwidth = 1) +
+      nudge_y = 0, vjust = -0.25, size = 3.5, color = "black", binwidth = 1) +
     ysc +
     ggplot2::scale_x_continuous(breaks = xbreaks, limits = xlimits,
       expand = ggplot2::expansion(add = c(0.25, 1), mult = c(0, 0.2))) +
-    ggridges::theme_ridges(grid = FALSE, font_size = 24) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 14) +
     ggplot2::labs(title = title, subtitle = subtitle, x = xlab, y = ylab) +
     ggplot2::theme(axis.text.y = ggplot2::element_text(angle = 90, hjust = -0.5))
 }
@@ -270,12 +364,14 @@ wp_fig_zero_distribution <- function(con, rdata, focal_dist) {
     "One year models", "Covariates", 0:8, c(-0.5, 8), xlab = "Predicted Arrests")
   p2 + p1 + p4 + p3 + patchwork::plot_annotation(
     title = paste0("All model draws for ", dist_name),
-    caption = paste0("Observed arrests in 2021-22 are 0.\n",
-      "Arrests are top-coded at 16 or more for visual clarity.\n",
-      "Values with fewer than 5% predicted likelihood are not labeled."),
+    # size = 18 must match wp_caption_theme(18) below -- the wrap is measured at
+    # the size the text is actually drawn at.
+    caption = wp_caption(note = paste0(
+      "Observed arrests in 2021-22 are 0. Arrests are top-coded at 16 or more ",
+      "for visual clarity. Values with fewer than 5% predicted likelihood are ",
+      "not labeled.")),
     subtitle = "Frequency of predicted arrests from 500 draws of posterior for each model",
-    theme = ggplot2::theme(plot.caption = ggplot2::element_text(size = 18, hjust = 0,
-                                                                lineheight = 0.9)))
+    theme = wp_caption_theme())
 }
 
 #' Fig 5: predicted-arrest probability-density intervals with the 95% highest
@@ -331,11 +427,15 @@ wp_fig_hpd_ridges <- function(con, rdata, focal_dist) {
       x = "Predicted arrests", y = "Model type",
       subtitle = stringr::str_wrap(paste0("Frequentist rate and interval shown in ",
         "purple. Colored fill represents the 95% highest posterior density for ",
-        "each model, shaded to emphasize number of arrests."), 70)) +
-    ggridges::theme_ridges(grid = FALSE, font_size = 24) +
+        "each model, shaded to emphasize number of arrests."), 70),
+      caption = wp_caption(note = paste0(
+        "The highest posterior density region is the narrowest interval ",
+        "containing 95% of the posterior draws."))) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 14) +
     ggplot2::theme(legend.position = "bottom",
       panel.grid.major.y = ggplot2::element_line(color = "gray50"),
-      axis.text.y = ggplot2::element_text(angle = 90, hjust = -0.5))
+      axis.text.y = ggplot2::element_text(angle = 90, hjust = -0.5)) +
+    wp_caption_theme()
 }
 
 # Shared Clark-County group data (Figs 6 & 7): male BL/WH/HI draws + observed.
@@ -361,9 +461,17 @@ wp_fig_hpd_ridges <- function(con, rdata, focal_dist) {
 }
 
 # One race-density-ridge panel (used by Figs 6 & 7).
+#
+# y_angle: rotation of the model labels on the y axis. 90 (the default) reads
+# bottom-to-top and is fine when this panel owns the full figure height, as in
+# Fig 6. In Fig 7 the same panel is stacked over a second plot and gets half the
+# height, which halves the row spacing -- a rotated label is as tall as the text
+# is long, so adjacent labels collided into "StratifiedUnified Model:1". Pass 0
+# there: an unrotated label only needs its line height, which fits regardless of
+# how tight the rows get.
 .wp_group_density_plot <- function(plot_draws, obsv_plot, dist_name, subtitle,
                                    races = c("BL", "WH", "HI"), title_wrap = 120,
-                                   font_size = 24) {
+                                   font_size = 14, y_angle = 90) {
   g <- ggplot2::ggplot(dplyr::filter(plot_draws, RACE %in% races),
       ggplot2::aes(x = (pred / (enroll / 1000)), color = RACE, fill = RACE, y = model_id)) +
     ggridges::geom_density_ridges(scale = 0.9, rel_min_height = 0.01, alpha = 1/5,
@@ -393,15 +501,21 @@ wp_fig_hpd_ridges <- function(con, rdata, focal_dist) {
     ggplot2::coord_cartesian(clip = "off") +
     ggridges::theme_ridges(grid = FALSE, font_size = font_size) +
     ggplot2::theme(legend.position = "bottom",
-      axis.text.y = ggplot2::element_text(angle = 90, hjust = -0.5))
+      axis.text.y = ggplot2::element_text(
+        angle = y_angle, hjust = if (y_angle == 0) 1 else -0.5))
 }
 
 #' Fig 6: arrest-rate posterior density by race (male BL/WH/HI) for one district
 #' (Clark County NV) vs the frequentist point interval.
 wp_fig_group_density <- function(con, rdata, focal_dist) {
   d <- .wp_group_data(con, rdata, focal_dist)
+  # Provenance is stamped here rather than inside .wp_group_density_plot(),
+  # which is reused as a sub-panel of wp_fig_group_difference() -- stamping it
+  # in the shared helper would print the source line twice on that figure.
   .wp_group_density_plot(d$plot_draws, d$obsv_plot, d$dist_name,
-    subtitle = "Male students. Frequentist interval shown as point range.")
+    subtitle = "Male students. Frequentist interval shown as point range.") +
+    ggplot2::labs(caption = wp_caption()) +
+    wp_caption_theme()
 }
 
 #' Fig 7: Hispanic-White male arrest-rate disparity (Clark County NV): the
@@ -425,12 +539,12 @@ wp_fig_group_difference <- function(con, rdata, focal_dist) {
     ggplot2::scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
       guide = ggplot2::guide_none()) +
     ggplot2::geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
-    ggplot2::geom_text(data = annotate_df, size = 4.5,
+    ggplot2::geom_text(data = annotate_df, size = 2.7,
       position = ggplot2::position_nudge(y = 0.4, x = 0),
       ggplot2::aes(y = model_id, x = diffv,
         label = paste0("Pr(", "Δ", "> 0): ", pretty_per(diff_per)))) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggridges::theme_ridges(grid = FALSE, font_size = 20) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 12) +
     ggplot2::labs(x = "Arrest rate per 1,000", title = stringr::str_wrap(
       paste0("Model estimated difference (", "Δ",
         ") between Hispanic and White student arrest rates in ", d$dist_name), 90),
@@ -440,11 +554,17 @@ wp_fig_group_difference <- function(con, rdata, focal_dist) {
     ggplot2::facet_wrap(add_model_cov(model_id) ~ add_model_time(model_id),
                         strip.position = "top", scales = "free_y") +
     ggplot2::theme(legend.position = "bottom",
-      axis.text.y = ggplot2::element_text(angle = 90, hjust = 0.25))
+      # Unrotated: this figure stacks two plots into one canvas, so each gets
+      # half the row spacing and rotated labels overlap. See .wp_group_density_plot().
+      axis.text.y = ggplot2::element_text(angle = 0, hjust = 1))
   p2 <- .wp_group_density_plot(plot_draws, d$obsv_plot, d$dist_name,
     subtitle = "Male students only. Frequentist interval shown by point interval.",
-    races = c("WH", "HI"), title_wrap = 90, font_size = 20)
-  p2 / p1
+    races = c("WH", "HI"), title_wrap = 90, font_size = 12, y_angle = 0)
+  (p2 / p1) + patchwork::plot_annotation(
+    caption = wp_caption(note = paste0(
+      "Pr(", "Δ", " > 0) is the share of posterior draws in which the ",
+      "Hispanic male arrest rate exceeds the White male rate.")),
+    theme = wp_caption_theme())
 }
 
 # Shared 4-group state data for Fig 8 + Table 1 (AK/CO, Black/Amer.Ind, M/F).
@@ -503,11 +623,16 @@ wp_fig_state_differences <- function(con, rdata) {
     ggplot2::scale_fill_manual(values = c("#d55c00a9", "#0071b2c5"),
       labels = function(x) print_model_name(x, lbreak = FALSE)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggridges::theme_ridges(grid = FALSE, font_size = 20) +
+    ggridges::theme_ridges(grid = FALSE, font_size = 12) +
     ggplot2::labs(x = "Arrests per 1,000", y = "", fill = "Model",
-      title = "Bayesian modeled arrest rate predictions for selected state demographic groups") +
+      title = "Bayesian modeled arrest rate predictions for selected state demographic groups",
+      subtitle = "Posterior density per 1,000 enrolled students; frequentist rate and interval shown as point range") +
     ggplot2::theme(legend.position = "bottom",
-      axis.text.y = ggplot2::element_text(angle = 90, hjust = 0.5))
+      # Unrotated. These labels are the longest in the paper ("AK Amer. Indian /
+      # Alaska Native Male"), and rotated they ran into each other badly enough
+      # to read as one string. This panel is the top third of a stacked figure,
+      # so there is no row spacing to spare.
+      axis.text.y = ggplot2::element_text(angle = 0, hjust = 1))
   diff_panel <- function(ids, label_a, label_b, ann_x, ann_label, ttl, sub = NULL,
                          from = -1.25, to = NULL) {
     da <- pd |> dplyr::filter(rowid %in% ids, model_id %in% two) |>
@@ -532,12 +657,12 @@ wp_fig_state_differences <- function(con, rdata) {
       ggplot2::scale_fill_distiller(name = "Diff.", direction = 1, palette = "YlOrRd",
         guide = ggplot2::guide_none()) +
       ggplot2::geom_vline(xintercept = 0, linetype = 3, color = I("red"), linewidth = 2) +
-      ggplot2::geom_text(data = ann, size = 7.5,
+      ggplot2::geom_text(data = ann, size = 4.5,
         position = ggplot2::position_nudge(y = 0.5, x = 0),
         ggplot2::aes(y = model_id, x = diffv,
           label = paste0(ann_label, "\n", pretty_per(diff_per)))) +
       ggplot2::coord_cartesian(clip = "off") +
-      ggridges::theme_ridges(grid = FALSE, font_size = 20) +
+      ggridges::theme_ridges(grid = FALSE, font_size = 12) +
       ggplot2::labs(x = "Arrest rate per 1,000", y = "",
         title = stringr::str_wrap(ttl, 55), subtitle = sub) +
       ggplot2::scale_y_discrete(labels = function(x) print_model_name(x, lbreak = TRUE),
@@ -552,7 +677,12 @@ wp_fig_state_differences <- function(con, rdata) {
   p3 <- diff_panel(c("AK-AM-M", "AK-BL-M"), "AK-AM-M", "AK-BL-M", 1.25,
     "Pr( Amer. Ind > Black):",
     "Difference between Black and American Indian / Alaska Native male students within Alaska")
-  p1 / (p2 + p3)
+  (p1 / (p2 + p3)) + patchwork::plot_annotation(
+    caption = wp_caption(note = paste0(
+      "The four groups shown are those highlighted in Table 1. Probabilities are ",
+      "the share of posterior draws in which the first group's rate exceeds the ",
+      "second's.")),
+    theme = wp_caption_theme())
 }
 
 #' Table 1: frequentist Agresti-Coull arrest rates per 1,000 for the four
@@ -615,9 +745,15 @@ wp_fig_national_rates <- function(crdc_y2122) {
     ggplot2::scale_fill_manual(values = c("M" = "#000a9bff", "F" = "#00ab17f1"),
       labels = c("M" = "Male", "F" = "Female")) +
     ggplot2::labs(title = "National arrest rates by select student groups, 2021-22",
-      x = "", y = "Arrests per 1,000 students", fill = "Sex") +
-    ggridges::theme_ridges(grid = TRUE, font_size = 22) +
-    ggplot2::theme(legend.position = "bottom")
+      subtitle = "School-related arrests per 1,000 enrolled students, by race/ethnicity and sex",
+      x = "", y = "Arrests per 1,000 students", fill = "Sex",
+      caption = wp_caption(
+        note = paste0("Covers the four largest race/ethnicity groups reported in ",
+                      "the CRDC. Asian, Hawaiian/Pacific Islander, and multiracial ",
+                      "students are not shown."))) +
+    ggridges::theme_ridges(grid = TRUE, font_size = 13) +
+    ggplot2::theme(legend.position = "bottom") +
+    wp_caption_theme()
 }
 
 #' Render a parameterized Quarto template for one year-wave in isolation.

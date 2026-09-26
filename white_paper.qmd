@@ -5,6 +5,13 @@ author:
     affiliation: "Civilytics Consulting"
   - name: "Hannah Miller"
     affiliation: "Civilytics Consulting"
+# The paper's own date, not the date it was posted to the web. It drives the
+# PDF title page and the Quarto title block; the site bundle's posting date is
+# set separately in scripts/publish_white_paper.R. The author/date lines that
+# used to sit at the top of the body (a leftover from the Word port) were
+# removed -- all three outputs now render them from this metadata instead.
+date: "2025-09-01"
+date-format: "MMMM YYYY"
 format:
   html:
     theme: theme/civilytics.scss
@@ -12,7 +19,40 @@ format:
     toc: true
     toc-location: right
     embed-resources: true
-bibliography: "inst/AERA CRDC Proposal.bib"
+  pdf:
+    # Brand preamble + title page. BOTH go in the header: pandoc places
+    # include-before-body AFTER \maketitle, so putting the title page there
+    # would print Quarto's default title block and then ours underneath it.
+    # civilytics-title.tex redefines \maketitle instead.
+    include-in-header:
+      - latex/civilytics.tex
+      - latex/civilytics-title.tex
+      # Short form for the running header. The full title is 90 characters and
+      # wraps to two lines up there; see the \cvrunninghead note in
+      # latex/civilytics.tex.
+      - text: |
+          \renewcommand{\cvrunninghead}{Equity Analysis at a Large Scale}
+    pdf-engine: xelatex          # required: the preamble uses fontspec
+    toc: true
+    toc-depth: 3
+    number-sections: false
+    fig-pos: "H"                 # keep figures with the prose that discusses them
+    keep-tex: true               # so LaTeX errors are diagnosable
+  hugo-md:
+    # Web output for civilytics.com. Shortcodes are left untouched by this
+    # writer, which is what scripts/publish_white_paper.R relies on.
+    #
+    # mathml.lua pre-renders the paper's ~28 LaTeX expressions to MathML.
+    # civilytics.com has no math renderer, and MathML avoids vendoring KaTeX
+    # (~300 KB of JS plus font files, and a CSP amendment) into the site repo.
+    # See the filter's header for the full rationale.
+    filters:
+      - scripts/mathml.lua
+# NOTE: there is deliberately no `bibliography:` key. The paper contains zero
+# Quarto @citekeys -- all 18 in-text citations are literal text and the 35-entry
+# reference list is hand-maintained markdown. Declaring a bibliography implied a
+# citation pipeline that was not running. The .bib is retained at
+# inst/AERA CRDC Proposal.bib for a possible future conversion.
 execute:
   echo: false
   warning: false
@@ -83,12 +123,6 @@ whf_rate <- .byrs$rate[.byrs$RACE == "WH" & .byrs$SEX == "F"]
 .rt  <- function(x) sprintf("%.2f", x)
 ```
 
-Jared Knowles, Civilytics Consulting
-
-Hannah Miller, Civilytics Consulting
-
-September 2025
-
 **Abstract**:
 
 School-based punishment and discipline can be enormously consequential for students' lives. Researchers have documented racial disparities in all outcomes along the school punishment continuum with Black students overrepresented among those experiencing every form of school punishment, including school-based arrests. To date, most public-facing analyses of school-based arrests focus on observed counts or rates with some exclusion restrictions based on sample size. These analyses quickly draw attention to outliers (some of which are data errors) and have limited use in making direct geographic, demographic, or temporal comparisons. Bayesian hierarchical models of rare events have been used to improve accuracy of rate estimates in a wide variety of fields. We show that by using this strategy we can greatly increase the ability to draw comparisons in arrest rates by increasing the rates' precision. We evaluate the tradeoffs of several different model specifications of arrest rates in terms of precision and coverage and include applied examples of using model predictions to make informed comparisons.
@@ -115,9 +149,9 @@ We explore the use of similar strategies to better measure rare event arrest rat
 
 Some actions necessitate excluding students from the school environment at least temporarily, and perhaps even arresting them for the safety of other students and staff. However, relatively few school-based arrests are for these serious actions. Several studies have found that over three-quarters of school-based arrests are for fighting or disorderly conduct and that serious crimes, such as robbery with a weapon or sexual assault, are quite rare in schools (Na & Gottfredson, 2013; Whitaker et al., 2019; Wolf, 2013).
 
-Research shows that school-related arrests and exclusionary discipline affect the academic achievement of not only students who are punished but also their peers, even after controlling for schools' overall levels of violence and disorganization (Perry & Morris, 2014). For example, students assigned to middle schools with a one standard deviation higher suspension rate are 15% more likely to drop out of school, 11% less likely to attend a four-year college, and 17% more likely to be arrested between ages 16-21, controlling for a range of factors (Bacher-Hicks et al. 2021). Perry and Morris (2014) call these the "collateral consequences" of discipline and theorize they result from a heightened sense of anxiety among students, decreased trust between students and staff, and disruption of the school community.
+Research shows that school-related arrests and exclusionary discipline affect the academic achievement of not only students who are punished but also their peers, even after controlling for schools' overall levels of violence and disorganization (Perry & Morris, 2014). For example, students assigned to middle schools with a one standard deviation higher suspension rate are 15% more likely to drop out of school, 11% less likely to attend a four-year college, and 17% more likely to be arrested between ages 16-21, controlling for a range of factors (Bacher-Hicks et al. 2024). Perry and Morris (2014) call these the "collateral consequences" of discipline and theorize they result from a heightened sense of anxiety among students, decreased trust between students and staff, and disruption of the school community.
 
-Racial disparities in school-based arrest rates have been repeatedly demonstrated using prior waves of the CRDC, including the 2015-16, 2017-18, and 2020-21 data collections, and using state-specific data sources (Darling-Hammond and Ho 2024; Whitaker et al. 2019; Wilson et al. 2025; Wolf 2013). Examining both the 2017-18 and 2020-21 data collections and measuring Black overrepresentation across six types of punishment (in-school suspension, out-of-school suspension, expulsion, corporal punishment, referral to law enforcement, school-related arrest) and with multiple comparison groups, Darling-Hammond and Ho (2024) find that Black students are overrepresented among those disciplined in 99% of the estimates.
+Racial disparities in school-based arrest rates have been repeatedly demonstrated using prior waves of the CRDC, including the 2015-16, 2017-18, and 2020-21 data collections, and using state-specific data sources (Darling-Hammond and Ho 2024; Whitaker et al. 2019; Welsh et al. 2025; Wolf 2013). Examining both the 2017-18 and 2020-21 data collections and measuring Black overrepresentation across six types of punishment (in-school suspension, out-of-school suspension, expulsion, corporal punishment, referral to law enforcement, school-related arrest) and with multiple comparison groups, Darling-Hammond and Ho (2024) find that Black students are overrepresented among those disciplined in 99% of the estimates.
 
 Of course, both arrest rates and disparities vary across place. Studies have examined how arrest rates vary by state, district, county-level racial bias, and whether schools have police (Riddle & Sinclair, 2019; Weisburst, 2019; Whitaker et al., 2019). Anticipating that the federal government will move backwards on issues of school discipline (Williams & Wiley, 2025), and recognizing that a narrative of a "youth crime wave" (outstripping actual available data on youth offenses) has taken hold (Knight et al., 2024; Stephens, 2024), it is potentially more important than ever to accurately identify patterns of school-based arrests and inequalities at the local and state level. Systematic data collection and academic research have much to contribute to limiting the number of arrests in schools and reducing racial disparities, but the impact of this work on local activism is impeded by uncertainty in how to use existing measures of school-based arrests comparatively to understand disparities, geographic patterns, and trends beyond the descriptive counts reported.
 
@@ -193,7 +227,7 @@ We divide our investigation into two parts: 1) fitting unified models to the ent
   5                                X                           X                   X                    X
   -----------------------------------------------------------------------------------------------------------------
 
-  : Table 2: Model specification summary
+  : Model specification summary {#tbl-model-specs}
 
 For all models, we use a repeated measures structure where each combination of race and sex constitutes a row in the dataset and the number of students arrested and students enrolled in that group represent our binomial outcome. We then model the arrest outcome as $g(y_{i}) \sim Binomial\left( n_{i},\text{ }\text{ }\pi_{i} \right)$ where $y_{i}$ is the observed number of arrests in the student group within the school district, $n_{i}$ is the number of students in that student group, and $\pi_{i}$ is the estimated arrest rate.[^14]
 
@@ -378,7 +412,7 @@ Overall, looking at the full sample, we can conclude that the modeling "worked" 
 
 ```{r}
 #| label: tbl-coverage-full
-#| tbl-cap: "Table 3: Model results for full sample"
+#| tbl-cap: "Model results for full sample"
 cov_obs |>
   dplyr::group_by(model_id) |>
   dplyr::summarize(
@@ -411,7 +445,7 @@ In other words, in this sample, we can trade some coverage for much greater prec
 
 ```{r}
 #| label: tbl-coverage-arrest
-#| tbl-cap: "Table 4: Model results for sample of district-student groups with an observed arrest"
+#| tbl-cap: "Model results for sample of district-student groups with an observed arrest"
 cov_obs |>
   dplyr::filter(ARRESTS > 0) |>
   dplyr::group_by(model_id) |>
@@ -445,7 +479,7 @@ Among the multiyear models 3-5, the pattern of coverage is similar with adding a
 
 ```{r}
 #| label: tbl-coverage-most
-#| tbl-cap: "Table 5: Model results for 100 districts with most total arrests"
+#| tbl-cap: "Model results for 100 districts with most total arrests"
 cov_obs |>
   dplyr::filter(LEAID %in% bigarr_ids) |>
   dplyr::group_by(model_id) |>
@@ -477,7 +511,7 @@ We evaluate how each of our model specifications approach this problem. In the t
 
 ```{r}
 #| label: tbl-missing-arrests
-#| tbl-cap: "Table 6: Model results for 100 districts with largest student enrollments but no arrests"
+#| tbl-cap: "Model results for 100 districts with largest student enrollments but no arrests"
 noarr_ids <- rdata |>
   dplyr::filter(YEAR == "21-22") |>
   dplyr::group_by(LEAID) |>
@@ -664,9 +698,15 @@ Full details and access to the code used to process the data, fit the models, an
 
 ## References
 
+```{=latex}
+\cvrefsbegin
+```
+
 Agresti, A., & Coull, B. A. (1998). Approximate Is Better than "Exact" for Interval Estimation of Binomial Proportions. *The American Statistician*, *52*(2), 119--126. https://doi.org/10.2307/2685469
 
 Bacher-Hicks, A., Billings, S., & Deming, D. (2019). *The School to Prison Pipeline: Long-Run Impacts of School Suspensions on Adult Crime* (No. w26257; p. w26257). National Bureau of Economic Research. https://doi.org/10.3386/w26257
+
+Bacher-Hicks, Andrew, Stephen B. Billings, and David J. Deming. 2024. "The School-to-Prison Pipeline: Long-Run Impacts of School Suspensions on Adult Crime." *American Economic Journal: Economic Policy* 16 (4): 165–93.
 
 Bell, W. R., Basel, W. W., & Maples, J. J. (2016). An Overview of the U.S. Census Bureau's Small Area Income and Poverty Estimates Program. In *Analysis of Poverty Data by Small Area Estimation* (pp. 349--378). John Wiley & Sons, Ltd. https://doi.org/10.1002/9781118814963.ch19
 
@@ -743,6 +783,10 @@ Wolf, K. C. (2013). Booking Students: An Analysis of School Arrests and Court Ou
 Yang, M., Khan, F. I., & Lye, L. (2013). Precursor-based hierarchical Bayesian approach for rare event frequency estimation: A case of oil spill accidents. *Process Safety and Environmental Protection*, *91*(5), 333--342. https://doi.org/10/gn67rz
 
 Zhang, Z., Zhang, L., Penman, A., & May, W. (2011). Using Small-Area Estimation Method to Calculate County-Level Prevalence of Obesity in Mississippi, 2007-2009. *Preventing Chronic Disease*, *8*(4), A85.
+
+```{=latex}
+\cvrefsend
+```
 
 [^1]: The 2023-24 CRDC data collection was expected to be completed by summer 2025, with data released in 2026 (U.S. Department of Education n.d.) but there is concern that the data may not be prepared and released as planned (MCR News 2025).
 

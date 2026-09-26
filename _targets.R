@@ -747,8 +747,13 @@ list(
     {
       force(stage_inputs); force(stage_crdc)
       force(model_stats_artifact); force(draws_parquet)
+      # output_format is pinned because white_paper.qmd now declares three
+      # formats (html, pdf, hugo-md). Without it quarto renders all three and
+      # then rejects output_file as ambiguous. The PDF and the Hugo markdown are
+      # built on demand by scripts/publish_white_paper.R, not by this target.
       withr::with_envvar(c(CRDC_ARTIFACTS = "export"),
-        quarto::quarto_render("white_paper.qmd", output_file = "white_paper.html"))
+        quarto::quarto_render("white_paper.qmd", output_format = "html",
+                              output_file = "white_paper.html"))
       "white_paper.html"
     },
     format = "file",
@@ -760,8 +765,13 @@ list(
       force(stage_inputs); force(stage_crdc)
       force(model_stats_artifact); force(hmc_diagnostics_artifact)
       force(unified_fits_artifact); force(draws_parquet)
+      # output_format is pinned because supplement.qmd now declares two formats
+      # (html, hugo-md). Without it quarto renders both and then rejects
+      # output_file as ambiguous. The Hugo markdown is built on demand by
+      # scripts/publish_supplement.R, not by this target.
       withr::with_envvar(c(CRDC_ARTIFACTS = "export"),
-        quarto::quarto_render("supplement.qmd", output_file = "supplement.html"))
+        quarto::quarto_render("supplement.qmd", output_format = "html",
+                              output_file = "supplement.html"))
       "supplement.html"
     },
     format = "file",
