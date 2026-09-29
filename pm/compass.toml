@@ -1,0 +1,53 @@
+[project]
+name  = "crdc-arrests"
+forge = "jared/crdc-arrests"
+
+[[workstream]]
+id    = "data"
+title = "CRDC and CCD ingest and cleaning"
+paths = ["_targets.R", "R/funs.R", "R/crosswalk.R", "R/district_dim.R",
+         "R/download_crdc_files.R", "setup.R", "_packages.R"]
+docs  = ["DOWNLOAD_GUIDE.md", "docs/data-stages.md", "REPRODUCIBILITY.md"]
+
+[[workstream]]
+id    = "models"
+title = "Bayesian models and draws"
+paths = ["_targets.R", "R/model_registry.R", "R/postprocess.R", "R/summarize_draws.R",
+         "R/stage_artifacts.R", "R/db_views_experimental.R",
+         "scripts/smoke-pipeline.sh", "scripts/kill-stan-chains.sh"]
+docs  = ["docs/models.md", "REPRODUCIBILITY.md"]
+
+[[workstream]]
+id    = "api"
+title = "Estimates API and docs site"
+paths = ["api/**", "deploy/**", ".gitea/workflows/deploy.yml",
+         "R/build_api_artifacts.R", "scripts/publish_docs.R"]
+docs  = ["docs/api/**", "api/llms.txt"]
+
+[[workstream]]
+id    = "release"
+title = "Published artifacts: HF dataset, tags, stages"
+paths = ["R/export_parquet.R", "R/publish_stages.R", "R/crdc_path.R",
+         "scripts/publish_all.R", "scripts/publish_db.R", "scripts/publish_hf.R",
+         "scripts/build_stages_local.R", "scripts/cache-artifacts.sh", "CITATION.cff"]
+docs  = ["docs/hf-dataset-card.md", "docs/data-stages.md", "README.md"]
+
+[[workstream]]
+id    = "writing"
+title = "Paper, supplement, reports and posts"
+paths = ["white_paper.qmd", "supplement.qmd", "*_template.qmd", "social_media_posts.qmd",
+         "R/paper_figures.R", "R/branding.R", "R/export_hugo_posts.R",
+         "scripts/check_paper_figures.R", "scripts/render-artifacts.sh",
+         "theme/**", "typst/**", "latex/**", "assets/**"]
+docs  = ["docs/social-media-post-map.md"]
+
+[roborev]
+project_guidelines = [
+  "CRDC reserve codes go through crdc_sub() / crdc_sub_1516(). Only -9 (not applicable/skipped) may become 0; -3, -5, -6, -7, -11 and -13 are missing and must stay NA -- flag any sum(..., na.rm = TRUE) or na_zero() that would turn them into zero arrests or referrals.",
+  "The recent-year sample comes from the single RECENT_YEAR constant. Flag any hard-coded wave string (\"21-22\", \"23-24\") or per-year list outside the crdc_data tibble in _targets.R.",
+  "CRDC-to-CCD joins go through the Appendix K crosswalk (R/crosswalk.R). A direct COMBOKEY = ncessch join silently drops New York City's schools.",
+  "Aggregates across districts or states, including the NYC citywide total, are computed draw-wise before summarizing. Never sum medians or interval bounds.",
+  "Any change that alters published numbers needs a new data_release; never reuse or move an existing release tag, and every API response carries meta.data_release.",
+  "Quarto documents read published artifacts through crdc_path(), never tar_read(), tar_load() or the local DuckDB.",
+  "A filter or join that drops rows from CRDC or model data logs how many it dropped and why.",
+]

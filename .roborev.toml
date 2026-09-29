@@ -1,0 +1,49 @@
+# roborev configuration, initialised by compass.
+# Reviews are queued to a background daemon -- they never block a commit.
+
+post_commit_review = 'commit'
+excluded_commit_patterns = ['WIP', 'chore:', 'chore(', 'docs:', "Merge branch '", "Merge remote-tracking branch '", 'Merge pull request #', "Merge pull request '"]
+
+review_guidelines = '''
+# --- compass:begin (generated -- edit the sources, not this) ---
+- Prefer returning new values to mutating arguments in place. A function that edits
+  its caller's object is a bug waiting for a second caller.
+- Validate at system boundaries -- user input, API responses, file contents, config.
+  Fail fast with a message naming the field and the file.
+- Never swallow an error. Handle it or let it propagate; a bare catch that continues
+  is worse than a crash.
+- No hardcoded secrets, tokens, or credentials, and no secrets in log output or error
+  messages.
+- Parameterise every query. String-built SQL is a defect even when the input looks safe.
+- Keep functions under roughly 50 lines and files under roughly 400. Flag nesting
+  deeper than four levels.
+- No magic numbers or hardcoded paths -- name them as constants or read them from config.
+- New behaviour needs a test. A bug fix needs a test that fails without the fix.
+- Prose a person reads -- an issue title or body, a journal entry, a decision record,
+  the narrative on the status board -- names the action or the thing, not the shape of
+  the machinery. Flag "gate", "seam", "surface area", "load-bearing", "first-class",
+  "primitive", "blast radius". A project's own defined vocabulary is not the target.
+- Use the native pipe `|>`, not magrittr `%>%`.
+- snake_case for objects and functions; UPPER_SNAKE for constants. Never use `.` as a
+  word separator in a function name -- it collides with S3 dispatch.
+- Validate arguments at the top of exported functions with `stopifnot()` or an explicit
+  check, and say which argument was wrong.
+- Never `setDT()`, `set()`, or otherwise modify by reference a data.table the caller
+  still owns. `as.data.table()` copies; use it.
+- Prefer `vapply()` to `sapply()` -- `sapply()` silently returns a list when the type
+  varies, which turns a type error into a downstream mystery.
+- Use `seq_len(n)` / `seq_along(x)`, never `1:n`, which iterates backwards when n is 0.
+- Compare strings with `==` only after checking for NA; use `identical()` for scalars
+  where NA would be wrong.
+- Do not call `library()` inside package or module files; attach packages in scripts and
+  test helpers only.
+- Namespace-qualify calls into other packages (`stats::sd`) in code that is sourced.
+- CRDC reserve codes go through crdc_sub() / crdc_sub_1516(). Only -9 (not applicable/skipped) may become 0; -3, -5, -6, -7, -11 and -13 are missing and must stay NA -- flag any sum(..., na.rm = TRUE) or na_zero() that would turn them into zero arrests or referrals.
+- The recent-year sample comes from the single RECENT_YEAR constant. Flag any hard-coded wave string ("21-22", "23-24") or per-year list outside the crdc_data tibble in _targets.R.
+- CRDC-to-CCD joins go through the Appendix K crosswalk (R/crosswalk.R). A direct COMBOKEY = ncessch join silently drops New York City's schools.
+- Aggregates across districts or states, including the NYC citywide total, are computed draw-wise before summarizing. Never sum medians or interval bounds.
+- Any change that alters published numbers needs a new data_release; never reuse or move an existing release tag, and every API response carries meta.data_release.
+- Quarto documents read published artifacts through crdc_path(), never tar_read(), tar_load() or the local DuckDB.
+- A filter or join that drops rows from CRDC or model data logs how many it dropped and why.
+# --- compass:end ---
+'''

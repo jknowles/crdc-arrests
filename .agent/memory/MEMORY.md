@@ -1,0 +1,3 @@
+- [Check prior-wave CRDC docs](crdc-check-prior-wave-docs.md) — diff prior wave's manual/workbook/form before calling a coding pattern "new"
+- [NYC missing from 2025.1 models](crdc-nyc-missing-from-models.md) — CCD join drops NYC (3620580) in every wave; crosswalk + imputation planned for 2026.1
+- [PM artifacts live in pm/](pm-vs-docs.md) — plans, journal, decisions go in pm/; docs/ is for human-facing documentation

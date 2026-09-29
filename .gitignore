@@ -41,3 +41,6 @@ renv/staging/
 /scripts/publish_newsletter.R
 /scripts/publish_white_paper.R
 /scripts/publish_supplement.R
+.compass-cache/
+# roborev snapshots
+/.roborev/
